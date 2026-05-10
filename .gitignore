@@ -27,7 +27,7 @@ Package.resolved
 *~
 
 # Per-developer xcconfig (provides DEVELOPMENT_TEAM via Base.xcconfig)
-Local.xcconfig
+config/Local.xcconfig
 
 # Apple secrets — should never be in the repo
 AuthKey_*.p8

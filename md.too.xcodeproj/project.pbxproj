@@ -7,12 +7,40 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		1A2B3C4D5300000000000001 /* Markdown.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A2B3C4D5200000000000001 /* Markdown.swift */; };
-		1A2B3C4D5300000000000002 /* Markdown.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A2B3C4D5200000000000001 /* Markdown.swift */; };
-		1A2B3C4D5300000000000003 /* Markdown.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A2B3C4D5200000000000001 /* Markdown.swift */; };
+		1A2B3C4D5300000000000001 /* MarkdownParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A2B3C4D5200000000000001 /* MarkdownParser.swift */; };
+		1A2B3C4D5300000000000002 /* MarkdownParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A2B3C4D5200000000000001 /* MarkdownParser.swift */; };
+		1A2B3C4D5300000000000003 /* MarkdownParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A2B3C4D5200000000000001 /* MarkdownParser.swift */; };
 		1A2B3C4D530000000000000E /* PDFRenderer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A2B3C4D520000000000000F /* PDFRenderer.swift */; };
 		1A2B3C4D530000000000000F /* PDFRenderer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A2B3C4D520000000000000F /* PDFRenderer.swift */; };
 		1A2B3C4D5300000000000010 /* QuickLook.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A2B3C4D5200000000000010 /* QuickLook.swift */; };
+		1A2B3C4D5300000000000011 /* Bridges-macOS.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A2B3C4D5200000000000011 /* Bridges-macOS.swift */; };
+		1A2B3C4D5300000000000012 /* Bridges-macOS.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A2B3C4D5200000000000011 /* Bridges-macOS.swift */; };
+		1A2B3C4D5300000000000013 /* Bridges-iOS.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A2B3C4D5200000000000012 /* Bridges-iOS.swift */; };
+		1A2B3C4D5300000000000014 /* Platform.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A2B3C4D5200000000000013 /* Platform.swift */; };
+		1A2B3C4D5300000000000015 /* Platform.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A2B3C4D5200000000000013 /* Platform.swift */; };
+		1A2B3C4D5300000000000016 /* Platform.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A2B3C4D5200000000000013 /* Platform.swift */; };
+		1A2B3C4D5300000000000017 /* FontRole.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A2B3C4D5200000000000014 /* FontRole.swift */; };
+		1A2B3C4D5300000000000018 /* FontRole.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A2B3C4D5200000000000014 /* FontRole.swift */; };
+		1A2B3C4D5300000000000019 /* FontRole.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A2B3C4D5200000000000014 /* FontRole.swift */; };
+		1A2B3C4D530000000000001A /* Environment.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A2B3C4D5200000000000015 /* Environment.swift */; };
+		1A2B3C4D530000000000001B /* Environment.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A2B3C4D5200000000000015 /* Environment.swift */; };
+		1A2B3C4D530000000000001C /* Environment.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A2B3C4D5200000000000015 /* Environment.swift */; };
+		1A2B3C4D530000000000001D /* App.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A2B3C4D5200000000000016 /* App.swift */; };
+		1A2B3C4D530000000000001E /* App.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A2B3C4D5200000000000016 /* App.swift */; };
+		1A2B3C4D530000000000001F /* AppShell.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A2B3C4D5200000000000017 /* AppShell.swift */; };
+		1A2B3C4D5300000000000020 /* AppShell.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A2B3C4D5200000000000017 /* AppShell.swift */; };
+		1A2B3C4D5300000000000021 /* Toolbar.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A2B3C4D5200000000000018 /* Toolbar.swift */; };
+		1A2B3C4D5300000000000022 /* Toolbar.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A2B3C4D5200000000000018 /* Toolbar.swift */; };
+		1A2B3C4D5300000000000023 /* Toolbar-macOS.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A2B3C4D5200000000000019 /* Toolbar-macOS.swift */; };
+		1A2B3C4D5300000000000024 /* MarkdownView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A2B3C4D520000000000001A /* MarkdownView.swift */; };
+		1A2B3C4D5300000000000025 /* MarkdownView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A2B3C4D520000000000001A /* MarkdownView.swift */; };
+		1A2B3C4D5300000000000026 /* MarkdownView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A2B3C4D520000000000001A /* MarkdownView.swift */; };
+		1A2B3C4D5300000000000027 /* BlockViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A2B3C4D520000000000001B /* BlockViews.swift */; };
+		1A2B3C4D5300000000000028 /* BlockViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A2B3C4D520000000000001B /* BlockViews.swift */; };
+		1A2B3C4D5300000000000029 /* BlockViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A2B3C4D520000000000001B /* BlockViews.swift */; };
+		1A2B3C4D530000000000002A /* SelectableText.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A2B3C4D520000000000001C /* SelectableText.swift */; };
+		1A2B3C4D530000000000002B /* SelectableText.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A2B3C4D520000000000001C /* SelectableText.swift */; };
+		1A2B3C4D530000000000002C /* SelectableText.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A2B3C4D520000000000001C /* SelectableText.swift */; };
 		1A2B3C4D5300000000000004 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 1A2B3C4D5200000000000007 /* Assets.xcassets */; };
 		1A2B3C4D5300000000000005 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 1A2B3C4D5200000000000007 /* Assets.xcassets */; };
 		1A2B3C4D5300000000000006 /* md.too QuickLook.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 1A2B3C4D520000000000000A /* md.too QuickLook.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
@@ -22,7 +50,6 @@
 		1A2B3C4D530000000000000A /* highlights.ini in Resources */ = {isa = PBXBuildFile; fileRef = 1A2B3C4D520000000000000C /* highlights.ini */; };
 		1A2B3C4D530000000000000B /* highlights.ini in Resources */ = {isa = PBXBuildFile; fileRef = 1A2B3C4D520000000000000C /* highlights.ini */; };
 		1A2B3C4D530000000000000C /* highlights.ini in Resources */ = {isa = PBXBuildFile; fileRef = 1A2B3C4D520000000000000C /* highlights.ini */; };
-		1A2B3C4D530000000000000D /* MarkdownDocIcon.icns in Resources */ = {isa = PBXBuildFile; fileRef = 1A2B3C4D520000000000000D /* MarkdownDocIcon.icns */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -50,7 +77,7 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
-		1A2B3C4D5200000000000001 /* Markdown.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Markdown.swift; sourceTree = "<group>"; };
+		1A2B3C4D5200000000000001 /* MarkdownParser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarkdownParser.swift; sourceTree = "<group>"; };
 		1A2B3C4D5200000000000002 /* Markdown.Preview.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Markdown.Preview.entitlements; sourceTree = "<group>"; };
 		1A2B3C4D5200000000000003 /* QuickLook.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = QuickLook.entitlements; sourceTree = "<group>"; };
 		1A2B3C4D5200000000000004 /* Info-macOS.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "Info-macOS.plist"; sourceTree = "<group>"; };
@@ -62,10 +89,21 @@
 		1A2B3C4D520000000000000A /* md.too QuickLook.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = "md.too QuickLook.appex"; sourceTree = BUILT_PRODUCTS_DIR; };
 		1A2B3C4D520000000000000B /* Highlight.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Highlight.swift; sourceTree = "<group>"; };
 		1A2B3C4D520000000000000C /* highlights.ini */ = {isa = PBXFileReference; lastKnownFileType = text; path = highlights.ini; sourceTree = "<group>"; };
-		1A2B3C4D520000000000000D /* MarkdownDocIcon.icns */ = {isa = PBXFileReference; lastKnownFileType = image.icns; path = MarkdownDocIcon.icns; sourceTree = "<group>"; };
 		1A2B3C4D520000000000000E /* Base.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Base.xcconfig; sourceTree = "<group>"; };
 		1A2B3C4D520000000000000F /* PDFRenderer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PDFRenderer.swift; sourceTree = "<group>"; };
 		1A2B3C4D5200000000000010 /* QuickLook.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuickLook.swift; sourceTree = "<group>"; };
+		1A2B3C4D5200000000000011 /* Bridges-macOS.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Bridges-macOS.swift"; sourceTree = "<group>"; };
+		1A2B3C4D5200000000000012 /* Bridges-iOS.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Bridges-iOS.swift"; sourceTree = "<group>"; };
+		1A2B3C4D5200000000000013 /* Platform.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Platform.swift; sourceTree = "<group>"; };
+		1A2B3C4D5200000000000014 /* FontRole.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FontRole.swift; sourceTree = "<group>"; };
+		1A2B3C4D5200000000000015 /* Environment.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Environment.swift; sourceTree = "<group>"; };
+		1A2B3C4D5200000000000016 /* App.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = App.swift; sourceTree = "<group>"; };
+		1A2B3C4D5200000000000017 /* AppShell.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppShell.swift; sourceTree = "<group>"; };
+		1A2B3C4D5200000000000018 /* Toolbar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Toolbar.swift; sourceTree = "<group>"; };
+		1A2B3C4D5200000000000019 /* Toolbar-macOS.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Toolbar-macOS.swift"; sourceTree = "<group>"; };
+		1A2B3C4D520000000000001A /* MarkdownView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarkdownView.swift; sourceTree = "<group>"; };
+		1A2B3C4D520000000000001B /* BlockViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BlockViews.swift; sourceTree = "<group>"; };
+		1A2B3C4D520000000000001C /* SelectableText.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SelectableText.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -96,19 +134,9 @@
 		1A2B3C4D5100000000000001 = {
 			isa = PBXGroup;
 			children = (
-				1A2B3C4D520000000000000E /* Base.xcconfig */,
-				1A2B3C4D5200000000000001 /* Markdown.swift */,
-				1A2B3C4D520000000000000F /* PDFRenderer.swift */,
-				1A2B3C4D5200000000000010 /* QuickLook.swift */,
-				1A2B3C4D520000000000000B /* Highlight.swift */,
-				1A2B3C4D520000000000000C /* highlights.ini */,
-				1A2B3C4D520000000000000D /* MarkdownDocIcon.icns */,
+				1A2B3C4D5100000000000003 /* src */,
+				1A2B3C4D5100000000000004 /* config */,
 				1A2B3C4D5200000000000007 /* Assets.xcassets */,
-				1A2B3C4D5200000000000004 /* Info-macOS.plist */,
-				1A2B3C4D5200000000000005 /* Info-iOS.plist */,
-				1A2B3C4D5200000000000006 /* Info-QuickLook.plist */,
-				1A2B3C4D5200000000000002 /* Markdown.Preview.entitlements */,
-				1A2B3C4D5200000000000003 /* QuickLook.entitlements */,
 				1A2B3C4D5100000000000002 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -121,6 +149,43 @@
 				1A2B3C4D520000000000000A /* md.too QuickLook.appex */,
 			);
 			name = Products;
+			sourceTree = "<group>";
+		};
+		1A2B3C4D5100000000000003 /* src */ = {
+			isa = PBXGroup;
+			children = (
+				1A2B3C4D5200000000000016 /* App.swift */,
+				1A2B3C4D5200000000000017 /* AppShell.swift */,
+				1A2B3C4D520000000000001B /* BlockViews.swift */,
+				1A2B3C4D5200000000000012 /* Bridges-iOS.swift */,
+				1A2B3C4D5200000000000011 /* Bridges-macOS.swift */,
+				1A2B3C4D5200000000000015 /* Environment.swift */,
+				1A2B3C4D5200000000000014 /* FontRole.swift */,
+				1A2B3C4D520000000000000B /* Highlight.swift */,
+				1A2B3C4D520000000000000C /* highlights.ini */,
+				1A2B3C4D5200000000000001 /* MarkdownParser.swift */,
+				1A2B3C4D520000000000001A /* MarkdownView.swift */,
+				1A2B3C4D520000000000000F /* PDFRenderer.swift */,
+				1A2B3C4D5200000000000013 /* Platform.swift */,
+				1A2B3C4D5200000000000010 /* QuickLook.swift */,
+				1A2B3C4D520000000000001C /* SelectableText.swift */,
+				1A2B3C4D5200000000000018 /* Toolbar.swift */,
+				1A2B3C4D5200000000000019 /* Toolbar-macOS.swift */,
+			);
+			path = src;
+			sourceTree = "<group>";
+		};
+		1A2B3C4D5100000000000004 /* config */ = {
+			isa = PBXGroup;
+			children = (
+				1A2B3C4D520000000000000E /* Base.xcconfig */,
+				1A2B3C4D5200000000000005 /* Info-iOS.plist */,
+				1A2B3C4D5200000000000004 /* Info-macOS.plist */,
+				1A2B3C4D5200000000000006 /* Info-QuickLook.plist */,
+				1A2B3C4D5200000000000002 /* Markdown.Preview.entitlements */,
+				1A2B3C4D5200000000000003 /* QuickLook.entitlements */,
+			);
+			path = config;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -227,7 +292,6 @@
 			files = (
 				1A2B3C4D5300000000000004 /* Assets.xcassets in Resources */,
 				1A2B3C4D530000000000000A /* highlights.ini in Resources */,
-				1A2B3C4D530000000000000D /* MarkdownDocIcon.icns in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -255,8 +319,19 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				1A2B3C4D5300000000000001 /* Markdown.swift in Sources */,
+				1A2B3C4D5300000000000014 /* Platform.swift in Sources */,
+				1A2B3C4D5300000000000017 /* FontRole.swift in Sources */,
+				1A2B3C4D530000000000001A /* Environment.swift in Sources */,
+				1A2B3C4D530000000000001D /* App.swift in Sources */,
+				1A2B3C4D530000000000001F /* AppShell.swift in Sources */,
+				1A2B3C4D5300000000000021 /* Toolbar.swift in Sources */,
+				1A2B3C4D5300000000000023 /* Toolbar-macOS.swift in Sources */,
+				1A2B3C4D5300000000000001 /* MarkdownParser.swift in Sources */,
+				1A2B3C4D5300000000000024 /* MarkdownView.swift in Sources */,
+				1A2B3C4D5300000000000027 /* BlockViews.swift in Sources */,
+				1A2B3C4D530000000000002A /* SelectableText.swift in Sources */,
 				1A2B3C4D530000000000000E /* PDFRenderer.swift in Sources */,
+				1A2B3C4D5300000000000011 /* Bridges-macOS.swift in Sources */,
 				1A2B3C4D5300000000000007 /* Highlight.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -265,8 +340,18 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				1A2B3C4D5300000000000002 /* Markdown.swift in Sources */,
+				1A2B3C4D5300000000000015 /* Platform.swift in Sources */,
+				1A2B3C4D5300000000000018 /* FontRole.swift in Sources */,
+				1A2B3C4D530000000000001B /* Environment.swift in Sources */,
+				1A2B3C4D530000000000001E /* App.swift in Sources */,
+				1A2B3C4D5300000000000020 /* AppShell.swift in Sources */,
+				1A2B3C4D5300000000000022 /* Toolbar.swift in Sources */,
+				1A2B3C4D5300000000000002 /* MarkdownParser.swift in Sources */,
+				1A2B3C4D5300000000000025 /* MarkdownView.swift in Sources */,
+				1A2B3C4D5300000000000028 /* BlockViews.swift in Sources */,
+				1A2B3C4D530000000000002B /* SelectableText.swift in Sources */,
 				1A2B3C4D530000000000000F /* PDFRenderer.swift in Sources */,
+				1A2B3C4D5300000000000013 /* Bridges-iOS.swift in Sources */,
 				1A2B3C4D5300000000000008 /* Highlight.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -275,8 +360,15 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				1A2B3C4D5300000000000003 /* Markdown.swift in Sources */,
+				1A2B3C4D5300000000000016 /* Platform.swift in Sources */,
+				1A2B3C4D5300000000000019 /* FontRole.swift in Sources */,
+				1A2B3C4D530000000000001C /* Environment.swift in Sources */,
+				1A2B3C4D5300000000000003 /* MarkdownParser.swift in Sources */,
+				1A2B3C4D5300000000000026 /* MarkdownView.swift in Sources */,
+				1A2B3C4D5300000000000029 /* BlockViews.swift in Sources */,
+				1A2B3C4D530000000000002C /* SelectableText.swift in Sources */,
 				1A2B3C4D5300000000000010 /* QuickLook.swift in Sources */,
+				1A2B3C4D5300000000000012 /* Bridges-macOS.swift in Sources */,
 				1A2B3C4D5300000000000009 /* Highlight.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -415,7 +507,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
-				CODE_SIGN_ENTITLEMENTS = Markdown.Preview.debug.entitlements;
+				CODE_SIGN_ENTITLEMENTS = config/Markdown.Preview.debug.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
@@ -423,7 +515,7 @@
 				DEVELOPMENT_TEAM = 692R843P25;
 				ENABLE_HARDENED_RUNTIME = YES;
 				GENERATE_INFOPLIST_FILE = NO;
-				INFOPLIST_FILE = "Info-macOS.plist";
+				INFOPLIST_FILE = "config/Info-macOS.plist";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.productivity";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -445,7 +537,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
-				CODE_SIGN_ENTITLEMENTS = Markdown.Preview.entitlements;
+				CODE_SIGN_ENTITLEMENTS = config/Markdown.Preview.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
@@ -453,7 +545,7 @@
 				DEVELOPMENT_TEAM = 692R843P25;
 				ENABLE_HARDENED_RUNTIME = YES;
 				GENERATE_INFOPLIST_FILE = NO;
-				INFOPLIST_FILE = "Info-macOS.plist";
+				INFOPLIST_FILE = "config/Info-macOS.plist";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.productivity";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -479,7 +571,7 @@
 				CODE_SIGN_STYLE = Automatic;
 				DEVELOPMENT_TEAM = 692R843P25;
 				GENERATE_INFOPLIST_FILE = NO;
-				INFOPLIST_FILE = "Info-iOS.plist";
+				INFOPLIST_FILE = "config/Info-iOS.plist";
 				INFOPLIST_KEY_CFBundleDisplayName = Markdown;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.productivity";
 				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
@@ -509,7 +601,7 @@
 				CODE_SIGN_STYLE = Automatic;
 				DEVELOPMENT_TEAM = 692R843P25;
 				GENERATE_INFOPLIST_FILE = NO;
-				INFOPLIST_FILE = "Info-iOS.plist";
+				INFOPLIST_FILE = "config/Info-iOS.plist";
 				INFOPLIST_KEY_CFBundleDisplayName = Markdown;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.productivity";
 				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
@@ -535,13 +627,13 @@
 		1A2B3C4D5600000000000007 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				CODE_SIGN_ENTITLEMENTS = QuickLook.debug.entitlements;
+				CODE_SIGN_ENTITLEMENTS = config/QuickLook.debug.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				DEAD_CODE_STRIPPING = YES;
 				DEVELOPMENT_TEAM = 692R843P25;
 				ENABLE_HARDENED_RUNTIME = YES;
 				GENERATE_INFOPLIST_FILE = NO;
-				INFOPLIST_FILE = "Info-QuickLook.plist";
+				INFOPLIST_FILE = "config/Info-QuickLook.plist";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
@@ -564,13 +656,13 @@
 		1A2B3C4D5600000000000008 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				CODE_SIGN_ENTITLEMENTS = QuickLook.entitlements;
+				CODE_SIGN_ENTITLEMENTS = config/QuickLook.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				DEAD_CODE_STRIPPING = YES;
 				DEVELOPMENT_TEAM = 692R843P25;
 				ENABLE_HARDENED_RUNTIME = YES;
 				GENERATE_INFOPLIST_FILE = NO;
-				INFOPLIST_FILE = "Info-QuickLook.plist";
+				INFOPLIST_FILE = "config/Info-QuickLook.plist";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
