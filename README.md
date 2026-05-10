@@ -1,4 +1,4 @@
-# Markdown Too
+# md.too
 
 A minimalist Markdown viewer for macOS and iOS. Read-only, native, zero third-party dependencies.
 

@@ -15,6 +15,27 @@ typealias PlatformColor = UIColor
 struct MarkdownPreviewApp: App {
     init() {
         TempPDFs.cleanOnLaunch()
+        primeOpenPanelDefault()
+    }
+
+    private func primeOpenPanelDefault() {
+        // First-run open panel defaults to /Applications because that's
+        // where the .app lives. Point it at ~/Documents instead by
+        // seeding the keys NSOpenPanel reads on launch (only when the
+        // user hasn't picked anything yet).
+        #if os(macOS) && !QUICKLOOK_EXTENSION
+        let docs = FileManager.default.urls(
+            for: .documentDirectory, in: .userDomainMask).first
+        guard let docs else { return }
+        let defaults = UserDefaults.standard
+        if defaults.string(forKey: "NSNavLastRootDirectory") == nil {
+            defaults.set(docs.path, forKey: "NSNavLastRootDirectory")
+        }
+        if defaults.data(forKey: "NSOSPLastRootDirectory") == nil,
+           let bookmark = try? docs.bookmarkData() {
+            defaults.set(bookmark, forKey: "NSOSPLastRootDirectory")
+        }
+        #endif
     }
 
     var body: some Scene {
