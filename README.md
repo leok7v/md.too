@@ -18,7 +18,7 @@ See [EXAMPLE.md](EXAMPLE.md) for a single document that exercises every supporte
 
 No editor, no live edit/preview split, no autosave. No HTML or `WKWebView`. No file tree, tabs, or command palette. No app-level themes (light/dark follows the system, or pick one explicitly). No third-party packages — pure Swift + AppKit/UIKit/SwiftUI.
 
-For context: the most popular JavaScript Markdown library, `marked`, reports about 636 transitive dependencies and roughly 38,980 lines of code on its public dependency graph. This project ships zero dependencies and the whole codebase is around 2,500 lines of Swift across four files. Every package you do not pull in is a supply-chain risk you do not inherit.
+For context: the most popular JavaScript Markdown library, `marked`, reports about 636 transitive dependencies and roughly 38,980 lines of code on its public dependency graph. The md.too app is a few Swift files with no dependencies. Every package you do not pull in is a supply-chain risk you do not inherit.
 
 ## Download
 
