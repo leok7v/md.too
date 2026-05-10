@@ -1,0 +1,37 @@
+# Build output
+Build/
+build/
+DerivedData/
+*.xcarchive
+*.dmg
+
+# Xcode user state
+xcuserdata/
+*.xcuserstate
+*.xcworkspace/xcuserdata/
+
+# macOS
+.DS_Store
+._*
+
+# Swift Package Manager
+.build/
+Packages/
+Package.resolved
+.swiftpm/
+
+# Editor
+.vscode/
+.idea/
+*.swp
+*~
+
+# Per-developer xcconfig (provides DEVELOPMENT_TEAM via Base.xcconfig)
+Local.xcconfig
+
+# Apple secrets — should never be in the repo
+AuthKey_*.p8
+*.p12
+*.cer
+*.mobileprovision
+*.provisionprofile

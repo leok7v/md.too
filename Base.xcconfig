@@ -1,0 +1,6 @@
+// Base.xcconfig — committed (public + devs).
+// Per-developer overrides go in Local.xcconfig (gitignored).
+// Local.xcconfig defines LOCAL_DEVELOPMENT_TEAM; if absent, the team
+// resolves to empty (matches the public-repo convention).
+#include? "Local.xcconfig"
+#include "version.xcconfig"

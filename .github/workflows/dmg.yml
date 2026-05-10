@@ -1,0 +1,148 @@
+name: macOS DMG
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-14
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Show toolchain
+        run: |
+          xcodebuild -version
+          xcrun --show-sdk-version --sdk macosx
+          sw_vers
+
+      - name: Import signing certificate
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          CERT_B64: ${{ secrets.MACOS_CERTIFICATE }}
+          CERT_PWD: ${{ secrets.MACOS_CERTIFICATE_PWD }}
+          KEYCHAIN_PWD: ${{ secrets.KEYCHAIN_PASSWORD }}
+        run: |
+          echo "$CERT_B64" | base64 --decode > /tmp/cert.p12
+          security create-keychain -p "$KEYCHAIN_PWD" build.keychain
+          security default-keychain -s build.keychain
+          security unlock-keychain -p "$KEYCHAIN_PWD" build.keychain
+          security set-keychain-settings -lut 21600 build.keychain
+          security import /tmp/cert.p12 -k build.keychain \
+            -P "$CERT_PWD" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple: \
+            -s -k "$KEYCHAIN_PWD" build.keychain
+          rm /tmp/cert.p12
+          security find-identity -v -p codesigning
+
+      - name: Build (Release, unsigned)
+        if: ${{ !startsWith(github.ref, 'refs/tags/v') }}
+        run: |
+          xcodebuild \
+            -project md.too.xcodeproj \
+            -scheme "md.too macOS" \
+            -configuration Release \
+            -derivedDataPath build \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGN_IDENTITY="" \
+            CODE_SIGN_STYLE=Manual \
+            DEVELOPMENT_TEAM="" \
+            build
+
+      - name: Build (Release, signed)
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          # version.xcconfig is the source of truth for MARKETING_VERSION
+          # and CURRENT_PROJECT_VERSION. The tag (refs/tags/v${VERSION})
+          # is just a trigger; bump version.xcconfig before tagging.
+          xcodebuild \
+            -project md.too.xcodeproj \
+            -scheme "md.too macOS" \
+            -configuration Release \
+            -derivedDataPath build \
+            CODE_SIGN_STYLE=Manual \
+            DEVELOPMENT_TEAM=$TEAM_ID \
+            CODE_SIGN_IDENTITY="Developer ID Application" \
+            OTHER_CODE_SIGN_FLAGS="--timestamp --options=runtime" \
+            build
+
+      - name: Stage app for DMG
+        run: |
+          mkdir -p dmg-staging
+          cp -R "build/Build/Products/Release/md.too.app" "dmg-staging/md.too.app"
+          ln -s /Applications "dmg-staging/Applications"
+
+      - name: Create DMG
+        run: |
+          hdiutil create \
+            -volname "Markdown Too" \
+            -srcfolder dmg-staging \
+            -ov \
+            -format UDZO \
+            -fs HFS+ \
+            md.too.dmg
+
+      - name: Sign DMG
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          codesign --force --sign "Developer ID Application" \
+            --timestamp --options runtime \
+            md.too.dmg
+          codesign -dv --verbose=2 md.too.dmg || true
+
+      - name: Notarize and staple DMG
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_ID_PWD: ${{ secrets.APPLE_ID_PWD }}
+          TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          set -o pipefail
+          submission=$(mktemp)
+          xcrun notarytool submit md.too.dmg \
+            --apple-id "$APPLE_ID" \
+            --password "$APPLE_ID_PWD" \
+            --team-id "$TEAM_ID" \
+            --wait \
+            --output-format json | tee "$submission"
+          id=$(python3 -c "import json; print(json.load(open('$submission'))['id'])")
+          status=$(python3 -c "import json; print(json.load(open('$submission'))['status'])")
+          echo "Notarization status: $status"
+          if [ "$status" != "Accepted" ]; then
+            echo "::group::Apple notary log for $id"
+            xcrun notarytool log "$id" \
+              --apple-id "$APPLE_ID" \
+              --password "$APPLE_ID_PWD" \
+              --team-id "$TEAM_ID"
+            echo "::endgroup::"
+            exit 1
+          fi
+          xcrun stapler staple md.too.dmg
+          xcrun stapler validate md.too.dmg
+
+      - name: Upload DMG artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: md.too.dmg
+          path: md.too.dmg
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Publish GitHub Release on tag
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" \
+            --title "$GITHUB_REF_NAME" \
+            --generate-notes \
+            md.too.dmg

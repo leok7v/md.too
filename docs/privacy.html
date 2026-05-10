@@ -1,0 +1,623 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Markdown Too privacy policy: no data collection, no tracking, no accounts.">
+    <meta name="robots" content="index, follow, max-image-preview:large">
+    <link rel="canonical" href="https://leok7v.github.io/md.too/privacy.html">
+    <meta property="og:type" content="article">
+    <meta property="og:site_name" content="Markdown Too">
+    <meta property="og:url" content="https://leok7v.github.io/md.too/privacy.html">
+    <meta property="og:title" content="Privacy Policy — Markdown Too">
+    <meta property="og:description" content="Markdown Too privacy policy: no data collection, no tracking, no accounts.">
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:title" content="Privacy Policy — Markdown Too">
+    <meta name="twitter:description" content="Markdown Too privacy policy: no data collection, no tracking, no accounts.">
+    <title>Privacy Policy — Markdown Too</title>
+    <script>
+        (function(){
+            var t = localStorage.getItem('theme');
+            if (t === 'dark' || (t !== 'light' && window.matchMedia('(prefers-color-scheme:dark)').matches)) {
+                document.documentElement.classList.add('dark');
+            }
+        })();
+    </script>
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml;utf8,<svg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 22 22%27><rect width=%2722%27 height=%2722%27 rx=%275%27 fill=%27%23f4825a%27/><text x=%2711%27 y=%2716%27 font-family=%27sans-serif%27 font-size=%2711%27 font-weight=%27700%27 fill=%27%233a1c08%27 text-anchor=%27middle%27>md</text></svg>">
+    <style>
+        :root {
+            --bg:      #f5f5f7;
+            --bg2:     #ffffff;
+            --text:    #1d1d1f;
+            --text2:   #6e6e73;
+            --accent:  #0071e3;
+            --border:  rgba(0,0,0,0.08);
+            --shadow:  0 4px 24px rgba(0,0,0,0.08);
+            --shadow2: 0 2px 8px rgba(0,0,0,0.06);
+            --radius:  18px;
+        }
+        :root.dark {
+            --bg:      #000000;
+            --bg2:     #1c1c1e;
+            --text:    #f5f5f7;
+            --text2:   #86868b;
+            --accent:  #2997ff;
+            --border:  rgba(255,255,255,0.08);
+            --shadow:  0 4px 24px rgba(0,0,0,0.4);
+            --shadow2: 0 2px 8px rgba(0,0,0,0.3);
+        }
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+        html { scroll-behavior: smooth; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", Helvetica, Arial, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.5;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        /* NAV */
+        nav {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 24px;
+            height: 52px;
+            background: rgba(245,245,247,0.72);
+            backdrop-filter: saturate(180%) blur(20px);
+            -webkit-backdrop-filter: saturate(180%) blur(20px);
+            border-bottom: 1px solid var(--border);
+            gap: 12px;
+        }
+        :root.dark nav { background: rgba(0,0,0,0.72); }
+        .nav-brand {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            text-decoration: none;
+            color: var(--text);
+            flex: 1;
+        }
+        .nav-brand img {
+            width: 28px;
+            height: 28px;
+            border-radius: 7px;
+        }
+        .nav-brand span {
+            font-size: 20px;
+            font-weight: 700;
+            letter-spacing: -0.4px;
+            background: linear-gradient(90deg, #c084fc 0%, #818cf8 45%, #fb923c 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        #theme-toggle {
+            background: var(--bg2);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            box-shadow: var(--shadow2);
+            padding: 6px;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.15s, border-color 0.15s;
+            flex-shrink: 0;
+        }
+        #theme-toggle:hover { background: var(--bg); }
+        #theme-toggle .glyph {
+            font-size: 18px;
+            line-height: 1;
+            color: var(--text);
+            font-style: normal;
+        }
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 18px;
+            border-radius: 980px;
+            font-size: 14px;
+            font-weight: 500;
+            text-decoration: none;
+            transition: opacity 0.15s;
+            cursor: pointer;
+            border: none;
+            flex-shrink: 0;
+        }
+        .btn:hover { opacity: 0.82; }
+        .btn-primary { background: var(--accent); color: #fff; }
+        .btn-secondary {
+            background: var(--bg2);
+            color: var(--text);
+            border: 1px solid var(--border);
+            box-shadow: var(--shadow2);
+        }
+
+        /* HERO */
+        .hero {
+            text-align: center;
+            padding: 80px 24px 0;
+            max-width: 860px;
+            margin: 0 auto;
+        }
+        .hero-tag {
+            display: inline-block;
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--accent);
+            letter-spacing: 0.02em;
+            text-transform: uppercase;
+            margin-bottom: 20px;
+        }
+        .hero h1 {
+            font-size: clamp(36px, 6vw, 64px);
+            font-weight: 700;
+            letter-spacing: -1.5px;
+            line-height: 1.08;
+            margin-bottom: 20px;
+        }
+        .hero p {
+            font-size: clamp(16px, 2vw, 21px);
+            color: var(--text2);
+            max-width: 560px;
+            margin: 0 auto 36px;
+            line-height: 1.55;
+        }
+        .hero-cta {
+            display: flex;
+            gap: 12px;
+            justify-content: center;
+            flex-wrap: wrap;
+            margin-bottom: 64px;
+        }
+        .hero-cta .btn {
+            font-size: 16px;
+            padding: 12px 26px;
+        }
+        .hero-screen {
+            position: relative;
+            max-width: 960px;
+            margin: 0 auto;
+        }
+        .hero-light { display: block; }
+        .hero-dark  { display: none; }
+        :root.dark .hero-light { display: none; }
+        :root.dark .hero-dark  { display: block; }
+        .hero-screen img {
+            width: 100%;
+        }
+        .hero-motto {
+            font-size: clamp(22px, 3.5vw, 38px);
+            font-weight: 600;
+            letter-spacing: -0.5px;
+            color: var(--text);
+            margin: 32px 0 0;
+            text-align: center;
+        }
+
+
+        /* SHOWCASE SLIDESHOW */
+        .showcase { background: var(--bg2); }
+        .showcase-layout {
+            display: flex;
+            gap: 64px;
+            align-items: center;
+        }
+        .showcase-slides {
+            position: relative;
+            width: 320px;
+            flex-shrink: 0;
+            height: 580px;
+        }
+        .showcase-slides img {
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            opacity: 0;
+            animation: ss-fade 30s infinite;
+            animation-fill-mode: both;
+        }
+        .showcase-feats {
+            flex: 1;
+            position: relative;
+            min-height: 200px;
+        }
+        .showcase-feat {
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%;
+            opacity: 0;
+            animation: ss-fade 30s infinite;
+            animation-fill-mode: both;
+        }
+        .showcase-feat h3 {
+            font-size: 24px;
+            font-weight: 700;
+            letter-spacing: -0.3px;
+            margin-bottom: 12px;
+            color: var(--text);
+        }
+        .showcase-feat p {
+            font-size: 17px;
+            line-height: 1.6;
+            color: var(--text2);
+            max-width: 420px;
+        }
+        .ss-dots {
+            display: flex;
+            gap: 8px;
+            margin-top: 36px;
+        }
+        .ss-dot {
+            width: 6px; height: 6px;
+            border-radius: 50%;
+            background: var(--border);
+            position: relative;
+            overflow: hidden;
+        }
+        .ss-dot::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            border-radius: 50%;
+            background: var(--accent);
+            opacity: 0;
+            animation: ss-fade 30s infinite;
+            animation-fill-mode: both;
+        }
+        @keyframes ss-fade {
+            0%      { opacity: 0; }
+            2.67%   { opacity: 1; }
+            13.33%  { opacity: 1; }
+            16.67%  { opacity: 0; }
+            100%    { opacity: 0; }
+        }
+        @media (max-width: 680px) {
+            .showcase-layout { flex-direction: column; gap: 32px; }
+            .showcase-slides { width: 100%; max-width: 320px; height: 480px; margin: 0 auto; }
+            .showcase-feat { position: static; }
+            .showcase-feats { min-height: unset; }
+        }
+
+        /* SECTIONS */
+        section { padding: 96px 24px; }
+        .section-inner { max-width: 1000px; margin: 0 auto; }
+        .section-head { text-align: center; margin-bottom: 56px; }
+        .section-head h2 {
+            font-size: clamp(28px, 4vw, 44px);
+            font-weight: 700;
+            letter-spacing: -0.8px;
+            margin-bottom: 12px;
+        }
+        .section-head p {
+            font-size: 17px;
+            color: var(--text2);
+            max-width: 480px;
+            margin: 0 auto;
+        }
+
+        /* FEATURES */
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 16px;
+        }
+        @media (max-width: 700px)  { .features-grid { grid-template-columns: 1fr; } }
+        @media (min-width: 701px) and (max-width: 900px) { .features-grid { grid-template-columns: repeat(2,1fr); } }
+        .feature-card {
+            background: var(--bg2);
+            border-radius: var(--radius);
+            padding: 28px 24px;
+            box-shadow: var(--shadow);
+        }
+        .feature-icon {
+            font-size: 28px;
+            margin-bottom: 14px;
+            line-height: 1;
+        }
+        .feature-card h3 {
+            font-size: 17px;
+            font-weight: 600;
+            margin-bottom: 6px;
+            letter-spacing: -0.2px;
+        }
+        .feat-tag {
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--accent);
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            margin-bottom: 10px;
+        }
+        .feature-card p {
+            font-size: 14px;
+            color: var(--text2);
+            line-height: 1.55;
+        }
+        .feature-card ul {
+            list-style: none;
+            margin-top: 10px;
+        }
+        .feature-card ul li {
+            font-size: 13px;
+            color: var(--text2);
+            padding: 2px 0;
+        }
+        .feature-card ul li::before {
+            content: "· ";
+            color: var(--accent);
+            font-weight: 700;
+        }
+
+        /* SCREENS */
+        .screens { background: var(--bg2); }
+        .phones {
+            display: flex;
+            gap: 32px;
+            justify-content: center;
+            align-items: flex-start;
+            flex-wrap: wrap;
+        }
+        .phone-wrap { position: relative; flex: 0 0 auto; }
+        .phone-wrap img {
+            width: 240px;
+            border-radius: 36px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.22), 0 0 0 1px var(--border);
+            display: block;
+        }
+        .phone-label {
+            text-align: center;
+            margin-top: 16px;
+            font-size: 13px;
+            color: var(--text2);
+            font-weight: 500;
+        }
+
+        /* PRIVACY */
+        .privacy { background: var(--bg); text-align: center; }
+        .privacy-inner { max-width: 640px; margin: 0 auto; }
+        .privacy h2 {
+            font-size: clamp(24px, 4vw, 40px);
+            font-weight: 700;
+            letter-spacing: -0.8px;
+            margin-bottom: 16px;
+        }
+        .privacy p {
+            font-size: 17px;
+            color: var(--text2);
+            line-height: 1.6;
+            margin-bottom: 14px;
+        }
+        .privacy-badges {
+            display: flex;
+            gap: 12px;
+            justify-content: center;
+            flex-wrap: wrap;
+            margin-top: 32px;
+        }
+        .badge {
+            background: var(--bg2);
+            border: 1px solid var(--border);
+            border-radius: 980px;
+            padding: 7px 16px;
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--text2);
+        }
+
+        /* FOOTER */
+        footer {
+            background: var(--bg2);
+            border-top: 1px solid var(--border);
+            padding: 40px 24px;
+            text-align: center;
+        }
+        .footer-links {
+            display: flex;
+            gap: 24px;
+            justify-content: center;
+            flex-wrap: wrap;
+            margin-bottom: 20px;
+        }
+        .footer-links a {
+            font-size: 14px;
+            color: var(--accent);
+            text-decoration: none;
+        }
+        .footer-links a:hover { text-decoration: underline; }
+        footer p { font-size: 12px; color: var(--text2); }
+    
+        /* PAGE CONTENT */
+        .page-wrap {
+            max-width: 720px;
+            margin: 0 auto;
+            padding: 64px 24px 96px;
+        }
+        .page-wrap h1 {
+            font-size: clamp(28px, 5vw, 48px);
+            font-weight: 700;
+            letter-spacing: -1px;
+            margin-bottom: 12px;
+        }
+        .page-lead {
+            font-size: 18px;
+            color: var(--text2);
+            line-height: 1.6;
+            margin-bottom: 48px;
+        }
+        .page-wrap h2 {
+            font-size: 22px;
+            font-weight: 700;
+            letter-spacing: -0.3px;
+            margin: 40px 0 12px;
+            color: var(--text);
+        }
+        .page-wrap h3 {
+            font-size: 16px;
+            font-weight: 600;
+            margin: 24px 0 6px;
+            color: var(--text);
+        }
+        .page-wrap p {
+            font-size: 16px;
+            color: var(--text2);
+            line-height: 1.7;
+            margin-bottom: 14px;
+        }
+        .page-wrap ul {
+            list-style: none;
+            margin: 0 0 14px;
+            padding: 0;
+        }
+        .page-wrap ul li {
+            font-size: 16px;
+            color: var(--text2);
+            line-height: 1.7;
+            padding: 3px 0 3px 20px;
+            position: relative;
+        }
+        .page-wrap ul li::before {
+            content: "·";
+            position: absolute;
+            left: 6px;
+            color: var(--accent);
+            font-weight: 700;
+        }
+        .faq-item {
+            border-top: 1px solid var(--border);
+            padding: 20px 0;
+        }
+        .faq-item:last-child { border-bottom: 1px solid var(--border); }
+        .faq-q {
+            font-size: 17px;
+            font-weight: 600;
+            color: var(--text);
+            margin-bottom: 8px;
+        }
+        .faq-a {
+            font-size: 15px;
+            color: var(--text2);
+            line-height: 1.65;
+        }
+        .contact-row {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+            margin-top: 32px;
+        }
+        .badge-updated {
+            display: inline-block;
+            font-size: 12px;
+            color: var(--text2);
+            margin-bottom: 40px;
+        }
+        footer { margin-top: 0; }
+
+    
+        .nav-links {
+            display: flex;
+            gap: 20px;
+            align-items: center;
+            flex: 1;
+            justify-content: center;
+        }
+        .nav-links a {
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--text2);
+            text-decoration: none;
+            transition: color 0.15s;
+        }
+        .nav-links a:hover,
+        .nav-links a[aria-current] { color: var(--text); }
+        @media (max-width: 480px) { .nav-links { display: none; } }
+        </style>
+</head>
+<body>
+
+<nav>
+    <a class="nav-brand" href="index.html">
+        <svg width="22" height="22" viewBox="0 0 22 22" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+            <rect width="22" height="22" rx="5" fill="#f4825a"/>
+            <text x="11" y="16" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="11" font-weight="700" fill="#3a1c08" text-anchor="middle">md</text>
+        </svg>
+        <span>Markdown Too</span>
+    </a>
+    <div class="nav-links">
+        <a href="privacy.html" aria-current="page">Privacy</a>
+        <a href="https://github.com/leok7v/md.too">Source</a>
+    </div>
+    <button id="theme-toggle" title="Switch theme">
+        <i class="glyph">&#x25D1;</i>
+    </button>
+</nav>
+
+<div class="page-wrap">
+    <h1>Privacy Policy</h1>
+    <p class="page-lead">Markdown Too does not collect, store, or transmit any personal information. Read your <code>.md</code> files, export PDFs, move on.</p>
+    <span class="badge-updated">Effective May 2026</span>
+
+    <h2>What we collect</h2>
+    <p>Nothing. Markdown Too operates without analytics, crash reporters, advertising IDs, or user accounts. There is no backend. There is no database of users.</p>
+
+    <h2>What stays on your device</h2>
+    <p>Every Markdown file you open, every rendered preview, every PDF you export — all of it stays on your device. The app does not phone home. There is no telemetry. When you delete the app, everything is gone.</p>
+
+    <h2>Network access</h2>
+    <p>The only network requests Markdown Too makes are HTTPS image fetches for inline images that <em>your</em> Markdown source references — for example <code>![alt](https://example.com/foo.png)</code>. When you open a file with such an image, your device retrieves the image directly from the URL you wrote into the document. We do not see, log, or proxy these requests.</p>
+    <p>If your Markdown contains no inline image URLs, the app makes no network requests at all.</p>
+
+    <h2>Permissions</h2>
+    <p>Markdown Too requests access only to:</p>
+    <ul>
+        <li>Files you explicitly open via the system file picker, drag-and-drop, or Quick Look.</li>
+        <li>A user-chosen save location when you export a rendered document to PDF.</li>
+        <li>Outbound HTTPS, for the image fetches described above.</li>
+    </ul>
+    <p>The app never requests access to your camera, microphone, contacts, location, photo library, or anything outside what you hand it.</p>
+
+    <h2>Children's privacy</h2>
+    <p>Markdown Too is not directed at children under 13. We do not knowingly collect information from children — or, for that matter, from anyone.</p>
+
+    <h2>Changes to this policy</h2>
+    <p>If this policy changes materially, we will update the effective date above. Continued use of the app after any change constitutes acceptance of the new policy.</p>
+
+    <h2>Contact</h2>
+    <p>Questions about privacy? Open an issue or start a discussion on GitHub.</p>
+    <div class="contact-row">
+        <a class="btn btn-secondary" href="https://github.com/leok7v/md.too/issues">GitHub Issues</a>
+        <a class="btn btn-secondary" href="https://github.com/leok7v/md.too/discussions">Discussions</a>
+    </div>
+</div>
+
+<footer>
+    <div class="footer-links">
+        <a href="https://github.com/leok7v/md.too">Source code</a>
+    </div>
+    <p>&copy; 2026 Markdown Too &middot; Dmitry &ldquo;Leo&rdquo; Kuznetsov &middot; MIT License</p>
+</footer>
+
+    <script>
+        var root = document.documentElement;
+        function isDark() { return root.classList.contains('dark'); }
+        function updateToggle() {
+            var btn = document.getElementById('theme-toggle');
+            btn.title = 'Switch to ' + (isDark() ? 'light' : 'dark') + ' mode';
+            btn.querySelector('.glyph').textContent = isDark() ? '\u25D0' : '\u25D1';
+        }
+        document.getElementById('theme-toggle').addEventListener('click', function() {
+            root.classList.toggle('dark');
+            localStorage.setItem('theme', isDark() ? 'dark' : 'light');
+            updateToggle();
+        });
+        updateToggle();
+    </script>
+</body>
+</html>
