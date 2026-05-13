@@ -560,6 +560,48 @@
         .screenshot-light { display: none; }
         :root.dark .screenshot-light { display: block; }
         :root.dark .screenshot-dark { display: none; }
+        .demo-pair {
+            margin: 28px 0 8px;
+            display: flex;
+            gap: 16px;
+            align-items: center;
+            justify-content: center;
+        }
+        .demo {
+            display: block;
+            height: 340px;
+            border-radius: 12px;
+            box-shadow: var(--shadow);
+            background: #000;
+        }
+        .demo-macos { aspect-ratio: 1280 / 956; }
+        .demo-ios   { aspect-ratio: 540 / 960; }
+        @media (max-width: 760px) {
+            .demo-pair { gap: 12px; }
+            .demo { height: 240px; }
+        }
+        @media (max-width: 400px) {
+            .demo-pair { flex-direction: column; }
+            .demo { height: auto; width: 90%; }
+        }
+        #demo-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.85);
+            z-index: 1000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: zoom-out;
+        }
+        #demo-overlay[hidden] { display: none; }
+        #demo-overlay video {
+            max-width: 95vw;
+            max-height: 95vh;
+            border-radius: 12px;
+            box-shadow: var(--shadow);
+            background: #000;
+        }
 
         </style>
 </head>
@@ -610,7 +652,20 @@
     </ul>
 
     <h2>Why</h2>
+    <p>A friend of mine — an AI enthusiast, lives in a ChatGPT tab all day — recently asked me, in good faith, what a Markdown file is. For him, text appears on a screen because a model rendered it; the file underneath is somebody else's problem. Most of us aren't there yet: README.md, AGENTS.md, PLAN.md, EXAMPLE.md, every issue, every PR, every wiki — Markdown is the substrate the work is written on, and at some point in the day you want to <em>read</em> one rather than feed it into a chat box. The viewer market is not short on options; the half-dozen I tried each weighed in at half a gigabyte of Electron, several hundred thousand lines of TypeScript, an In-App Purchase to suppress a "Pro" upsell modal that interrupted every six minutes — and each still failed at a nested list inside a blockquote inside a code fence.</p>
+    <p>So I took the Markdown renderer I'd already written for <a href="https://im-ai.local-llama.workers.dev/">an earlier chat-app project</a> and made it a real app. The macOS build exports the rendered page to a paginated PDF on one click; the Quick Look extension renders any <code>.md</code> in Finder's preview pane and on spacebar peek. The iOS build exists because once the parser and view layer were portable, it was three Info.plist keys away.</p>
     <p>The most popular JavaScript Markdown library lists about 636 transitive packages and ~39,000 lines of code on its public dependency graph. The md.too app is a few Swift files with no dependencies. Every package you don't pull in is a CVE you don't have to read on a Saturday night.</p>
+
+    <h2>See it in action</h2>
+    <p>A short loop through <a href="https://github.com/leok7v/md.too/blob/main/EXAMPLE.md">EXAMPLE.md</a> on each platform.</p>
+    <figure class="demo-pair">
+        <video class="demo demo-macos" src="videos/md.too.macos.mp4"
+               autoplay loop muted playsinline preload="metadata"
+               aria-label="md.too rendering EXAMPLE.md on macOS"></video>
+        <video class="demo demo-ios" src="videos/md.too.ios.mp4"
+               autoplay loop muted playsinline preload="metadata"
+               aria-label="md.too rendering EXAMPLE.md on iOS"></video>
+    </figure>
 
     <h2>Get it</h2>
     <div class="contact-row">
@@ -648,6 +703,33 @@
                 img.classList.toggle('zoomed');
             });
         });
+        (function() {
+            var overlay = document.getElementById('demo-overlay');
+            var overlayVid = document.getElementById('demo-overlay-video');
+            function close() {
+                overlay.hidden = true;
+                overlayVid.pause();
+                overlayVid.removeAttribute('src');
+                overlayVid.load();
+                document.body.style.overflow = '';
+            }
+            document.querySelectorAll('.demo').forEach(function(v) {
+                v.addEventListener('click', function() {
+                    overlayVid.src = v.currentSrc || v.getAttribute('src');
+                    overlay.hidden = false;
+                    document.body.style.overflow = 'hidden';
+                });
+            });
+            overlay.addEventListener('click', close);
+            document.addEventListener('keydown', function(e) {
+                if (e.key === 'Escape' && !overlay.hidden) { close(); }
+            });
+        })();
     </script>
+
+    <div id="demo-overlay" hidden>
+        <video id="demo-overlay-video"
+               controls autoplay loop muted playsinline></video>
+    </div>
 </body>
 </html>
