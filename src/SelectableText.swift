@@ -13,6 +13,7 @@ struct SelectableText: View {
     let nowrap: Bool
     let bold: Bool
     let secondary: Bool
+    @Environment(\.secondaryText) private var envSecondary
 
     init(attributed: AttributedString, role: FontRole = .body,
          nowrap: Bool = false, bold: Bool = false, secondary: Bool = false) {
@@ -40,7 +41,7 @@ struct SelectableText: View {
                    role: role,
                    nowrap: nowrap,
                    bold: bold,
-                   secondary: secondary)
+                   secondary: secondary || envSecondary)
             .fixedSize(horizontal: nowrap, vertical: true)
     }
 

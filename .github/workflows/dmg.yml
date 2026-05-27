@@ -80,6 +80,7 @@ jobs:
           mkdir -p dmg-staging
           cp -R "build/Build/Products/Release/md.too.app" "dmg-staging/md.too.app"
           ln -s /Applications "dmg-staging/Applications"
+          cp EXAMPLE.md "dmg-staging/EXAMPLE.md"
 
       - name: Create DMG
         run: |

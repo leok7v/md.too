@@ -39,8 +39,8 @@ enum Block {
     case heading(level: Int, text: AttributedString)
     case paragraph(AttributedString)
     case code(language: String?, text: String)
-    case quote(AttributedString)
-    case list([ListItem])
+    case quote([Block])
+    case list(items: [ListItem], tight: Bool)
     case table(headers: [String], rows: [[String]])
     case rule
     case image(alt: String, url: URL, width: CGFloat?, height: CGFloat?)
@@ -49,7 +49,7 @@ enum Block {
 struct ListItem {
     let marker: String
     let checked: Bool?
-    let content: AttributedString
+    let blocks: [Block]
 }
 
 enum Markdown {
@@ -323,30 +323,92 @@ enum Markdown {
     }
 
     private static func isQuoteStart(_ s: String) -> Bool {
-        s.trimmedOuter().hasPrefix(">")
+        // A '>' indented 0-3 spaces opens a block quote; 4+ is code.
+        leadingSpaces(s) <= 3 && s.trimmedLeading().hasPrefix(">")
     }
 
+    // Block quotes carry full block content: strip one '>' (and one
+    // optional following space) from each quote line, gather lazy
+    // paragraph-continuation lines, then recurse so nested paragraphs,
+    // lists, code, and tables inside a quote parse correctly.
     private static func consumeQuote(_ lines: [String],
                                      _ i: inout Int) -> Block {
-        var body: [String] = []
-        while i < lines.count, isQuoteStart(lines[i]) {
-            var t = lines[i].trimmedOuter()
-            if t.hasPrefix(">") { t.removeFirst() }
-            if t.hasPrefix(" ") { t.removeFirst() }
-            body.append(String(t))
-            i += 1
+        var inner: [String] = []
+        var collecting = true
+        while i < lines.count, collecting {
+            let line = lines[i]
+            if isQuoteStart(line) {
+                var t = line.trimmedLeading()
+                t = String(t.dropFirst())
+                if t.hasPrefix(" ") { t = String(t.dropFirst()) }
+                inner.append(t)
+                i += 1
+            } else if !line.trimmedOuter().isEmpty,
+                      isLazyContinuation(line) {
+                inner.append(line.trimmedLeading())
+                i += 1
+            } else {
+                collecting = false
+            }
         }
-        return .quote(inline(body.joined(separator: "\n")))
+        return .quote(parseBlocks(inner))
     }
 
     private static func isListStart(_ s: String) -> Bool {
-        var result = false
-        let t = s.trimmedOuter()
-        if t.hasPrefix("- ") || t.hasPrefix("* ") || t.hasPrefix("+ ") {
-            result = true
-        } else {
-            let n = t.prefix { c in c.isNumber }
-            result = !n.isEmpty && t.dropFirst(n.count).hasPrefix(". ")
+        listMarker(s) != nil
+    }
+
+    // Parse a list-item marker at the start of `line`. Returns the
+    // display label, a signature char identifying the list type
+    // (bullet char or ordered delimiter), the content offset
+    // (leading + marker width + spaces after, the column subsequent
+    // lines must reach to stay in the item), and the remainder of the
+    // line after the marker. nil if `line` is not a list item.
+    private static func listMarker(_ line: String)
+        -> (label: String, sig: Character, offset: Int, rest: String)? {
+        var result: (String, Character, Int, String)? = nil
+        let leading = line.prefix { c in c == " " }.count
+        if leading <= 3 {
+            let afterIndent = line.dropFirst(leading)
+            if let first = afterIndent.first,
+               first == "-" || first == "*" || first == "+" {
+                result = afterMarker(
+                    afterIndent.dropFirst(), leading: leading,
+                    markerWidth: 1, label: "•", sig: first)
+            } else {
+                let digits = afterIndent.prefix { c in c.isNumber }
+                let afterDigits = afterIndent.dropFirst(digits.count)
+                if !digits.isEmpty, digits.count <= 9,
+                   let delim = afterDigits.first,
+                   delim == "." || delim == ")" {
+                    result = afterMarker(
+                        afterDigits.dropFirst(), leading: leading,
+                        markerWidth: digits.count + 1,
+                        label: String(digits) + ".", sig: delim)
+                }
+            }
+        }
+        return result
+    }
+
+    // Given the substring after the marker characters, compute the
+    // content offset and the line remainder. A marker followed by 0
+    // spaces and non-space content is not a marker. 1-4 spaces set the
+    // offset directly; 5+ spaces (or a blank remainder) clamp N to 1 so
+    // the surplus becomes the item's first content (indented code).
+    private static func afterMarker(_ tail: Substring, leading: Int,
+                                    markerWidth: Int, label: String,
+                                    sig: Character)
+        -> (label: String, sig: Character, offset: Int, rest: String)? {
+        var result: (String, Character, Int, String)? = nil
+        let spaces = tail.prefix { c in c == " " }.count
+        let blankRest = tail.allSatisfy { c in c == " " }
+        if blankRest {
+            result = (label, sig, leading + markerWidth + 1, "")
+        } else if spaces >= 1 {
+            let n = spaces >= 5 ? 1 : spaces
+            result = (label, sig, leading + markerWidth + n,
+                      String(tail.dropFirst(n)))
         }
         return result
     }
@@ -354,36 +416,158 @@ enum Markdown {
     private static func consumeList(_ lines: [String],
                                     _ i: inout Int) -> Block {
         var items: [ListItem] = []
-        while i < lines.count, isListStart(lines[i]) {
-            let t = lines[i].trimmedOuter()
-            var marker = "•"
-            var body = t
-            if t.hasPrefix("- ") ||
-               t.hasPrefix("* ") ||
-               t.hasPrefix("+ ") {
-                body = String(t.dropFirst(2))
-            } else {
-                let n = t.prefix { c in c.isNumber }
-                let rest = t.dropFirst(n.count)
-                if rest.hasPrefix(". ") {
-                    marker = String(n) + "."
-                    body = String(rest.dropFirst(2))
+        var tight = true
+        var sig: Character? = nil
+        var done = false
+        while i < lines.count, !done {
+            if let m = listMarker(lines[i]),
+               sig == nil || m.sig == sig {
+                sig = m.sig
+                var body: [String] = []
+                let (checked, rest) = stripTaskMarker(m.rest)
+                body.append(rest)
+                i += 1
+                if collectItemBody(lines, &i, m.offset, &body) {
+                    tight = false
                 }
+                items.append(ListItem(marker: m.label, checked: checked,
+                                      blocks: parseBlocks(body)))
+                let gap = interItemGap(lines, &i, sig: m.sig)
+                if gap.loose { tight = false }
+                if gap.ended { done = true }
+            } else {
+                done = true
             }
-            var checked: Bool? = nil
-            if body.hasPrefix("[ ] ") {
-                checked = false
-                body = String(body.dropFirst(4))
-            } else if body.hasPrefix("[x] ") || body.hasPrefix("[X] ") {
-                checked = true
-                body = String(body.dropFirst(4))
+        }
+        return .list(items: items, tight: tight)
+    }
+
+    // Detect a GitHub task marker on the item's first line.
+    private static func stripTaskMarker(_ s: String)
+        -> (checked: Bool?, rest: String) {
+        var result: (Bool?, String) = (nil, s)
+        if s.hasPrefix("[ ] ") {
+            result = (false, String(s.dropFirst(4)))
+        } else if s.hasPrefix("[x] ") || s.hasPrefix("[X] ") {
+            result = (true, String(s.dropFirst(4)))
+        }
+        return result
+    }
+
+    // Gather the continuation lines of one list item into `body`,
+    // de-indented by `offset` (so recursion sees content at column 0
+    // and the 4-space indented-code rule becomes relative to the item).
+    // Lines indented >= offset belong; under-indented non-blank lines
+    // belong only as lazy paragraph continuation (and only when the
+    // previous line was not blank); a blank line continues the item
+    // only if followed by an offset-indented line. Returns whether the
+    // item spans a blank (loose).
+    private static func collectItemBody(_ lines: [String],
+                                        _ i: inout Int,
+                                        _ offset: Int,
+                                        _ body: inout [String]) -> Bool {
+        var loose = false
+        var lastWasBlank = false
+        var collecting = true
+        while i < lines.count, collecting {
+            let line = lines[i]
+            if line.trimmedOuter().isEmpty {
+                var j = i
+                while j < lines.count, lines[j].trimmedOuter().isEmpty {
+                    j += 1
+                }
+                if j < lines.count, leadingSpaces(lines[j]) >= offset {
+                    var k = i
+                    while k < j { body.append(""); k += 1 }
+                    i = j
+                    loose = true
+                    lastWasBlank = true
+                } else {
+                    collecting = false
+                }
+            } else if leadingSpaces(line) >= offset {
+                body.append(dropIndent(line, offset))
+                i += 1
+                lastWasBlank = false
+            } else if !lastWasBlank, isLazyContinuation(line) {
+                body.append(line.trimmedLeading())
+                i += 1
+                lastWasBlank = false
+            } else {
+                collecting = false
             }
-            items.append(ListItem(marker: marker,
-                                  checked: checked,
-                                  content: inline(body)))
+        }
+        return loose
+    }
+
+    // Resolve the gap after an item. With no blank lines, returns
+    // (false, false) and the caller's loop re-checks the next line as a
+    // possible same-list item (tight continuation) or list end. With
+    // blank lines followed by a same-signature marker, returns
+    // (loose: true) and leaves i at that marker. With blank lines NOT
+    // followed by a same-signature marker, rewinds so the outer block
+    // loop owns the blanks and returns (ended: true).
+    private static func interItemGap(_ lines: [String], _ i: inout Int,
+                                     sig: Character)
+        -> (loose: Bool, ended: Bool) {
+        var result: (loose: Bool, ended: Bool) = (false, false)
+        let before = i
+        while i < lines.count, lines[i].trimmedOuter().isEmpty {
             i += 1
         }
-        return .list(items)
+        if i > before {
+            if i < lines.count, let n = listMarker(lines[i]),
+               n.sig == sig {
+                result = (true, false)
+            } else {
+                i = before
+                result = (false, true)
+            }
+        }
+        return result
+    }
+
+    // A line is lazy paragraph continuation when it is not itself the
+    // start of a block that would interrupt a paragraph.
+    private static func isLazyContinuation(_ line: String) -> Bool {
+        !(isHeading(line) || isHR(line) || isFence(line) ||
+          isQuoteStart(line) || isListStart(line))
+    }
+
+    private static func leadingSpaces(_ s: String) -> Int {
+        var n = 0
+        var done = false
+        for c in s {
+            if !done {
+                if c == " " {
+                    n += 1
+                } else if c == "\t" {
+                    n += 4 - (n % 4)
+                } else {
+                    done = true
+                }
+            }
+        }
+        return n
+    }
+
+    private static func dropIndent(_ s: String, _ n: Int) -> String {
+        var dropped = 0
+        var idx = s.startIndex
+        var done = false
+        while idx < s.endIndex, !done {
+            let c = s[idx]
+            if c == " ", dropped < n {
+                dropped += 1
+                idx = s.index(after: idx)
+            } else if c == "\t", dropped < n {
+                dropped += 4 - (dropped % 4)
+                idx = s.index(after: idx)
+            } else {
+                done = true
+            }
+        }
+        return String(s[idx...])
     }
 
     private static func isTableRow(_ s: String) -> Bool {

@@ -11,6 +11,20 @@ extension EnvironmentValues {
     }
 }
 
+// Set inside a block quote so all text rendered within it (including
+// nested paragraphs, lists, and tables reached through recursion) uses
+// the secondary color, without threading a flag through every view.
+struct SecondaryTextKey: EnvironmentKey {
+    static let defaultValue = false
+}
+
+extension EnvironmentValues {
+    var secondaryText: Bool {
+        get { self[SecondaryTextKey.self] }
+        set { self[SecondaryTextKey.self] = newValue }
+    }
+}
+
 enum ThemeMode: String, CaseIterable {
 
     case system, light, dark

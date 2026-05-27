@@ -18,14 +18,20 @@ struct BlockView: View {
                 SelectableText(attributed: text, role: .body)
             case .code(let language, let text):
                 CodeBlock(text: text, language: language)
-            case .quote(let text):
+            case .quote(let blocks):
                 HStack(alignment: .top, spacing: 8) {
                     Rectangle().fill(Color.secondary.opacity(0.5))
                         .frame(width: 3)
-                    SelectableText(attributed: text,
-                                   role: .body, secondary: true)
+                    VStack(alignment: .leading, spacing: 8) {
+                        ForEach(Array(blocks.enumerated()),
+                                id: \.offset) { _, b in
+                            BlockView(block: b)
+                        }
+                    }
+                    .environment(\.secondaryText, true)
                 }
-            case .list(let items): ListBlock(items: items)
+            case .list(let items, let tight):
+                ListBlock(items: items, tight: tight)
             case .table(let headers, let rows):
                 TableBlock(headers: headers, rows: rows)
             case .rule:
@@ -152,24 +158,42 @@ private struct ImageBlockView: View {
 private struct ListBlock: View {
 
     let items: [ListItem]
+    let tight: Bool
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
+        let gap: CGFloat = tight ? 3 : 9
+        VStack(alignment: .leading, spacing: gap) {
             ForEach(Array(items.enumerated()), id: \.offset) { _, item in
                 HStack(alignment: .top, spacing: 6) {
                     marker(item)
-                        .frame(minWidth: 22, alignment: .trailing)
-                    SelectableText(attributed: item.content, role: .body)
+                        .frame(width: gutterWidth, alignment: .trailing)
+                    VStack(alignment: .leading, spacing: gap) {
+                        ForEach(Array(item.blocks.enumerated()),
+                                id: \.offset) { _, b in
+                            BlockView(block: b)
+                        }
+                    }
                 }
             }
         }
+    }
+
+    // Every row shares one gutter width (the widest marker in this
+    // list) so the content column never shifts row-to-row. Each nested
+    // list adds its own gutter, so depth indents consistently.
+    private var gutterWidth: CGFloat {
+        let widest = items.map { item in
+            item.checked == nil ? item.marker.count : 1
+        }.max() ?? 1
+        return CGFloat(widest) * 10 + 8
     }
 
     @ViewBuilder
     private func marker(_ item: ListItem) -> some View {
         if let checked = item.checked {
             Image(systemName: checked ? "checkmark.square.fill" : "square")
-                .foregroundStyle(checked ? Color.accentColor : Color.secondary)
+                .foregroundStyle(checked ? Color.accentColor
+                                         : Color.secondary)
         } else {
             Text(item.marker).foregroundStyle(.secondary)
         }

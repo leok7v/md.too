@@ -138,6 +138,9 @@ private final class PDFRenderer {
     let monoSize: CGFloat = 10
     var pageNumber = 0
     var y: CGFloat = 0
+    // Left inset for content nested inside lists / quotes. Header and
+    // footer ignore it (they pin to the true margin).
+    var listIndent: CGFloat = 0
 
     init(ctx: CGContext,
          pageSize: CGSize,
@@ -149,7 +152,7 @@ private final class PDFRenderer {
         self.images = images
     }
 
-    var contentLeft: CGFloat { margin }
+    var contentLeft: CGFloat { margin + listIndent }
     var contentRight: CGFloat { pageSize.width - margin }
     var contentWidth: CGFloat { contentRight - contentLeft }
     var contentTop: CGFloat { pageSize.height - margin - headerH }
@@ -183,8 +186,9 @@ private final class PDFRenderer {
                 drawText(NSAttributedString(attr),
                          font: bodyFont(), color: textColor)
             case .code(_, let text): drawCode(text)
-            case .quote(let attr): drawQuote(NSAttributedString(attr))
-            case .list(let items): drawList(items)
+            case .quote(let blocks): drawQuote(blocks)
+            case .list(let items, let tight):
+                drawList(items, tight: tight)
             case .table(let headers, let rows):
                 drawTable(headers: headers, rows: rows)
             case .rule: drawRule()
@@ -380,114 +384,54 @@ private final class PDFRenderer {
         }
     }
 
-    private func drawQuote(_ attr: NSAttributedString) {
-        let savedY = y
-        let indent: CGFloat = 16
-        let m = NSMutableAttributedString(attributedString: attr)
-        let full = NSRange(location: 0, length: m.length)
-        m.enumerateAttribute(.font, in: full, options: []) { v, range, _ in
-            if v == nil {
-                m.addAttribute(.font, value: bodyFont(), range: range)
+    // Quote content is full block content, drawn at a deeper indent
+    // with a vertical bar. The bar is drawn per page region so a quote
+    // that spans a page break still gets a bar on each page.
+    private func drawQuote(_ blocks: [Block]) {
+        let saved = listIndent
+        let barX = margin + saved
+        var startY = y
+        var startPage = pageNumber
+        listIndent = saved + 16
+        for b in blocks {
+            draw(b)
+            if pageNumber != startPage {
+                startPage = pageNumber
+                startY = contentTop
             }
         }
-        m.addAttribute(.foregroundColor, value: secondaryColor,
-                       range: full)
-        let fs = CTFramesetterCreateWithAttributedString(m)
-        var consumed = 0
-        var startedY = savedY
-        while consumed < m.length {
-            ensureSpace(20)
-            startedY = y
-            let avail = remaining
-            let rem = CFRange(location: consumed,
-                              length: m.length - consumed)
-            let rect = CGRect(x: contentLeft + indent, y: contentBottom,
-                              width: contentWidth - indent,
-                              height: avail)
-            let path = CGPath(rect: rect, transform: nil)
-            let frame = CTFramesetterCreateFrame(fs, rem, path, nil)
-            let visible = CTFrameGetVisibleStringRange(frame)
-            if visible.length == 0 {
-                newPage()
-            } else {
-                let used = lineHeightUsed(frame: frame, in: rect)
-                ctx.setFillColor(secondaryColor)
-                ctx.fill(CGRect(x: contentLeft, y: startedY - used,
-                                width: 2, height: used))
-                CTFrameDraw(frame, ctx)
-                y -= used
-                consumed = visible.location + visible.length
-                if consumed < m.length { newPage() }
-            }
+        listIndent = saved
+        if startY > y {
+            ctx.setFillColor(secondaryColor)
+            ctx.fill(CGRect(x: barX, y: y, width: 2, height: startY - y))
         }
     }
 
-    private func drawList(_ items: [ListItem]) {
+    // A list draws each item's marker at the current indent, then
+    // renders the item's blocks one gutter deeper via draw(), so nested
+    // lists, paragraphs, code, quotes, and tables all compose. The
+    // marker shares the first content line's baseline.
+    private func drawList(_ items: [ListItem], tight: Bool) {
+        let saved = listIndent
+        let gutter: CGFloat = 20
         for item in items {
-            ensureSpace(bodySize * 1.4)
-            let bullet = item.checked == nil ? item.marker
+            ensureSpace(bodySize * 2)
+            let glyph = item.checked == nil ? item.marker
                 : (item.checked == true ? "☑︎" : "☐")
-            let bulletAttr = NSAttributedString(
-                string: bullet + " ",
-                attributes: [
-                    .font: bodyFont(),
-                    .foregroundColor: textColor,
-                ])
-            let bulletLine = CTLineCreateWithAttributedString(bulletAttr)
-            let bulletWidth = CTLineGetTypographicBounds(
-                bulletLine, nil, nil, nil)
-            let savedY = y
-            ctx.textPosition = CGPoint(x: contentLeft, y: y - bodySize)
-            CTLineDraw(bulletLine, ctx)
-            let m = NSMutableAttributedString(
-                attributedString: NSAttributedString(item.content))
-            let full = NSRange(location: 0, length: m.length)
-            m.enumerateAttribute(.font, in: full,
-                                 options: []) { v, range, _ in
-                if v == nil {
-                    m.addAttribute(.font, value: bodyFont(),
-                                   range: range)
-                }
+            let markerAttr = NSAttributedString(string: glyph, attributes: [
+                .font: bodyFont(),
+                .foregroundColor: textColor,
+            ])
+            let line = CTLineCreateWithAttributedString(markerAttr)
+            ctx.textPosition = CGPoint(x: margin + saved, y: y - bodySize)
+            CTLineDraw(line, ctx)
+            listIndent = saved + gutter
+            if item.blocks.isEmpty {
+                y -= bodySize * 1.4
+            } else {
+                for b in item.blocks { draw(b) }
             }
-            m.enumerateAttribute(.foregroundColor, in: full,
-                                 options: []) { v, range, _ in
-                if v == nil {
-                    m.addAttribute(.foregroundColor, value: textColor,
-                                   range: range)
-                }
-            }
-            let fs = CTFramesetterCreateWithAttributedString(m)
-            var consumed = 0
-            var continueLeft = contentLeft + bulletWidth
-            var continueTop = savedY
-            while consumed < m.length {
-                ensureSpace(bodySize * 1.4)
-                let avail = remaining
-                let rem = CFRange(location: consumed,
-                                  length: m.length - consumed)
-                let rect = CGRect(
-                    x: continueLeft,
-                    y: contentBottom,
-                    width: contentWidth - (continueLeft - contentLeft),
-                    height: avail)
-                let path = CGPath(rect: rect, transform: nil)
-                let frame = CTFramesetterCreateFrame(fs, rem, path, nil)
-                let visible = CTFrameGetVisibleStringRange(frame)
-                if visible.length == 0 {
-                    newPage()
-                    continueLeft = contentLeft
-                } else {
-                    let used = lineHeightUsed(frame: frame, in: rect)
-                    CTFrameDraw(frame, ctx)
-                    y = continueTop - used
-                    consumed = visible.location + visible.length
-                    if consumed < m.length {
-                        newPage()
-                        continueLeft = contentLeft
-                        continueTop = y
-                    }
-                }
-            }
+            listIndent = saved
         }
     }
 
@@ -534,21 +478,35 @@ private final class PDFRenderer {
             let scale = contentWidth / total
             colWidths = colWidths.map { v in v * scale }
         }
-        func drawRow(_ cells: [String], bold: Bool) {
+        func drawRow(_ cells: [String], bold: Bool, shade: Bool) {
             var rowH: CGFloat = bodySize * 1.3
             for c in 0..<cols {
                 let txt = c < cells.count ? cells[c] : ""
+                let cellW = colWidths[c] - 2 * rowPad
+                var h: CGFloat = 0
                 if let info = ImagePrefetch.imageInCell(txt),
                    let cg = images[info.0] {
-                    let cellW = colWidths[c] - 2 * rowPad
-                    let h = predictImageHeight(
+                    h = predictImageHeight(
                         cg, maxWidth: cellW,
                         explicitWidth: info.1, explicitHeight: info.2)
-                    if h > rowH { rowH = h }
+                } else {
+                    h = textCellHeight(txt, bold: bold, width: cellW)
                 }
+                if h > rowH { rowH = h }
             }
             ensureSpace(rowH + rowPad * 2)
             let savedY = y
+            // Fill the shade band BEFORE the cells so the text draws on
+            // top of it (normal blend). The earlier destinationOver
+            // approach hid shaded rows: PDF contexts don't reliably
+            // composite-under, so the opaque band painted over the text.
+            if shade {
+                ctx.setFillColor(rowShadeColor)
+                ctx.fill(CGRect(x: contentLeft,
+                                y: savedY - rowH - rowPad,
+                                width: contentWidth,
+                                height: rowH + 2 * rowPad))
+            }
             var maxUsed: CGFloat = 0
             var x = contentLeft
             for c in 0..<cols {
@@ -594,8 +552,10 @@ private final class PDFRenderer {
             ctx.strokePath()
             y -= rowPad
         }
-        if !headers.isEmpty { drawRow(headers, bold: true) }
-        for row in rows { drawRow(row, bold: false) }
+        if !headers.isEmpty { drawRow(headers, bold: true, shade: false) }
+        for (idx, row) in rows.enumerated() {
+            drawRow(row, bold: false, shade: idx % 2 == 1)
+        }
     }
 
     private func imageDrawSize(_ cg: CGImage,
@@ -638,6 +598,23 @@ private final class PDFRenderer {
         imageDrawSize(cg, maxWidth: maxWidth,
                       explicitWidth: explicitWidth,
                       explicitHeight: explicitHeight).height
+    }
+
+    // Lay a text cell into a tall scratch frame to learn its rendered
+    // height, so a row's shade band can be filled before the cells draw.
+    private func textCellHeight(_ txt: String, bold: Bool,
+                                width: CGFloat) -> CGFloat {
+        let inner = NSMutableAttributedString(string: txt)
+        let cellFont = bold ? bodyFontBold() : bodyFont()
+        let full = NSRange(location: 0, length: inner.length)
+        inner.addAttribute(.font, value: cellFont, range: full)
+        let fs = CTFramesetterCreateWithAttributedString(inner)
+        let rect = CGRect(x: 0, y: 0, width: width,
+                          height: pageSize.height)
+        let path = CGPath(rect: rect, transform: nil)
+        let frame = CTFramesetterCreateFrame(
+            fs, CFRange(location: 0, length: 0), path, nil)
+        return lineHeightUsed(frame: frame, in: rect)
     }
 
     private func drawCellImage(_ cg: CGImage,
@@ -693,14 +670,14 @@ private final class PDFRenderer {
             .foregroundColor: secondaryColor,
         ])
         let line = CTLineCreateWithAttributedString(attr)
-        ctx.textPosition = CGPoint(x: contentLeft,
+        ctx.textPosition = CGPoint(x: margin,
                                    y: pageSize.height - margin - 14)
         CTLineDraw(line, ctx)
         ctx.setStrokeColor(secondaryColor)
         ctx.setLineWidth(0.3)
         let lineY = pageSize.height - margin - 18
-        ctx.move(to: CGPoint(x: contentLeft, y: lineY))
-        ctx.addLine(to: CGPoint(x: contentRight, y: lineY))
+        ctx.move(to: CGPoint(x: margin, y: lineY))
+        ctx.addLine(to: CGPoint(x: pageSize.width - margin, y: lineY))
         ctx.strokePath()
     }
 
@@ -763,6 +740,10 @@ private final class PDFRenderer {
 
     private var codeBgColor: CGColor {
         return CGColor(srgbRed: 0.95, green: 0.95, blue: 0.95, alpha: 1.0)
+    }
+
+    private var rowShadeColor: CGColor {
+        return CGColor(srgbRed: 0.96, green: 0.96, blue: 0.97, alpha: 1.0)
     }
 
 }

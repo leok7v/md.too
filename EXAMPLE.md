@@ -10,6 +10,39 @@ Two decades later the average Markdown editor ships with roughly the same disk f
 
 > "Programs are meant to be read by humans and only incidentally for computers to execute."  Hal Abelson, *Structure and Interpretation of Computer Programs*. Markdown asks for the same courtesy from your text.
 
+## The shape of a thought
+
+Good notes nest the way thinking does: a point, the caveat that softens the point, the example that rescues the caveat. A list should let that structure show without getting loud about it.
+
+- Write the thing you mean, and if the sentence runs long, just let it
+  keep going onto the next line. The reader's eye does not care where
+  your editor decided to wrap a line; it cares only where your idea ends.
+- Give an idea room when it needs a second breath.
+
+  A second paragraph, still part of the same point, because some thoughts
+  do not fit on one line and should not be shoved onto one.
+- Indent a sub-point only when it genuinely sits beneath the one above:
+  - like this,
+  - and this,
+    - and, once in a while, one level deeper, where the left margin holds
+      steady instead of wandering rightward as the text wraps.
+- Then stop, because the best list is the one that ends on time.
+
+A numbered list is the same idea wearing shoes. A small recipe, say:
+
+1. Pick a file. Any `.md` will do; this one volunteered for the part.
+2. Read it from the top. When a step has something to show, it can carry
+   a quote of its own,
+
+   > The palest ink is better than the best memory.
+
+   or a single honest line of code,
+
+       print("hello, reader")
+
+   and the step still reads as one thought.
+3. Close the file. That was the whole recipe.
+
 ## Math, the small kind
 
 A guided tour of the LaTeX subset, with no pretense of being a full TeX engine.
