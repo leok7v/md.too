@@ -77,6 +77,20 @@ struct ThemeButton: View {
 
 }
 
+struct SourceButton: View {
+
+    let showingSource: Bool
+    let onToggle: () -> Void
+
+    var body: some View {
+        Button(action: onToggle) {
+            Image(systemName: showingSource ? "doc.richtext" : "doc.plaintext")
+        }
+        .help(showingSource ? "View rendered" : "View source")
+    }
+
+}
+
 // Image prefetch lives next to PrefetchedImagesKey - same concept,
 // consumption side (PrefetchedImagesKey) plus production side (this).
 // Used by PDFExport (PDF render) and QuickLookViewController (QL preview).

@@ -13,6 +13,8 @@ struct MarkdownView: View {
     @AppStorage("themeMode")
     private var themeRaw: String = ThemeMode.system.rawValue
 
+    @State private var showSource = false
+
     #if !QUICKLOOK_EXTENSION
     @State private var liveText: String? = nil
     @State private var watcher: MarkdownFileWatcher? = nil
@@ -49,8 +51,13 @@ struct MarkdownView: View {
         #endif
         #if QUICKLOOK_EXTENSION
         body.overlay(alignment: .topTrailing) {
-            ThemeButton(theme: theme) {
-                themeRaw = theme.next.rawValue
+            HStack(spacing: 8) {
+                SourceButton(showingSource: showSource) {
+                    showSource.toggle()
+                }
+                ThemeButton(theme: theme) {
+                    themeRaw = theme.next.rawValue
+                }
             }
             .buttonStyle(.plain)
             .padding(8)
@@ -69,8 +76,8 @@ struct MarkdownView: View {
         }()
         withAutosave.toolbar {
             ToolbarItem(placement: .primaryAction) {
-                ThemeButton(theme: theme) {
-                    themeRaw = theme.next.rawValue
+                SourceButton(showingSource: showSource) {
+                    showSource.toggle()
                 }
             }
             #if os(macOS)
@@ -80,6 +87,11 @@ struct MarkdownView: View {
             #endif
             ToolbarItem(placement: .primaryAction) {
                 ShareButton(text: displayText, fileURL: fileURL)
+            }
+            ToolbarItem(placement: .primaryAction) {
+                ThemeButton(theme: theme) {
+                    themeRaw = theme.next.rawValue
+                }
             }
         }
         .onAppear {
@@ -106,16 +118,27 @@ struct MarkdownView: View {
     #endif
 
     private var scrollContent: some View {
-        let blocks = Markdown.parse(displayText)
-        return ScrollView(.vertical) {
-            VStack(alignment: .leading, spacing: 12) {
-                ForEach(Array(blocks.enumerated()),
-                        id: \.offset) { _, block in
-                    BlockView(block: block)
+        ScrollView(.vertical) {
+            Group {
+                if showSource {
+                    SelectableText(attributed: AttributedString(displayText),
+                                   role: .mono)
+                } else {
+                    rendered
                 }
             }
             .padding(20)
             .frame(maxWidth: .infinity, alignment: .leading)
+        }
+    }
+
+    private var rendered: some View {
+        let blocks = Markdown.parse(displayText)
+        return VStack(alignment: .leading, spacing: 12) {
+            ForEach(Array(blocks.enumerated()),
+                    id: \.offset) { _, block in
+                BlockView(block: block)
+            }
         }
     }
 
