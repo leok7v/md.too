@@ -185,7 +185,8 @@ private final class PDFRenderer {
             case .paragraph(let attr):
                 drawText(NSAttributedString(attr),
                          font: bodyFont(), color: textColor)
-            case .code(_, let text): drawCode(text)
+            case .code(let language, let text):
+                drawCode(text, language: language)
             case .quote(let blocks): drawQuote(blocks)
             case .list(let items, let tight):
                 drawList(items, tight: tight)
@@ -345,12 +346,20 @@ private final class PDFRenderer {
         return result
     }
 
-    private func drawCode(_ text: String) {
-        let ns = Highlight.attribute(text, language: nil,
+    private func drawCode(_ text: String, language: String?) {
+        let ns = Highlight.attribute(text, language: language,
                                      baseFont: monoFontPlatform())
         let m = NSMutableAttributedString(attributedString: ns)
         let full = NSRange(location: 0, length: m.length)
         m.addAttribute(.font, value: monoCTFont(), range: full)
+        // Core Text honors only CGColor; the highlighter emits NSColor.
+        m.enumerateAttribute(.foregroundColor, in: full,
+                             options: []) { value, range, _ in
+            if let c = value as? PlatformColor {
+                m.addAttribute(.foregroundColor, value: c.cgColor,
+                               range: range)
+            }
+        }
         let fs = CTFramesetterCreateWithAttributedString(m)
         var consumed = 0
         while consumed < m.length {
