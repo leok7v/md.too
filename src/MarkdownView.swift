@@ -80,9 +80,15 @@ struct MarkdownView: View {
                     showSource.toggle()
                 }
             }
+            ToolbarItem(placement: .primaryAction) {
+                CopyDocButton(text: displayText)
+            }
             #if os(macOS)
             ToolbarItem(placement: .primaryAction) {
                 SaveButton(text: displayText, fileURL: fileURL)
+            }
+            ToolbarItem(placement: .primaryAction) {
+                SaveHtmlButton(text: displayText, fileURL: fileURL)
             }
             #endif
             ToolbarItem(placement: .primaryAction) {
