@@ -24,6 +24,14 @@ enum TempPDFs {
     }
 }
 
+// Sync PDF render for the pasteboard's lazy .pdf flavor (no image
+// prefetch - the request callback is sync). Async exportPDF (below)
+// is the path for Save / Share which DO prefetch images.
+func exportPDFDataSync(text: String, title: String) -> Data? {
+    let blocks = Markdown.parse(text)
+    return PDFExport.data(blocks: blocks, title: title)
+}
+
 func exportPDF(text: String, title: String) async -> URL? {
     let blocks = Markdown.parse(text)
     let images = await PDFExport.prefetchImages(in: blocks)
@@ -100,6 +108,42 @@ enum PDFExport {
         let urls = ImagePrefetch.collectURLs(in: blocks)
         let datas = await ImagePrefetch.fetch(urls)
         return datas.compactMapValues { d in decode(d) }
+    }
+
+    // Sync sibling of `write` that returns Data via CGDataConsumer over
+    // NSMutableData. Used by the pasteboard's lazy .pdf flavor where the
+    // request callback is synchronous, so there is no time to prefetch
+    // images - any missing image renders as its alt-text placeholder.
+    static func data(blocks: [Block], title: String,
+                     images: [URL: CGImage] = [:]) -> Data? {
+        var result: Data? = nil
+        let body = {
+            let buffer = NSMutableData()
+            let pageSize = paperSize()
+            var media = CGRect(origin: .zero, size: pageSize)
+            if let consumer = CGDataConsumer(data: buffer),
+               let ctx = CGContext(consumer: consumer,
+                                   mediaBox: &media, nil) {
+                let r = PDFRenderer(ctx: ctx, pageSize: pageSize,
+                                    title: title, images: images)
+                r.startPage()
+                for block in blocks { r.draw(block) }
+                r.endPage()
+                ctx.closePDF()
+                result = buffer as Data
+            }
+        }
+        #if os(macOS)
+        if let aqua = NSAppearance(named: .aqua) {
+            aqua.performAsCurrentDrawingAppearance(body)
+        } else {
+            body()
+        }
+        #else
+        let light = UITraitCollection(userInterfaceStyle: .light)
+        light.performAsCurrent(body)
+        #endif
+        return result
     }
 
     private static func decode(_ data: Data) -> CGImage? {

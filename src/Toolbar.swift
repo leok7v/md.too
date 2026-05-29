@@ -38,11 +38,15 @@ struct CopyDocButton: View {
         #if os(macOS)
         let pb = NSPasteboard.general
         pb.clearContents()
-        pb.setString(plain, forType: .string)
-        pb.setString(html, forType: .html)
+        let item = NSPasteboardItem()
+        item.setString(plain, forType: .string)
+        item.setString(html, forType: .html)
         if let rtf = htmlToRtf(html) {
-            pb.setData(rtf, forType: .rtf)
+            item.setData(rtf, forType: .rtf)
         }
+        CopyPdfProvider.shared.set(text: text)
+        item.setDataProvider(CopyPdfProvider.shared, forTypes: [.pdf])
+        pb.writeObjects([item])
         #else
         UIPasteboard.general.setItems([[
             "public.utf8-plain-text": plain,
@@ -61,6 +65,11 @@ struct CopyDocButton: View {
     // table shading, and link styles come through inconsistently), but
     // ten lines and zero parallel maintenance. See the
     // pasteboard-rtf-roundtrip memory for the upgrade path.
+    //
+    // The .pdf flavor is registered lazily via CopyPdfProvider so the
+    // PDF renders only when a target (Pages, Keynote, Preview) actually
+    // asks for it - Copy stays instant for the common text/HTML/RTF
+    // paste targets and avoids the full CGContext draw on every click.
     private func htmlToRtf(_ html: String) -> Data? {
         var result: Data? = nil
         if let data = html.data(using: .utf8),
@@ -82,6 +91,33 @@ struct CopyDocButton: View {
     #endif
 
 }
+
+#if os(macOS)
+// NSPasteboardItem does not strongly retain its data provider, so the
+// provider must outlive the item; a process-wide singleton is the
+// lightest way to guarantee that. set(text:) updates the singleton at
+// each Copy so the .pdf callback renders the right document.
+private final class CopyPdfProvider: NSObject, NSPasteboardItemDataProvider {
+
+    static let shared = CopyPdfProvider()
+
+    private var text: String = ""
+
+    func set(text: String) {
+        self.text = text
+    }
+
+    func pasteboard(_ pasteboard: NSPasteboard?,
+                    item: NSPasteboardItem,
+                    provideDataForType type: NSPasteboard.PasteboardType) {
+        if type == .pdf,
+           let data = exportPDFDataSync(text: text, title: "Document") {
+            item.setData(data, forType: .pdf)
+        }
+    }
+
+}
+#endif
 
 struct ShareButton: View {
 
