@@ -5,12 +5,15 @@ A minimalist Markdown viewer for macOS and iOS. Read-only, native, zero third-pa
 ## What it does
 
 - Open a `.md` file and see it rendered.
-- Select text, copy it, scroll. Code blocks and tables have a one-click copy button.
+- Read selectably — drag across paragraphs, headings, lists, and quotes and the selection flows continuously the way the document reads. Code blocks, tables, and images select as whole atoms.
+- Copy the whole document (Cmd-C or the toolbar Copy button) — paste it as plain text, HTML, RTF, or PDF depending on what the target app accepts.
+- Save the document as a paginated PDF (with syntax-highlighted code, embedded images, zebra-striped tables) or as a self-contained HTML file (inline styles only — no external CSS, no JavaScript).
+- Toggle between the rendered view and the raw Markdown source from the toolbar.
 - macOS Quick Look extension renders `.md` in Finder's preview pane and on spacebar peek.
 - Syntax highlighting for about 40 languages (Swift, C/C++/C#/Objective-C, Java, Kotlin, Scala, JS/TS, Python, Rust, Go, Ruby, PHP, Dart, Lua, Perl, R, Julia, Haskell, OCaml, F#, Elixir, Clojure, Groovy, SQL, GraphQL, Dockerfile, Makefile, TOML, INI, YAML, JSON, XML, HTML, CSS, Bash, PowerShell, Markdown).
+- Tables with zebra rows, a stronger header band, and inline formatting inside cells — `**bold**`, `*italic*`, `` `code` ``, `~~strike~~`, `[link](url)`.
 - GitHub-style task lists (`- [ ]` / `- [x]`).
 - Tiny LaTeX subset in `$…$` / `$$…$$`: Greek letters, super/subscripts, common operators, simple fractions.
-- Export the rendered document to PDF (paginated, with images embedded).
 
 See [EXAMPLE.md](EXAMPLE.md) for a single document that exercises every supported feature.
 
@@ -19,6 +22,30 @@ See [EXAMPLE.md](EXAMPLE.md) for a single document that exercises every supporte
 No editor, no live edit/preview split, no autosave. No HTML or `WKWebView`. No file tree, tabs, or command palette. No app-level themes (light/dark follows the system, or pick one explicitly). No third-party packages — pure Swift + AppKit/UIKit/SwiftUI.
 
 For context: the most popular JavaScript Markdown library, `marked`, reports about 636 transitive dependencies and roughly 38,980 lines of code on its public dependency graph. The md.too app is a few Swift files with no dependencies. Every package you do not pull in is a supply-chain risk you do not inherit.
+
+## Toolbar
+
+The toolbar (in both apps, and a reduced cluster in the top-right of the Quick Look pane) carries these actions:
+<img width="476" height="68" alt="toolbar-buttons" src="https://github.com/user-attachments/assets/594bba04-aaf5-4a33-9d97-ec8533059f2a" />
+
+- **Source** — <img width="41" height="34" alt="source" src="https://github.com/user-attachments/assets/8bce80c6-e43c-49fe-aa18-22b5dbdef31c" />
+toggle between the rendered document and the raw Markdown text. Read-only either way; the source view exists so you can copy verbatim Markdown when the destination needs source rather than a formatted paste.
+- **Copy** — <img width="38" height="34" alt="copy" src="https://github.com/user-attachments/assets/64660758-812b-4423-b8ac-9dfcae473f03" />
+copy the whole document to the clipboard with multiple flavors attached:
+  - **Plain text** — falls into Terminal, an `<input>` field, or a code editor as readable Markdown-flavored text. Tables are width-aligned ASCII so columns line up.
+  - **HTML** — pastes into Mail, Gmail, Notes, or any rich-text editor with bold / italic / code / links / tables / zebra striping preserved. Inline styles only, no `<style>` block, so paste sanitizers leave the formatting alone.
+  - **RTF** (macOS) — pastes into TextEdit and other Cocoa rich-text targets.
+  - **PDF** — drops a fully laid-out PDF into Pages, Keynote, or Preview. Rendered on demand the first time the target asks for it, so Copy itself stays instant.
+- **Save as PDF** (macOS) — <img width="37" height="34" alt="save-pdf" src="https://github.com/user-attachments/assets/ce738bdf-2f87-4223-8029-aa3c04222490" />
+paginated PDF with embedded images, syntax-highlighted code blocks, zebra-striped tables, page numbers, and the document title in the header. The page size follows your locale (Letter in the US, A4 elsewhere).
+- **Save as HTML** (macOS) — <img width="37" height="34" alt="save-html" src="https://github.com/user-attachments/assets/80f67fc7-cf6f-46b7-90ec-31dbcb5d7497" />
+single self-contained `.html` file with all images inlined as base64 and styles attached inline on every element. Theme-neutral grays, no JavaScript, no external references — opens and prints anywhere, survives email, and round-trips through TextEdit's HTML-to-RTF converter.
+- **Share** — <img width="37" height="34" alt="share" src="https://github.com/user-attachments/assets/8c021dd9-68e9-4f9f-9c8d-53cd9759e852" />
+system Share sheet with a freshly-rendered PDF attached.
+- **Theme** — <img width="37" height="34" alt="theme" src="https://github.com/user-attachments/assets/36ec6808-8b71-4497-8e0e-4c952e332f74" />
+system / light / dark cycle for the current window only. The document is never modified.
+
+The Quick Look extension shows only the Source and Theme buttons; saving, copying, and sharing happen in the full app.
 
 ## Why
 
@@ -74,25 +101,25 @@ A short loop through [EXAMPLE.md](EXAMPLE.md) on each platform — parsing, synt
 
 Cross-target — compiled into the macOS app, the iOS app, and the Quick Look extension:
 
-- [`MarkdownParser.swift`](src/MarkdownParser.swift) — `MarkdownDocument` (FileDocument), block parser, tiny LaTeX subset.
-- [`MarkdownView.swift`](src/MarkdownView.swift) — top-level SwiftUI view.
-- [`BlockViews.swift`](src/BlockViews.swift) — per-block render (heading, list, code, table, image).
+- [`MarkdownParser.swift`](src/MarkdownParser.swift) — `MarkdownDocument` (FileDocument), block parser with CommonMark container model, tiny LaTeX subset.
+- [`MarkdownView.swift`](src/MarkdownView.swift) — top-level SwiftUI view; composes the toolbar and routes between rendered, source, and the single-text-surface paths.
+- [`BlockViews.swift`](src/BlockViews.swift) — per-block render (heading, list, code, table, image), plus `TableMetrics` (the shared column-width primitive used by the on-screen, PDF, and HTML table renderers).
 - [`SelectableText.swift`](src/SelectableText.swift) — selectable / copyable text wrapper around `NSTextView` / `UITextView`.
 - [`Highlight.swift`](src/Highlight.swift) — regex syntax highlighter, driven by [`highlights.ini`](src/highlights.ini).
-- [`Platform.swift`](src/Platform.swift), [`FontRole.swift`](src/FontRole.swift), [`Environment.swift`](src/Environment.swift) — typealiases, font + theme support.
+- [`Platform.swift`](src/Platform.swift), [`FontRole.swift`](src/FontRole.swift), [`Environment.swift`](src/Environment.swift) — typealiases, font / theme support, image prefetch, and the small Source / Theme toolbar buttons.
 
 Apps only — macOS + iOS, not the Quick Look extension:
 
-- [`App.swift`](src/App.swift) — `@main`, `DocumentGroup`.
+- [`App.swift`](src/App.swift) — `@main`, `DocumentGroup`, Open-panel seeding.
 - [`AppShell.swift`](src/AppShell.swift) — on-disk file-change watcher, window-frame autosave, system-theme bridge.
-- [`Toolbar.swift`](src/Toolbar.swift) — share button.
-- [`PDFRenderer.swift`](src/PDFRenderer.swift) — paginated PDF export with embedded images.
+- [`Toolbar.swift`](src/Toolbar.swift) — Copy (multi-flavor pasteboard with lazy PDF) and Share buttons.
+- [`PDFRenderer.swift`](src/PDFRenderer.swift) — paginated PDF export, theme-neutral HTML export, plain-text export, and `DocumentText` (the document-wide single text surface that backs continuous cross-block selection).
 
 Per platform / per target:
 
-- [`Bridges-macOS.swift`](src/Bridges-macOS.swift) — `NSViewRepresentable` for selectable text. macOS app + Quick Look extension.
+- [`Bridges-macOS.swift`](src/Bridges-macOS.swift) — `NSViewRepresentable` for selectable text, plus the anchor-scope selection arbiter that snaps a drag to whole when it crosses an atomic block (code, table, image). macOS app + Quick Look extension.
 - [`Bridges-iOS.swift`](src/Bridges-iOS.swift) — `UIViewRepresentable` for selectable text. iOS app only.
-- [`Toolbar-macOS.swift`](src/Toolbar-macOS.swift) — Save-as-PDF panel. macOS app only.
+- [`Toolbar-macOS.swift`](src/Toolbar-macOS.swift) — Save-as-PDF and Save-as-HTML panels. macOS app only.
 - [`QuickLook.swift`](src/QuickLook.swift) — `QLPreviewingController`. Quick Look extension only.
 
 [`config/`](config) holds the three `Info-*.plist` files for the app and extension targets, four `*.entitlements` files (release + debug pairs for the apps and the extension), and `Base.xcconfig` / `version.xcconfig` / a gitignored per-developer `Local.xcconfig`.

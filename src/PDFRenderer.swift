@@ -24,6 +24,24 @@ enum TempPDFs {
     }
 }
 
+// Async prefetch + decode helper for the single-text-surface path
+// (DocumentText). Mirrors PDFExport.prefetchImages but returns
+// platform images (NSImage / UIImage) suitable for NSTextAttachment.
+func prefetchDocumentImages(in blocks: [Block])
+    async -> [URL: DocumentText.DocumentImage] {
+    let urls = ImagePrefetch.collectURLs(in: blocks)
+    let datas = await ImagePrefetch.fetch(urls)
+    var result: [URL: DocumentText.DocumentImage] = [:]
+    for (url, data) in datas {
+        #if os(macOS)
+        if let img = NSImage(data: data) { result[url] = img }
+        #else
+        if let img = UIImage(data: data) { result[url] = img }
+        #endif
+    }
+    return result
+}
+
 // Sync PDF render for the pasteboard's lazy .pdf flavor (no image
 // prefetch - the request callback is sync). Async exportPDF (below)
 // is the path for Save / Share which DO prefetch images.
@@ -1243,4 +1261,574 @@ enum PlainExport {
     private static func plain(_ a: AttributedString) -> String {
         String(a.characters)
     }
+}
+
+// PLAN-TABLES Step 2: single text surface. Walks [Block] and produces
+// one NSAttributedString that an NSTextView / UITextView can render
+// with native continuous selection. ROUND 1 covers paragraph +
+// heading + rule with inline-intent translation (bold / italic / code
+// / strike / link); other block types fall back to PlainExport raw
+// text until later rounds style them. Behind a `singleSurface`
+// AppStorage flag in MarkdownView, default off. See
+// single-text-surface-intent.md for the staged rounds.
+enum DocumentText {
+
+    // Atomic-range tag values. PLAN-SELECTION's arbiter reads these
+    // to decide when to snap a selection that crosses a block to the
+    // whole block. Absence of the tag means "inline" (paragraph /
+    // heading / list-item / quote-content); presence means "atomic"
+    // (the user can range-select inside the block but a selection
+    // that started outside snaps to whole).
+    enum AtomicKind: String {
+        case code
+        case table
+        case image
+    }
+
+    #if os(macOS)
+    typealias DocumentImage = NSImage
+    #elseif os(iOS)
+    typealias DocumentImage = UIImage
+    #endif
+
+    static let atomicKindKey =
+        NSAttributedString.Key("DocumentText.atomicKind")
+    static let atomicIdKey =
+        NSAttributedString.Key("DocumentText.atomicId")
+
+    static func attributed(from blocks: [Block],
+                           images: [URL: DocumentImage] = [:])
+        -> NSAttributedString {
+        let m = NSMutableAttributedString()
+        for block in blocks {
+            m.append(render(block, images: images))
+        }
+        return m
+    }
+
+    private static func render(_ block: Block,
+                               images: [URL: DocumentImage])
+        -> NSAttributedString {
+        var result: NSAttributedString
+        switch block {
+            case .paragraph(let attr):
+                result = paragraph(attr)
+            case .heading(let level, let attr):
+                result = heading(level: level, text: attr)
+            case .code(let lang, let text):
+                result = code(language: lang, text: text)
+            case .quote(let inner):
+                result = quote(inner, images: images)
+            case .list(let items, let tight):
+                result = list(items: items, tight: tight, depth: 0,
+                              images: images)
+            case .table(let headers, let rows):
+                result = table(headers: headers, rows: rows)
+            case .rule:
+                result = rule()
+            case .image(let alt, let url, let w, let h):
+                result = image(alt: alt, url: url, width: w, height: h,
+                               images: images)
+        }
+        return result
+    }
+
+    // Tab-stop tables (intent-doc Option A). Tab stops sit at the
+    // cumulative point widths from TableMetrics; cells in a row are
+    // tab-separated, so each cell snaps into its column. Header row
+    // is bold with a stronger tint; data rows alternate with a
+    // subtler tint. The whole range carries atomic-kind = table so
+    // PLAN-SELECTION's arbiter can snap a cross-boundary drag.
+    //
+    // Cells parse as inline Markdown: `**bold**` / `*italic*` /
+    // `` `code` `` / `~~strike~~` / `[link](url)` translate to
+    // explicit per-run attributes in `tableCell`. Long cells still
+    // truncate to one line per row - tab tables don't wrap within a
+    // column - so wider-than-column rich text gets cut at the tail.
+    private static func table(headers: [String],
+                              rows: [[String]]) -> NSAttributedString {
+        let m = NSMutableAttributedString()
+        let widths = TableMetrics.pointWidths(headers: headers,
+                                              rows: rows,
+                                              available: 480)
+        var stops: [NSTextTab] = []
+        var x: CGFloat = 0
+        for w in widths {
+            x += w
+            stops.append(NSTextTab(textAlignment: .left, location: x))
+        }
+        let atomicId = UUID().uuidString
+        if !headers.isEmpty {
+            m.append(tableRow(cells: headers, stops: stops, bold: true,
+                              tint: tableHeaderTint(),
+                              atomicId: atomicId))
+        }
+        for (idx, row) in rows.enumerated() {
+            let tint: PlatformColor = idx % 2 == 1
+                ? tableZebraTint() : clearColor()
+            m.append(tableRow(cells: row, stops: stops, bold: false,
+                              tint: tint, atomicId: atomicId))
+        }
+        m.append(NSAttributedString(string: "\n"))
+        return m
+    }
+
+    private static func tableRow(cells: [String],
+                                 stops: [NSTextTab],
+                                 bold: Bool,
+                                 tint: PlatformColor,
+                                 atomicId: String) -> NSAttributedString {
+        let para = NSMutableParagraphStyle()
+        para.tabStops = stops
+        para.lineBreakMode = .byTruncatingTail
+        let base = bold ? boldFont(of: bodyFont()) : bodyFont()
+        let m = NSMutableAttributedString()
+        for (i, cell) in cells.enumerated() {
+            if i > 0 {
+                m.append(NSAttributedString(
+                    string: "\t", attributes: [.font: base]))
+            }
+            m.append(tableCell(cell, base: base))
+        }
+        m.append(NSAttributedString(string: "\n",
+                                    attributes: [.font: base]))
+        // Row-level attributes wrap the per-cell character runs so the
+        // tab stops, zebra tint, and atomic-arbiter tags cover the
+        // whole row while each cell's inline font/strikethrough/link
+        // attributes survive (addAttribute does not touch .font /
+        // .foregroundColor / .underlineStyle / .link).
+        let full = NSRange(location: 0, length: m.length)
+        m.addAttribute(.paragraphStyle, value: para, range: full)
+        m.addAttribute(.backgroundColor, value: tint, range: full)
+        m.addAttribute(atomicKindKey,
+                       value: AtomicKind.table.rawValue, range: full)
+        m.addAttribute(atomicIdKey, value: atomicId, range: full)
+        return m
+    }
+
+    // Parse a cell as one paragraph of Markdown and translate each
+    // inline run's intent (bold / italic / code / strikethrough / link)
+    // into explicit Core-Text-honored attributes on top of `base` (the
+    // row's font, which already carries .bold for header rows). Mirrors
+    // PDFRenderer.cellAttributed; the difference is that the result
+    // composes into one tab-separated row paragraph instead of its own
+    // framesetter. Inline images in cells stay as their alt text - the
+    // single-surface path does not inline images inside table rows.
+    private static func tableCell(_ text: String,
+                                  base: PlatformFont)
+        -> NSAttributedString {
+        let parsed = Markdown.parse(text)
+        var attr = AttributedString(text)
+        if let first = parsed.first, case .paragraph(let a) = first {
+            attr = a
+        }
+        let m = NSMutableAttributedString()
+        for run in attr.runs {
+            let segment = String(attr[run.range].characters)
+            let intent = run.inlinePresentationIntent ?? []
+            let runFont = inlineRunFont(intent: intent, base: base)
+            var attrs: [NSAttributedString.Key: Any] = [
+                .font: runFont,
+                .foregroundColor: textColor(),
+            ]
+            if intent.contains(.strikethrough) {
+                attrs[.strikethroughStyle] =
+                    NSUnderlineStyle.single.rawValue
+            }
+            if let url = run.link {
+                attrs[.link] = url
+            }
+            m.append(NSAttributedString(string: segment,
+                                        attributes: attrs))
+        }
+        return m
+    }
+
+    private static func tableHeaderTint() -> PlatformColor {
+        #if os(macOS)
+        return NSColor(white: 0.5, alpha: 0.14)
+        #else
+        return UIColor(white: 0.5, alpha: 0.14)
+        #endif
+    }
+
+    private static func tableZebraTint() -> PlatformColor {
+        #if os(macOS)
+        return NSColor(white: 0.5, alpha: 0.07)
+        #else
+        return UIColor(white: 0.5, alpha: 0.07)
+        #endif
+    }
+
+    private static func clearColor() -> PlatformColor {
+        #if os(macOS)
+        return NSColor.clear
+        #else
+        return UIColor.clear
+        #endif
+    }
+
+    // Apply quote indent on top of any existing paragraph indent
+    // (so a list / heading inside a quote keeps its own indent and
+    // gains the quote shift on top), and tint behind the whole range.
+    private static func quote(_ blocks: [Block],
+                              images: [URL: DocumentImage])
+        -> NSAttributedString {
+        let m = NSMutableAttributedString()
+        for inner in blocks {
+            m.append(render(inner, images: images))
+        }
+        let full = NSRange(location: 0, length: m.length)
+        m.enumerateAttribute(.paragraphStyle,
+                             in: full, options: []) { value, range, _ in
+            let merged = NSMutableParagraphStyle()
+            if let existing = value as? NSParagraphStyle {
+                merged.setParagraphStyle(existing)
+            }
+            merged.headIndent += 18
+            merged.firstLineHeadIndent += 18
+            m.addAttribute(.paragraphStyle, value: merged, range: range)
+        }
+        m.addAttribute(.backgroundColor, value: quoteBackgroundColor(),
+                       range: full)
+        return m
+    }
+
+    // Single-paragraph items get marker + tab + body on one paragraph
+    // with the item's paragraph style; nested lists recurse at deeper
+    // depth. Multi-block items get the continuation indent merged into
+    // each non-list block past the first via `listItem`, so a follow-up
+    // paragraph or fence sits under the bullet body, not at the left
+    // margin.
+    private static func list(items: [ListItem], tight: Bool,
+                             depth: Int,
+                             images: [URL: DocumentImage])
+        -> NSAttributedString {
+        let m = NSMutableAttributedString()
+        let indent = CGFloat(depth + 1) * 20
+        let para = NSMutableParagraphStyle()
+        para.headIndent = indent
+        para.firstLineHeadIndent = indent - 20
+        para.tabStops = [NSTextTab(textAlignment: .left,
+                                   location: indent)]
+        para.paragraphSpacing = tight ? 2 : 8
+        para.paragraphSpacingBefore = tight ? 2 : 4
+        for item in items {
+            m.append(listItem(item, para: para, tight: tight,
+                              depth: depth, images: images))
+        }
+        return m
+    }
+
+    private static func listItem(_ item: ListItem,
+                                 para: NSParagraphStyle,
+                                 tight: Bool,
+                                 depth: Int,
+                                 images: [URL: DocumentImage])
+        -> NSAttributedString {
+        let marker: String
+        if let c = item.checked {
+            marker = c ? "\u{2611}" : "\u{2610}"
+        } else {
+            marker = item.marker
+        }
+        let prefix: [NSAttributedString.Key: Any] = [
+            .font: bodyFont(),
+            .foregroundColor: secondaryColor(),
+            .paragraphStyle: para,
+        ]
+        let line = NSMutableAttributedString(
+            string: "\(marker)\t", attributes: prefix)
+        var headHandled = false
+        if let first = item.blocks.first {
+            switch first {
+                case .paragraph(let attr):
+                    let body = NSMutableAttributedString()
+                    translateInline(attr, base: bodyFont(), into: body)
+                    let r = NSRange(location: 0, length: body.length)
+                    body.addAttribute(.paragraphStyle, value: para,
+                                      range: r)
+                    line.append(body)
+                    headHandled = true
+                case .list(let inner, let innerTight):
+                    line.append(list(items: inner, tight: innerTight,
+                                     depth: depth + 1,
+                                     images: images))
+                    headHandled = true
+                default:
+                    break
+            }
+        }
+        if !headHandled, let first = item.blocks.first {
+            line.append(render(first, images: images))
+        }
+        line.append(NSAttributedString(string: "\n"))
+        // Continuation indent for the item's second-and-later blocks.
+        // Same additive-merge pattern as `quote`: a follow-up paragraph,
+        // fence, image, or quote sits flush with the head body (column =
+        // list's headIndent), not at the left margin. Without it the
+        // continuation visually escapes the bullet and reads as
+        // top-level content. Nested lists own their own indent in
+        // `list(depth: depth + 1)` so they bypass the merge.
+        let contIndent = para.headIndent
+        for rest in item.blocks.dropFirst() {
+            if case .list(let inner, let innerTight) = rest {
+                line.append(list(items: inner, tight: innerTight,
+                                 depth: depth + 1,
+                                 images: images))
+            } else {
+                let rendered = NSMutableAttributedString(
+                    attributedString: render(rest, images: images))
+                let full = NSRange(location: 0, length: rendered.length)
+                rendered.enumerateAttribute(.paragraphStyle, in: full,
+                                            options: []) { value, r, _ in
+                    let merged = NSMutableParagraphStyle()
+                    if let existing = value as? NSParagraphStyle {
+                        merged.setParagraphStyle(existing)
+                    }
+                    merged.headIndent += contIndent
+                    merged.firstLineHeadIndent += contIndent
+                    rendered.addAttribute(.paragraphStyle,
+                                          value: merged, range: r)
+                }
+                line.append(rendered)
+            }
+        }
+        return line
+    }
+
+    // NSTextAttachment for inlined images. Placeholder text when the
+    // image data has not been prefetched yet; MarkdownView's .task
+    // prefetches asynchronously and re-renders with the real images
+    // once they arrive.
+    private static func image(alt: String, url: URL,
+                              width: CGFloat?, height: CGFloat?,
+                              images: [URL: DocumentImage])
+        -> NSAttributedString {
+        var result: NSAttributedString
+        if let img = images[url] {
+            let attachment = NSTextAttachment()
+            attachment.image = img
+            attachment.bounds = imageBounds(img, width: width,
+                                            height: height)
+            let m = NSMutableAttributedString(attachment: attachment)
+            let full = NSRange(location: 0, length: m.length)
+            m.addAttribute(atomicKindKey,
+                           value: AtomicKind.image.rawValue,
+                           range: full)
+            m.addAttribute(atomicIdKey, value: UUID().uuidString,
+                           range: full)
+            m.append(NSAttributedString(string: "\n\n"))
+            result = m
+        } else {
+            let label = alt.isEmpty ? url.absoluteString : alt
+            let attrs: [NSAttributedString.Key: Any] = [
+                .font: bodyFont(),
+                .foregroundColor: secondaryColor(),
+                atomicKindKey: AtomicKind.image.rawValue,
+                atomicIdKey: UUID().uuidString,
+            ]
+            result = NSAttributedString(
+                string: "[Image: \(label)]\n\n", attributes: attrs)
+        }
+        return result
+    }
+
+    private static func imageBounds(_ img: DocumentImage,
+                                    width: CGFloat?,
+                                    height: CGFloat?) -> CGRect {
+        var w = img.size.width
+        var h = img.size.height
+        let aspect = w > 0 ? h / w : 1
+        if let pw = width, let ph = height {
+            w = pw; h = ph
+        } else if let pw = width {
+            w = pw; h = w * aspect
+        } else if let ph = height, aspect > 0 {
+            h = ph; w = h / aspect
+        } else {
+            let cap: CGFloat = 320
+            if w > cap { w = cap; h = w * aspect }
+        }
+        return CGRect(x: 0, y: 0, width: w, height: h)
+    }
+
+    private static func quoteBackgroundColor() -> PlatformColor {
+        #if os(macOS)
+        return NSColor(white: 0.5, alpha: 0.06)
+        #else
+        return UIColor(white: 0.5, alpha: 0.06)
+        #endif
+    }
+
+    private static func code(language: String?, text: String) -> NSAttributedString {
+        let baseFont = monospaceFont()
+        let highlighted = Highlight.attribute(text, language: language,
+                                              baseFont: baseFont)
+        let m = NSMutableAttributedString(attributedString: highlighted)
+        let full = NSRange(location: 0, length: m.length)
+        // Subtle code-block tint; theme-neutral via low-alpha gray
+        // (darkens on light, lightens on dark).
+        m.addAttribute(.backgroundColor, value: codeBackgroundColor(),
+                       range: full)
+        // Atomic tags so PLAN-SELECTION's arbiter can snap to whole
+        // when a drag from outside crosses this fence's boundary.
+        m.addAttribute(atomicKindKey,
+                       value: AtomicKind.code.rawValue, range: full)
+        m.addAttribute(atomicIdKey, value: UUID().uuidString,
+                       range: full)
+        m.append(NSAttributedString(string: "\n\n"))
+        return m
+    }
+
+    private static func monospaceFont() -> PlatformFont {
+        let bodySize = PlatformFont.preferredFont(forTextStyle: .body)
+            .pointSize
+        return monoFont(at: bodySize - 1)
+    }
+
+    private static func codeBackgroundColor() -> PlatformColor {
+        #if os(macOS)
+        return NSColor(white: 0.5, alpha: 0.10)
+        #else
+        return UIColor(white: 0.5, alpha: 0.10)
+        #endif
+    }
+
+    private static func paragraph(_ attr: AttributedString)
+        -> NSAttributedString {
+        let m = NSMutableAttributedString()
+        translateInline(attr, base: bodyFont(), into: m)
+        m.append(NSAttributedString(string: "\n\n"))
+        return m
+    }
+
+    private static func heading(level: Int,
+                                text: AttributedString)
+        -> NSAttributedString {
+        let m = NSMutableAttributedString()
+        translateInline(text, base: headingFont(level: level), into: m)
+        m.append(NSAttributedString(string: "\n\n"))
+        return m
+    }
+
+    private static func rule() -> NSAttributedString {
+        // ASCII-ish horizontal rule for Round 1; a real divider with
+        // custom paragraph drawing lands in a later round.
+        let attrs: [NSAttributedString.Key: Any] = [
+            .font: bodyFont(),
+            .foregroundColor: secondaryColor(),
+        ]
+        return NSAttributedString(
+            string: "\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\n\n",
+            attributes: attrs)
+    }
+
+    private static func placeholder(for block: Block) -> NSAttributedString {
+        // Round 1 placeholder for as-yet-unstyled block types. Later
+        // rounds replace these one at a time (code, lists+quotes,
+        // tables, images).
+        let raw = PlainExport.render([block])
+        return NSAttributedString(string: raw,
+                                  attributes: [
+                                    .font: bodyFont(),
+                                    .foregroundColor: textColor(),
+                                  ])
+    }
+
+    // Walk AttributedString runs, baking inlinePresentationIntent
+    // into explicit .font / .strikethrough / .link attributes. NSText
+    // View interprets intent at draw time, but Core Text and any
+    // downstream serialization (RTF, PDF) honor only the explicit
+    // attributes - same lesson as PDFRenderer.cellRunFont.
+    private static func translateInline(_ attr: AttributedString,
+                                        base: PlatformFont,
+                                        into m: NSMutableAttributedString) {
+        for run in attr.runs {
+            let segment = String(attr[run.range].characters)
+            let intent = run.inlinePresentationIntent ?? []
+            let runFont = inlineRunFont(intent: intent, base: base)
+            var attrs: [NSAttributedString.Key: Any] = [
+                .font: runFont,
+                .foregroundColor: textColor(),
+            ]
+            if intent.contains(.strikethrough) {
+                attrs[.strikethroughStyle] =
+                    NSUnderlineStyle.single.rawValue
+            }
+            if let url = run.link {
+                attrs[.link] = url
+            }
+            m.append(NSAttributedString(string: segment,
+                                        attributes: attrs))
+        }
+    }
+
+    private static func inlineRunFont(intent: InlinePresentationIntent,
+                                      base: PlatformFont) -> PlatformFont {
+        var result = base
+        if intent.contains(.code) {
+            #if os(macOS)
+            result = NSFont.monospacedSystemFont(ofSize: base.pointSize,
+                                                 weight: .regular)
+            #else
+            result = UIFont.monospacedSystemFont(ofSize: base.pointSize,
+                                                 weight: .regular)
+            #endif
+        } else {
+            var traits = base.fontDescriptor.symbolicTraits
+            #if os(macOS)
+            if intent.contains(.stronglyEmphasized) {
+                traits.insert(.bold)
+            }
+            if intent.contains(.emphasized) {
+                traits.insert(.italic)
+            }
+            let d = base.fontDescriptor.withSymbolicTraits(traits)
+            result = NSFont(descriptor: d, size: base.pointSize) ?? base
+            #else
+            if intent.contains(.stronglyEmphasized) {
+                traits.insert(.traitBold)
+            }
+            if intent.contains(.emphasized) {
+                traits.insert(.traitItalic)
+            }
+            if let d = base.fontDescriptor.withSymbolicTraits(traits) {
+                result = UIFont(descriptor: d, size: base.pointSize)
+            }
+            #endif
+        }
+        return result
+    }
+
+    private static func bodyFont() -> PlatformFont {
+        return PlatformFont.preferredFont(forTextStyle: .body)
+    }
+
+    private static func headingFont(level: Int) -> PlatformFont {
+        let styles: [Int: PlatformFont.TextStyle] = [
+            1: .largeTitle, 2: .title1, 3: .title2, 4: .title3,
+            5: .headline, 6: .subheadline,
+        ]
+        let style = styles[level] ?? .body
+        let base = PlatformFont.preferredFont(forTextStyle: style)
+        return boldFont(of: base)
+    }
+
+    private static func textColor() -> PlatformColor {
+        #if os(macOS)
+        return NSColor.textColor
+        #else
+        return UIColor.label
+        #endif
+    }
+
+    private static func secondaryColor() -> PlatformColor {
+        #if os(macOS)
+        return NSColor.secondaryLabelColor
+        #else
+        return UIColor.secondaryLabel
+        #endif
+    }
+
 }

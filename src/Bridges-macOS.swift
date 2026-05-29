@@ -4,6 +4,22 @@ import AppKit
 extension NativeText: NSViewRepresentable {
 
     final class Coordinator: NSObject, NSTextViewDelegate {
+
+        #if !QUICKLOOK_EXTENSION
+        // PLAN-SELECTION anchor-scope state. anchor is the click-down
+        // index (set whenever the selection collapses to a caret);
+        // anchorScope is the atomic-block range that contains it
+        // (nil = inline). The arbiter below uses these to keep
+        // selection granular inside an atomic block, and to snap to
+        // whole when the drag's active end exits that scope or
+        // touches any other atomic block. SelectableText instances
+        // that do NOT carry DocumentText's atomicKindKey (per-block
+        // SelectableText views) hit no atomic ranges, so the arbiter
+        // is a no-op for them.
+        private var anchor: Int = 0
+        private var anchorScope: NSRange? = nil
+        #endif
+
         func textView(_ tv: NSTextView, clickedOnLink link: Any,
                         at: Int) -> Bool {
             var url: URL? = nil
@@ -19,6 +35,71 @@ extension NativeText: NSViewRepresentable {
             }
             return handled
         }
+
+        #if !QUICKLOOK_EXTENSION
+        func textView(_ textView: NSTextView,
+                      willChangeSelectionFromCharacterRange
+                                  oldRange: NSRange,
+                      toCharacterRange newRange: NSRange) -> NSRange {
+            var result = newRange
+            if let storage = textView.textStorage {
+                if newRange.length == 0 {
+                    // Caret placement = new anchor.
+                    anchor = newRange.location
+                    anchorScope = atomicScope(at: anchor, in: storage)
+                } else if let scope = anchorScope {
+                    let endLo = newRange.location
+                    let endHi = newRange.location + newRange.length
+                    let scopeLo = scope.location
+                    let scopeHi = scope.location + scope.length
+                    let endInScope = endLo >= scopeLo && endHi <= scopeHi
+                    if !endInScope {
+                        let lo = min(endLo, scopeLo)
+                        let hi = max(endHi, scopeHi)
+                        result = NSRange(location: lo,
+                                         length: hi - lo)
+                        result = expandToAtomicBoundaries(
+                            result, in: storage)
+                    }
+                } else {
+                    result = expandToAtomicBoundaries(result,
+                                                     in: storage)
+                }
+            }
+            return result
+        }
+
+        private func atomicScope(at pos: Int,
+                                 in storage: NSTextStorage) -> NSRange? {
+            var result: NSRange? = nil
+            if pos >= 0, pos < storage.length {
+                var effective = NSRange(location: 0, length: 0)
+                let value = storage.attribute(
+                    DocumentText.atomicKindKey,
+                    at: pos, effectiveRange: &effective)
+                if value != nil { result = effective }
+            }
+            return result
+        }
+
+        private func expandToAtomicBoundaries(_ range: NSRange,
+                                              in storage: NSTextStorage)
+            -> NSRange {
+            var lo = range.location
+            var hi = range.location + range.length
+            storage.enumerateAttribute(DocumentText.atomicKindKey,
+                                       in: range,
+                                       options: []) { value, r, _ in
+                if value != nil {
+                    if r.location < lo { lo = r.location }
+                    let end = r.location + r.length
+                    if end > hi { hi = end }
+                }
+            }
+            return NSRange(location: lo, length: hi - lo)
+        }
+        #endif
+
     }
 
     func makeCoordinator() -> Coordinator { Coordinator() }

@@ -13,6 +13,19 @@ struct MarkdownView: View {
     @AppStorage("themeMode")
     private var themeRaw: String = ThemeMode.system.rawValue
 
+    // PLAN-TABLES Step 2 feature flag. Default ON; opt out via:
+    //   defaults write <bundle-id> singleSurface -bool NO
+    // When ON, the rendered view goes through DocumentText into one
+    // SelectableText for native continuous selection; when OFF, the
+    // per-block BlockView path renders. The block-tree path is the
+    // deliberate rollback lane: if a regression surfaces in the
+    // single-surface render (image attachment failure, table layout
+    // glitch, NSTextView cost on a very long document), flipping the
+    // flag back is the recovery path - no code revert needed. The
+    // optionality is the point; no scheduled removal.
+    @AppStorage("singleSurface")
+    private var singleSurface: Bool = true
+
     @State private var showSource = false
 
     #if !QUICKLOOK_EXTENSION
@@ -129,6 +142,8 @@ struct MarkdownView: View {
                 if showSource {
                     SelectableText(attributed: AttributedString(displayText),
                                    role: .mono)
+                } else if singleSurface {
+                    documentTextView
                 } else {
                     rendered
                 }
@@ -136,6 +151,29 @@ struct MarkdownView: View {
             .padding(20)
             .frame(maxWidth: .infinity, alignment: .leading)
         }
+    }
+
+    // DocumentText lives in PDFRenderer.swift (apps-only target
+    // membership); the QL extension cannot see it. QL also has no
+    // toolbar to flip the flag, so falling back to the block-tree
+    // path there is the right behavior anyway.
+    #if !QUICKLOOK_EXTENSION
+    @State private var documentImages: [URL: DocumentText.DocumentImage] = [:]
+    #endif
+
+    @ViewBuilder
+    private var documentTextView: some View {
+        #if !QUICKLOOK_EXTENSION
+        let blocks = Markdown.parse(displayText)
+        SelectableText(nsAttributed: DocumentText.attributed(
+                           from: blocks, images: documentImages),
+                       role: .body)
+            .task(id: displayText) {
+                documentImages = await prefetchDocumentImages(in: blocks)
+            }
+        #else
+        rendered
+        #endif
     }
 
     private var rendered: some View {
