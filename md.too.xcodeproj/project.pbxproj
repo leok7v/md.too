@@ -524,7 +524,7 @@
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 13.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.leok7v.md.too;
+				PRODUCT_BUNDLE_IDENTIFIER = "com.leok7v.md.too$(APP_BUNDLE_SUFFIX)";
 				PRODUCT_MODULE_NAME = MarkdownPreview;
 				PRODUCT_NAME = md.too;
 				PROVISIONING_PROFILE_SPECIFIER = "";
@@ -557,7 +557,7 @@
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 13.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.leok7v.md.too;
+				PRODUCT_BUNDLE_IDENTIFIER = "com.leok7v.md.too$(APP_BUNDLE_SUFFIX)";
 				PRODUCT_MODULE_NAME = MarkdownPreview;
 				PRODUCT_NAME = md.too;
 				PROVISIONING_PROFILE_SPECIFIER = "";
@@ -585,7 +585,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = com.leok7v.md.too;
+				PRODUCT_BUNDLE_IDENTIFIER = "com.leok7v.md.too$(APP_BUNDLE_SUFFIX)";
 				PRODUCT_MODULE_NAME = MarkdownPreview;
 				PRODUCT_NAME = md.too;
 				PROVISIONING_PROFILE_SPECIFIER = "";
@@ -615,7 +615,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = com.leok7v.md.too;
+				PRODUCT_BUNDLE_IDENTIFIER = "com.leok7v.md.too$(APP_BUNDLE_SUFFIX)";
 				PRODUCT_MODULE_NAME = MarkdownPreview;
 				PRODUCT_NAME = md.too;
 				PROVISIONING_PROFILE_SPECIFIER = "";
@@ -648,7 +648,7 @@
 					"@executable_path/../../../../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 13.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.leok7v.md.too.QuickLook;
+				PRODUCT_BUNDLE_IDENTIFIER = "com.leok7v.md.too$(APP_BUNDLE_SUFFIX).QuickLook";
 				PRODUCT_MODULE_NAME = MarkdownPreviewQuickLook;
 				PRODUCT_NAME = "md.too QuickLook";
 				PROVISIONING_PROFILE_SPECIFIER = "";
@@ -680,7 +680,7 @@
 					"@executable_path/../../../../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 13.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.leok7v.md.too.QuickLook;
+				PRODUCT_BUNDLE_IDENTIFIER = "com.leok7v.md.too$(APP_BUNDLE_SUFFIX).QuickLook";
 				PRODUCT_MODULE_NAME = MarkdownPreviewQuickLook;
 				PRODUCT_NAME = "md.too QuickLook";
 				PROVISIONING_PROFILE_SPECIFIER = "";
