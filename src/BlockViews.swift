@@ -256,17 +256,63 @@ enum TableMetrics {
     // sqrt(charWidth) so wide columns don't starve narrow ones; the
     // result sums to `available`. Shared by on-screen and PDF so the
     // two renderers proportion columns the same way.
+    //
+    // When `minimums` is supplied (one per column, points), each column
+    // gets at least its minimum first and the remainder distributes by
+    // sqrt(charWidth). This prevents a short-content column from being
+    // squeezed below its single-longest-word width - the failure mode
+    // where a one-word "Rating" header breaks mid-letter at narrow
+    // widths. Callers measure their own fonts (PDF uses CT line bounds;
+    // NSTextTable on screen uses percentage widths so per-column min is
+    // less critical there).
     static func pointWidths(headers: [String], rows: [[String]],
-                            available: CGFloat) -> [CGFloat] {
+                            available: CGFloat,
+                            minimums: [CGFloat]? = nil) -> [CGFloat] {
         let n = columnCount(headers: headers, rows: rows)
         var result = [CGFloat](repeating: 0, count: n)
         let chars = charWidths(headers: headers, rows: rows)
         let weights = chars.map { c in sqrt(CGFloat(c)) }
         let sum = weights.reduce(0, +)
-        if sum > 0, available > 0 {
-            result = weights.map { wt in available * wt / sum }
+        if available > 0, n > 0 {
+            if let mins = minimums, mins.count == n {
+                let minSum = mins.reduce(0, +)
+                if minSum >= available, minSum > 0 {
+                    let scale = available / minSum
+                    result = mins.map { v in v * scale }
+                } else if sum > 0 {
+                    let remainder = available - minSum
+                    result = (0..<n).map { i in
+                        mins[i] + remainder * weights[i] / sum
+                    }
+                } else {
+                    result = mins
+                }
+            } else if sum > 0 {
+                result = weights.map { wt in available * wt / sum }
+            }
         }
         return result
+    }
+
+    // Longest single word across a column's header + cells, used by
+    // `pointWidths`' minimums to keep the column wide enough to render
+    // that word without breaking mid-letter. Whitespace-separated; no
+    // hyphen splitting (we want the WHOLE hyphenated token to fit).
+    static func longestWord(headers: [String], rows: [[String]],
+                            col: Int) -> String {
+        var best = ""
+        var column: [String] = []
+        if col < headers.count { column.append(headers[col]) }
+        for row in rows where col < row.count {
+            column.append(row[col])
+        }
+        for cell in column {
+            for word in cell.split(separator: " ",
+                                   omittingEmptySubsequences: true) {
+                if word.count > best.count { best = String(word) }
+            }
+        }
+        return best
     }
 
     // Width-aligned ASCII table for the copy payload and text export.

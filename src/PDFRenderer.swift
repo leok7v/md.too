@@ -517,13 +517,34 @@ private final class PDFRenderer {
                                   rows: [[String]],
                                   cols: Int) {
         let rowPad: CGFloat = 4
+        // Per-column minimum widths derived from the longest single
+        // word in each column's header + cells, measured in the bold
+        // body font (header is bold; data text is the same size and
+        // breaks against the same character widths). Plus 2 * rowPad
+        // for the cell's left/right inset. Without this, the
+        // sqrt(charWidth)-weighted distribution starves columns whose
+        // content is short OVERALL but whose single longest token
+        // (e.g. the header word "Rating") needs more width than the
+        // weighted share allocates - CT framesetter then breaks the
+        // word mid-letter.
+        let minWidths: [CGFloat] = (0..<cols).map { c in
+            let word = TableMetrics.longestWord(headers: headers,
+                                                rows: rows, col: c)
+            let attr = NSAttributedString(string: word,
+                attributes: [.font: bodyFontBold()])
+            let line = CTLineCreateWithAttributedString(attr)
+            return CTLineGetBoundsWithOptions(line, []).width
+                   + 2 * rowPad
+        }
         // Char-weighted text shares from the shared metric (same recipe
-        // as the on-screen table). Image cells then push their column
-        // to at least their image-aware width, and we re-fit if that
-        // pushed the total over contentWidth.
+        // as the on-screen table), with min-widths above as the floor.
+        // Image cells then push their column to at least their
+        // image-aware width, and we re-fit if that pushed the total
+        // over contentWidth.
         var colWidths = TableMetrics.pointWidths(headers: headers,
                                                  rows: rows,
-                                                 available: contentWidth)
+                                                 available: contentWidth,
+                                                 minimums: minWidths)
         let allRows: [[String]] = headers.isEmpty ? rows : [headers] + rows
         for r in allRows {
             for c in 0..<cols where c < r.count {
@@ -1333,76 +1354,124 @@ enum DocumentText {
         return result
     }
 
-    // Tab-stop tables (intent-doc Option A). Tab stops sit at the
-    // cumulative point widths from TableMetrics; cells in a row are
-    // tab-separated, so each cell snaps into its column. Header row
-    // is bold with a stronger tint; data rows alternate with a
-    // subtler tint. The whole range carries atomic-kind = table so
-    // PLAN-SELECTION's arbiter can snap a cross-boundary drag.
+    // NSTextTable tables. Each cell is one paragraph whose paragraph
+    // style carries an NSTextTableBlock anchoring it into the right
+    // (row, column) of a shared NSTextTable. NSTextView reads those
+    // textBlocks at layout time and lays out the table with real cell
+    // boxes: cells WRAP within their column, columns proportion to
+    // content via `automaticLayoutAlgorithm`, the whole table reflows
+    // when the view's width changes. Headers are bold with a stronger
+    // background tint; data rows alternate with a subtler tint via the
+    // cell's backgroundColor (rendered as the cell's box fill, not a
+    // range-attribute background, so it covers the whole wrapped cell
+    // even on multi-line content).
     //
-    // Cells parse as inline Markdown: `**bold**` / `*italic*` /
-    // `` `code` `` / `~~strike~~` / `[link](url)` translate to
-    // explicit per-run attributes in `tableCell`. Long cells still
-    // truncate to one line per row - tab tables don't wrap within a
-    // column - so wider-than-column rich text gets cut at the tail.
+    // Cells go through `tableCell` for inline Markdown
+    // (`**bold**` / `*italic*` / `` `code` `` / `~~strike~~` /
+    // `[link](url)`). Every cell carries `atomicKindKey = table` plus
+    // a shared `atomicId` so PLAN-SELECTION's arbiter still treats the
+    // whole table as one atomic block.
+    //
+    // The earlier tab-stop model (Option A in the original fork) is
+    // gone - tab tables couldn't wrap within a column, so cells with
+    // long content (PROMPT-RESULTS.md's Response column) truncated
+    // with `.byTruncatingTail`. NSTextTable is the proper Cocoa text-
+    // table API and was the answer the intent doc didn't consider.
+    // `relayoutTables` retired with the tab-stop model: NSTextTable
+    // handles its own view-width-aware layout.
     private static func table(headers: [String],
                               rows: [[String]]) -> NSAttributedString {
         let m = NSMutableAttributedString()
-        let widths = TableMetrics.pointWidths(headers: headers,
-                                              rows: rows,
-                                              available: 480)
-        var stops: [NSTextTab] = []
-        var x: CGFloat = 0
-        for w in widths {
-            x += w
-            stops.append(NSTextTab(textAlignment: .left, location: x))
+        let cols = max(headers.count, rows.map(\.count).max() ?? 0)
+        if cols > 0 {
+            let textTable = NSTextTable()
+            textTable.numberOfColumns = cols
+            // fixedLayoutAlgorithm respects the explicit width on each
+            // NSTextTableBlock; automatic layout ignores widths and
+            // defaults to roughly-equal columns at narrow widths, which
+            // is what produced the 33/33/33 look in early testing.
+            textTable.layoutAlgorithm = .fixedLayoutAlgorithm
+            // Per-column percentage shares from TableMetrics so the
+            // narrow-content column (Rating) stays narrow and the
+            // long-content column (Response) gets the lion's share -
+            // matches the block-tree TableBlock's sqrt-weighted model.
+            // Asking for available=100 normalises the result to
+            // percentages.
+            let shares = TableMetrics.pointWidths(headers: headers,
+                                                  rows: rows,
+                                                  available: 100)
+            let atomicId = UUID().uuidString
+            var rowIdx = 0
+            if !headers.isEmpty {
+                m.append(tableRow(cells: headers, table: textTable,
+                                  rowIdx: rowIdx, cols: cols,
+                                  shares: shares,
+                                  bold: true,
+                                  tint: tableHeaderTint(),
+                                  atomicId: atomicId))
+                rowIdx += 1
+            }
+            for (idx, row) in rows.enumerated() {
+                let tint: PlatformColor = idx % 2 == 1
+                    ? tableZebraTint() : clearColor()
+                m.append(tableRow(cells: row, table: textTable,
+                                  rowIdx: rowIdx, cols: cols,
+                                  shares: shares,
+                                  bold: false, tint: tint,
+                                  atomicId: atomicId))
+                rowIdx += 1
+            }
+            m.append(NSAttributedString(string: "\n"))
         }
-        let atomicId = UUID().uuidString
-        if !headers.isEmpty {
-            m.append(tableRow(cells: headers, stops: stops, bold: true,
-                              tint: tableHeaderTint(),
-                              atomicId: atomicId))
-        }
-        for (idx, row) in rows.enumerated() {
-            let tint: PlatformColor = idx % 2 == 1
-                ? tableZebraTint() : clearColor()
-            m.append(tableRow(cells: row, stops: stops, bold: false,
-                              tint: tint, atomicId: atomicId))
-        }
-        m.append(NSAttributedString(string: "\n"))
         return m
     }
 
     private static func tableRow(cells: [String],
-                                 stops: [NSTextTab],
+                                 table: NSTextTable,
+                                 rowIdx: Int, cols: Int,
+                                 shares: [CGFloat],
                                  bold: Bool,
                                  tint: PlatformColor,
                                  atomicId: String) -> NSAttributedString {
-        let para = NSMutableParagraphStyle()
-        para.tabStops = stops
-        para.lineBreakMode = .byTruncatingTail
-        let base = bold ? boldFont(of: bodyFont()) : bodyFont()
         let m = NSMutableAttributedString()
-        for (i, cell) in cells.enumerated() {
-            if i > 0 {
-                m.append(NSAttributedString(
-                    string: "\t", attributes: [.font: base]))
+        let base = bold ? boldFont(of: bodyFont()) : bodyFont()
+        for col in 0..<cols {
+            let cellText = col < cells.count ? cells[col] : ""
+            let block = NSTextTableBlock(table: table,
+                                         startingRow: rowIdx, rowSpan: 1,
+                                         startingColumn: col,
+                                         columnSpan: 1)
+            if col < shares.count {
+                block.setValue(shares[col],
+                               type: .percentageValueType,
+                               for: .width)
             }
-            m.append(tableCell(cell, base: base))
+            block.setWidth(6, type: .absoluteValueType, for: .padding)
+            block.backgroundColor = tint
+            let para = NSMutableParagraphStyle()
+            para.textBlocks = [block]
+            let cellAttr = NSMutableAttributedString(
+                attributedString: tableCell(cellText, base: base))
+            if cellAttr.length == 0 {
+                // Empty cell still needs at least one character so the
+                // paragraph exists and the cell box renders. A no-break
+                // space is the invisible placeholder.
+                cellAttr.append(NSAttributedString(
+                    string: "\u{00A0}",
+                    attributes: [.font: base,
+                                 .foregroundColor: textColor()]))
+            }
+            let full = NSRange(location: 0, length: cellAttr.length)
+            cellAttr.addAttribute(.paragraphStyle, value: para,
+                                  range: full)
+            cellAttr.addAttribute(atomicKindKey,
+                                  value: AtomicKind.table.rawValue,
+                                  range: full)
+            cellAttr.addAttribute(atomicIdKey, value: atomicId,
+                                  range: full)
+            m.append(cellAttr)
+            m.append(NSAttributedString(string: "\n"))
         }
-        m.append(NSAttributedString(string: "\n",
-                                    attributes: [.font: base]))
-        // Row-level attributes wrap the per-cell character runs so the
-        // tab stops, zebra tint, and atomic-arbiter tags cover the
-        // whole row while each cell's inline font/strikethrough/link
-        // attributes survive (addAttribute does not touch .font /
-        // .foregroundColor / .underlineStyle / .link).
-        let full = NSRange(location: 0, length: m.length)
-        m.addAttribute(.paragraphStyle, value: para, range: full)
-        m.addAttribute(.backgroundColor, value: tint, range: full)
-        m.addAttribute(atomicKindKey,
-                       value: AtomicKind.table.rawValue, range: full)
-        m.addAttribute(atomicIdKey, value: atomicId, range: full)
         return m
     }
 
