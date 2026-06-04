@@ -25,6 +25,23 @@ extension NativeText: UIViewRepresentable {
         ]
         v.setContentCompressionResistancePriority(.defaultLow,
                                                   for: .horizontal)
+        v.nowrap = nowrap
+        if nowrap {
+            // BlockView.CodeBlock wraps the text view in a horizontal
+            // ScrollView and asks for nowrap layout. UITextView's
+            // default text container tracks the view's width, so
+            // inside an unconstrained-width horizontal ScrollView
+            // its width resolves to 0 and the layout manager lays
+            // out nothing - which is why the code block rendered as
+            // an empty card. Detach the container's width from the
+            // view's width and let it grow as wide as the content
+            // requires; the outer horizontal ScrollView handles the
+            // overflow.
+            v.textContainer.widthTracksTextView = false
+            v.textContainer.size = CGSize(
+                width: CGFloat.greatestFiniteMagnitude,
+                height: CGFloat.greatestFiniteMagnitude)
+        }
         return v
     }
 
@@ -38,6 +55,9 @@ extension NativeText: UIViewRepresentable {
 
     final class ResizingUITextView: UITextView {
 
+        var nowrap: Bool = false
+        private var lastWidth: CGFloat = 0
+
         // SwiftUI's UIViewRepresentable wrapper relies on
         // intrinsicContentSize to size a non-scrolling UITextView
         // inside the outer ScrollView. UIKit's default computes
@@ -46,13 +66,24 @@ extension NativeText: UIViewRepresentable {
         // and SwiftUI never asks again. Force the TextKit 1 layout
         // manager to lay out the whole textContainer, then return
         // the used height + insets so SwiftUI gets the real size.
+        // For nowrap mode (code blocks in horizontal scroll), the
+        // container's width is unbounded, so report the used width
+        // back to SwiftUI too - otherwise SwiftUI gives the view a
+        // zero-width frame and the code block renders as empty card.
         override var intrinsicContentSize: CGSize {
             var result = super.intrinsicContentSize
             layoutManager.ensureLayout(for: textContainer)
             let r = layoutManager.usedRect(for: textContainer)
             let h = r.height + textContainerInset.top
                             + textContainerInset.bottom
-            result = CGSize(width: UIView.noIntrinsicMetric, height: h)
+            let w: CGFloat
+            if nowrap {
+                w = r.width + textContainerInset.left
+                            + textContainerInset.right
+            } else {
+                w = UIView.noIntrinsicMetric
+            }
+            result = CGSize(width: w, height: h)
             return result
         }
 
@@ -63,8 +94,6 @@ extension NativeText: UIViewRepresentable {
                 invalidateIntrinsicContentSize()
             }
         }
-
-        private var lastWidth: CGFloat = 0
     }
 
 }
