@@ -6,16 +6,6 @@ extension NativeText: NSViewRepresentable {
     final class Coordinator: NSObject, NSTextViewDelegate {
 
         #if !QUICKLOOK_EXTENSION
-        // PLAN-SELECTION anchor-scope state. anchor is the click-down
-        // index (set whenever the selection collapses to a caret);
-        // anchorScope is the atomic-block range that contains it
-        // (nil = inline). The arbiter below uses these to keep
-        // selection granular inside an atomic block, and to snap to
-        // whole when the drag's active end exits that scope or
-        // touches any other atomic block. SelectableText instances
-        // that do NOT carry DocumentText's atomicKindKey (per-block
-        // SelectableText views) hit no atomic ranges, so the arbiter
-        // is a no-op for them.
         private var anchor: Int = 0
         private var anchorScope: NSRange? = nil
         #endif
@@ -44,7 +34,6 @@ extension NativeText: NSViewRepresentable {
             var result = newRange
             if let storage = textView.textStorage {
                 if newRange.length == 0 {
-                    // Caret placement = new anchor.
                     anchor = newRange.location
                     anchorScope = atomicScope(at: anchor, in: storage)
                 } else if let scope = anchorScope {

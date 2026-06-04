@@ -54,9 +54,6 @@ struct ListItem {
 
 enum Markdown {
 
-    // Active link-reference table for the parse currently underway.
-    // @TaskLocal so concurrent parses (main-thread render + background
-    // PDF export, etc.) each see their own document's refs.
     @TaskLocal private static var currentRefs: [String: URL] = [:]
 
     static func parse(_ source: String) -> [Block] {
@@ -102,13 +99,6 @@ enum Markdown {
         return blocks
     }
 
-    // Walk lines once. Pull single-line link-definition lines
-    // (`[label]: url` optionally followed by a "title") out of the
-    // stream and into a label -> URL table. Definitions inside a
-    // fenced code block stay put. Multi-line definitions (where the
-    // URL or title wraps onto the next line) are not supported in
-    // this pass; the rare authors who write that can switch to inline
-    // links.
     private static func stripLinkDefinitions(_ raw: [String])
         -> (lines: [String], refs: [String: URL]) {
         var refs: [String: URL] = [:]
@@ -144,8 +134,6 @@ enum Markdown {
                 let after = rest[rest.index(after: close)...]
                 if !label.isEmpty, after.hasPrefix(":") {
                     var rhs = String(after.dropFirst()).trimmedOuter()
-                    // Optional title in "...", '...', or (...)
-                    // — drop everything after the URL.
                     if let space = rhs.firstIndex(of: " ") {
                         rhs = String(rhs[..<space])
                     }
@@ -162,7 +150,6 @@ enum Markdown {
     }
 
     private static func refKey(_ label: String) -> String {
-        // CommonMark: case-insensitive, internal whitespace collapsed.
         let lowered = label.lowercased()
         let collapsed = lowered.split(whereSeparator: { c in
             c == " " || c == "\t" || c == "\n"
@@ -170,15 +157,6 @@ enum Markdown {
         return collapsed
     }
 
-    // Rewrite `[text][label]`, `[text][]`, and bare `[text]` (when a
-    // matching definition exists) into `[text](url)` so Apple's
-    // built-in inline-Markdown parser can render them as hyperlinks.
-    // Image variants `![alt][label]` and `![alt]` get the same
-    // treatment. References inside backtick code spans are technically
-    // mis-handled (they get rewritten), but Apple's parser keeps the
-    // result inside the code span anyway, so the visible damage is
-    // "[foo](bar)" appearing literal in a code span — rare in real
-    // documents.
     private static func substituteRefs(_ s: String) -> String {
         let refs = Markdown.currentRefs
         var result = s
@@ -323,14 +301,9 @@ enum Markdown {
     }
 
     private static func isQuoteStart(_ s: String) -> Bool {
-        // A '>' indented 0-3 spaces opens a block quote; 4+ is code.
         leadingSpaces(s) <= 3 && s.trimmedLeading().hasPrefix(">")
     }
 
-    // Block quotes carry full block content: strip one '>' (and one
-    // optional following space) from each quote line, gather lazy
-    // paragraph-continuation lines, then recurse so nested paragraphs,
-    // lists, code, and tables inside a quote parse correctly.
     private static func consumeQuote(_ lines: [String],
                                      _ i: inout Int) -> Block {
         var inner: [String] = []
@@ -358,12 +331,6 @@ enum Markdown {
         listMarker(s) != nil
     }
 
-    // Parse a list-item marker at the start of `line`. Returns the
-    // display label, a signature char identifying the list type
-    // (bullet char or ordered delimiter), the content offset
-    // (leading + marker width + spaces after, the column subsequent
-    // lines must reach to stay in the item), and the remainder of the
-    // line after the marker. nil if `line` is not a list item.
     private static func listMarker(_ line: String)
         -> (label: String, sig: Character, offset: Int, rest: String)? {
         var result: (String, Character, Int, String)? = nil
@@ -391,11 +358,6 @@ enum Markdown {
         return result
     }
 
-    // Given the substring after the marker characters, compute the
-    // content offset and the line remainder. A marker followed by 0
-    // spaces and non-space content is not a marker. 1-4 spaces set the
-    // offset directly; 5+ spaces (or a blank remainder) clamp N to 1 so
-    // the surplus becomes the item's first content (indented code).
     private static func afterMarker(_ tail: Substring, leading: Int,
                                     markerWidth: Int, label: String,
                                     sig: Character)
@@ -442,7 +404,6 @@ enum Markdown {
         return .list(items: items, tight: tight)
     }
 
-    // Detect a GitHub task marker on the item's first line.
     private static func stripTaskMarker(_ s: String)
         -> (checked: Bool?, rest: String) {
         var result: (Bool?, String) = (nil, s)
@@ -454,14 +415,6 @@ enum Markdown {
         return result
     }
 
-    // Gather the continuation lines of one list item into `body`,
-    // de-indented by `offset` (so recursion sees content at column 0
-    // and the 4-space indented-code rule becomes relative to the item).
-    // Lines indented >= offset belong; under-indented non-blank lines
-    // belong only as lazy paragraph continuation (and only when the
-    // previous line was not blank); a blank line continues the item
-    // only if followed by an offset-indented line. Returns whether the
-    // item spans a blank (loose).
     private static func collectItemBody(_ lines: [String],
                                         _ i: inout Int,
                                         _ offset: Int,
@@ -500,13 +453,6 @@ enum Markdown {
         return loose
     }
 
-    // Resolve the gap after an item. With no blank lines, returns
-    // (false, false) and the caller's loop re-checks the next line as a
-    // possible same-list item (tight continuation) or list end. With
-    // blank lines followed by a same-signature marker, returns
-    // (loose: true) and leaves i at that marker. With blank lines NOT
-    // followed by a same-signature marker, rewinds so the outer block
-    // loop owns the blanks and returns (ended: true).
     private static func interItemGap(_ lines: [String], _ i: inout Int,
                                      sig: Character)
         -> (loose: Bool, ended: Bool) {
@@ -527,8 +473,6 @@ enum Markdown {
         return result
     }
 
-    // A line is lazy paragraph continuation when it is not itself the
-    // start of a block that would interrupt a paragraph.
     private static func isLazyContinuation(_ line: String) -> Bool {
         !(isHeading(line) || isHR(line) || isFence(line) ||
           isQuoteStart(line) || isListStart(line))
@@ -856,10 +800,6 @@ enum TeX {
     }
 
     private static func expandText(_ s: String) -> String {
-        // Replace \text{X} with {X} so subscripts/superscripts pick up the
-        // whole body as a unit (e.g. M_\text{electron} -> M_{electron}).
-        // Standalone \text{X} loses its braces at the end of the pipeline
-        // when stray { and } are stripped, so the body still surfaces clean.
         var out = s
         let pattern = #"\\text\s*\{([^{}]*)\}"#
         while let r = out.range(of: pattern, options: .regularExpression) {
@@ -873,8 +813,6 @@ enum TeX {
     }
 
     private static func expandFractions(_ s: String) -> String {
-        // Manual brace matching so \frac{a}{b} works even when a or b
-        // contain other brace groups (e.g. \frac{M_{electron}}{M_{this}}).
         var out = ""
         var i = s.startIndex
         while i < s.endIndex {
@@ -978,12 +916,6 @@ enum TeX {
 
     private static func mapScript(_ s: String,
                                   map: [Character: Character]) -> String {
-        // Single-char bodies use the Unicode subscript/superscript glyph
-        // when available (digits and a common letter set). Multi-char
-        // bodies fall back to parens because Unicode subscript letters in
-        // U+2090..U+209C have uneven font support and render inconsistently
-        // (some letters subscript, some plain). Parens keep the visual
-        // grouping consistent across fonts.
         var result = "(" + s + ")"
         if s.isEmpty {
             result = ""

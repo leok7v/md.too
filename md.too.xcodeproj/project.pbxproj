@@ -34,8 +34,8 @@
 		1A2B3C4D530000000000001A /* Environment.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A2B3C4D5200000000000015 /* Environment.swift */; };
 		1A2B3C4D530000000000001B /* Environment.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A2B3C4D5200000000000015 /* Environment.swift */; };
 		1A2B3C4D530000000000001C /* Environment.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A2B3C4D5200000000000015 /* Environment.swift */; };
-		1A2B3C4D530000000000001D /* App.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A2B3C4D5200000000000016 /* App.swift */; };
-		1A2B3C4D530000000000001E /* App.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A2B3C4D5200000000000016 /* App.swift */; };
+		1A2B3C4D530000000000001D /* App-macOS.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A2B3C4D5200000000000016 /* App-macOS.swift */; };
+		1A2B3C4D530000000000001E /* App-iOS.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A2B3C4D520000000000002A /* App-iOS.swift */; };
 		1A2B3C4D530000000000001F /* AppShell.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A2B3C4D5200000000000017 /* AppShell.swift */; };
 		1A2B3C4D5300000000000020 /* AppShell.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A2B3C4D5200000000000017 /* AppShell.swift */; };
 		1A2B3C4D5300000000000021 /* Toolbar.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A2B3C4D5200000000000018 /* Toolbar.swift */; };
@@ -97,7 +97,8 @@
 		1A2B3C4D5200000000000013 /* Platform.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Platform.swift; sourceTree = "<group>"; };
 		1A2B3C4D5200000000000014 /* FontRole.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FontRole.swift; sourceTree = "<group>"; };
 		1A2B3C4D5200000000000015 /* Environment.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Environment.swift; sourceTree = "<group>"; };
-		1A2B3C4D5200000000000016 /* App.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = App.swift; sourceTree = "<group>"; };
+		1A2B3C4D5200000000000016 /* App-macOS.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "App-macOS.swift"; sourceTree = "<group>"; };
+		1A2B3C4D520000000000002A /* App-iOS.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "App-iOS.swift"; sourceTree = "<group>"; };
 		1A2B3C4D5200000000000017 /* AppShell.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppShell.swift; sourceTree = "<group>"; };
 		1A2B3C4D5200000000000018 /* Toolbar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Toolbar.swift; sourceTree = "<group>"; };
 		1A2B3C4D5200000000000019 /* Toolbar-macOS.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Toolbar-macOS.swift"; sourceTree = "<group>"; };
@@ -154,7 +155,8 @@
 		1A2B3C4D5100000000000003 /* src */ = {
 			isa = PBXGroup;
 			children = (
-				1A2B3C4D5200000000000016 /* App.swift */,
+				1A2B3C4D520000000000002A /* App-iOS.swift */,
+				1A2B3C4D5200000000000016 /* App-macOS.swift */,
 				1A2B3C4D5200000000000017 /* AppShell.swift */,
 				1A2B3C4D520000000000001B /* BlockViews.swift */,
 				1A2B3C4D5200000000000012 /* Bridges-iOS.swift */,
@@ -255,7 +257,7 @@
 			attributes = {
 				BuildIndependentTargetsInParallel = YES;
 				LastSwiftUpdateCheck = 1500;
-				LastUpgradeCheck = 2640;
+				LastUpgradeCheck = 2650;
 				TargetAttributes = {
 					1A2B3C4D5400000000000001 = {
 						CreatedOnToolsVersion = 15.0;
@@ -385,7 +387,7 @@
 				1A2B3C4D5300000000000014 /* Platform.swift in Sources */,
 				1A2B3C4D5300000000000017 /* FontRole.swift in Sources */,
 				1A2B3C4D530000000000001A /* Environment.swift in Sources */,
-				1A2B3C4D530000000000001D /* App.swift in Sources */,
+				1A2B3C4D530000000000001D /* App-macOS.swift in Sources */,
 				1A2B3C4D530000000000001F /* AppShell.swift in Sources */,
 				1A2B3C4D5300000000000021 /* Toolbar.swift in Sources */,
 				1A2B3C4D5300000000000023 /* Toolbar-macOS.swift in Sources */,
@@ -406,7 +408,7 @@
 				1A2B3C4D5300000000000015 /* Platform.swift in Sources */,
 				1A2B3C4D5300000000000018 /* FontRole.swift in Sources */,
 				1A2B3C4D530000000000001B /* Environment.swift in Sources */,
-				1A2B3C4D530000000000001E /* App.swift in Sources */,
+				1A2B3C4D530000000000001E /* App-iOS.swift in Sources */,
 				1A2B3C4D5300000000000020 /* AppShell.swift in Sources */,
 				1A2B3C4D5300000000000022 /* Toolbar.swift in Sources */,
 				1A2B3C4D5300000000000002 /* MarkdownParser.swift in Sources */,
@@ -483,6 +485,8 @@
 				COPY_PHASE_STRIP = NO;
 				DEAD_CODE_STRIPPING = YES;
 				DEBUG_INFORMATION_FORMAT = dwarf;
+				DEVELOPMENT_TEAM = "";
+				"DEVELOPMENT_TEAM[sdk=macosx*]" = "";
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_TESTABILITY = YES;
 				ENABLE_USER_SCRIPT_SANDBOXING = NO;
@@ -546,6 +550,8 @@
 				COPY_PHASE_STRIP = NO;
 				DEAD_CODE_STRIPPING = YES;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				DEVELOPMENT_TEAM = "";
+				"DEVELOPMENT_TEAM[sdk=macosx*]" = "";
 				ENABLE_NS_ASSERTIONS = NO;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_USER_SCRIPT_SANDBOXING = NO;
@@ -576,8 +582,6 @@
 				CODE_SIGN_STYLE = Manual;
 				COMBINE_HIDPI_IMAGES = YES;
 				DEAD_CODE_STRIPPING = YES;
-				DEVELOPMENT_TEAM = "";
-				"DEVELOPMENT_TEAM[sdk=macosx*]" = "";
 				ENABLE_HARDENED_RUNTIME = YES;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = "config/Info-macOS.plist";
@@ -610,8 +614,6 @@
 				CODE_SIGN_STYLE = Manual;
 				COMBINE_HIDPI_IMAGES = YES;
 				DEAD_CODE_STRIPPING = YES;
-				DEVELOPMENT_TEAM = "";
-				"DEVELOPMENT_TEAM[sdk=macosx*]" = "";
 				ENABLE_HARDENED_RUNTIME = YES;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = "config/Info-macOS.plist";
@@ -639,13 +641,13 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_IDENTITY = "Apple Development";
-				CODE_SIGN_STYLE = Automatic;
-				DEVELOPMENT_TEAM = "";
+				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "-";
+				CODE_SIGN_STYLE = Manual;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = "config/Info-iOS.plist";
 				INFOPLIST_KEY_CFBundleDisplayName = Markdown;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.productivity";
-				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.6;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -654,6 +656,7 @@
 				PRODUCT_MODULE_NAME = MarkdownPreview;
 				PRODUCT_NAME = md.too;
 				PROVISIONING_PROFILE_SPECIFIER = "";
+				"PROVISIONING_PROFILE_SPECIFIER[sdk=macosx*]" = "";
 				SDKROOT = iphoneos;
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
 				SUPPORTS_MACCATALYST = NO;
@@ -669,13 +672,13 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_IDENTITY = "Apple Development";
-				CODE_SIGN_STYLE = Automatic;
-				DEVELOPMENT_TEAM = "";
+				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "-";
+				CODE_SIGN_STYLE = Manual;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = "config/Info-iOS.plist";
 				INFOPLIST_KEY_CFBundleDisplayName = Markdown;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.productivity";
-				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.6;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -684,6 +687,7 @@
 				PRODUCT_MODULE_NAME = MarkdownPreview;
 				PRODUCT_NAME = md.too;
 				PROVISIONING_PROFILE_SPECIFIER = "";
+				"PROVISIONING_PROFILE_SPECIFIER[sdk=macosx*]" = "";
 				SDKROOT = iphoneos;
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
 				SUPPORTS_MACCATALYST = NO;
@@ -699,11 +703,8 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_ENTITLEMENTS = config/QuickLook.debug.entitlements;
-				CODE_SIGN_IDENTITY = "Apple Development";
-				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "-";
-				CODE_SIGN_STYLE = Automatic;
+				CODE_SIGN_STYLE = Manual;
 				DEAD_CODE_STRIPPING = YES;
-				DEVELOPMENT_TEAM = "";
 				ENABLE_HARDENED_RUNTIME = YES;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = "config/Info-QuickLook.plist";
@@ -717,7 +718,6 @@
 				"PRODUCT_BUNDLE_IDENTIFIER[sdk=macosx*]" = com.leok7v.md.too.QuickLook;
 				PRODUCT_MODULE_NAME = MarkdownPreviewQuickLook;
 				PRODUCT_NAME = "md.too QuickLook";
-				PROVISIONING_PROFILE_SPECIFIER = "";
 				REGISTER_APP_GROUPS = YES;
 				SDKROOT = macosx;
 				SKIP_INSTALL = YES;
@@ -732,11 +732,8 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_ENTITLEMENTS = config/QuickLook.entitlements;
-				CODE_SIGN_IDENTITY = "Apple Development";
-				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "-";
-				CODE_SIGN_STYLE = Automatic;
+				CODE_SIGN_STYLE = Manual;
 				DEAD_CODE_STRIPPING = YES;
-				DEVELOPMENT_TEAM = "";
 				ENABLE_HARDENED_RUNTIME = YES;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = "config/Info-QuickLook.plist";
@@ -750,7 +747,6 @@
 				"PRODUCT_BUNDLE_IDENTIFIER[sdk=macosx*]" = com.leok7v.md.too.QuickLook;
 				PRODUCT_MODULE_NAME = MarkdownPreviewQuickLook;
 				PRODUCT_NAME = "md.too QuickLook";
-				PROVISIONING_PROFILE_SPECIFIER = "";
 				REGISTER_APP_GROUPS = YES;
 				SDKROOT = macosx;
 				SKIP_INSTALL = YES;

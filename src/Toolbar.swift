@@ -1,4 +1,5 @@
 import SwiftUI
+import PDFKit
 #if os(macOS)
 import AppKit
 #elseif os(iOS)
@@ -60,16 +61,6 @@ struct CopyDocButton: View {
     }
 
     #if os(macOS)
-    // HTML -> NSAttributedString -> RTF via Foundation. Lossier than a
-    // direct [Block] -> NSAttributedString walker (rgba backgrounds,
-    // table shading, and link styles come through inconsistently), but
-    // ten lines and zero parallel maintenance. See the
-    // pasteboard-rtf-roundtrip memory for the upgrade path.
-    //
-    // The .pdf flavor is registered lazily via CopyPdfProvider so the
-    // PDF renders only when a target (Pages, Keynote, Preview) actually
-    // asks for it - Copy stays instant for the common text/HTML/RTF
-    // paste targets and avoids the full CGContext draw on every click.
     private func htmlToRtf(_ html: String) -> Data? {
         var result: Data? = nil
         if let data = html.data(using: .utf8),
@@ -93,10 +84,7 @@ struct CopyDocButton: View {
 }
 
 #if os(macOS)
-// NSPasteboardItem does not strongly retain its data provider, so the
-// provider must outlive the item; a process-wide singleton is the
-// lightest way to guarantee that. set(text:) updates the singleton at
-// each Copy so the .pdf callback renders the right document.
+
 private final class CopyPdfProvider: NSObject, NSPasteboardItemDataProvider {
 
     static let shared = CopyPdfProvider()
@@ -117,19 +105,18 @@ private final class CopyPdfProvider: NSObject, NSPasteboardItemDataProvider {
     }
 
 }
+
 #endif
 
 struct ShareButton: View {
 
     let text: String
     let fileURL: URL?
+    var compact: Bool = true
     @State private var pdfURL: URL?
+    @State private var pdfThumb: Image?
 
     var body: some View {
-        // macOS toolbar = icon-only chrome; iOS uses ShareButton inside
-        // an overflow Menu where a bare Image renders as an unlabeled
-        // row. Use a Label on iOS so the Menu row shows icon + text;
-        // keep the macOS toolbar icon-only via the Image branch.
         Group {
             if let pdfURL {
                 let label = fileURL?
@@ -138,25 +125,16 @@ struct ShareButton: View {
                 ShareLink(
                     item: pdfURL,
                     preview: SharePreview(
-                        label, image: Image(systemName: "doc.richtext"))
+                        label,
+                        image: pdfThumb
+                            ?? Image(systemName: "doc.richtext"))
                 ) {
-                    #if os(iOS)
-                    Label("Share as PDF",
-                          systemImage: "square.and.arrow.up")
-                    #else
-                    Image(systemName: "square.and.arrow.up")
-                    #endif
+                    shareLabel
                 }
                 .help("Share as PDF")
             } else {
                 Button(action: {}) {
-                    #if os(iOS)
-                    Label("Generating PDF…",
-                          systemImage: "square.and.arrow.up")
-                        .opacity(0.4)
-                    #else
-                    Image(systemName: "square.and.arrow.up").opacity(0.4)
-                    #endif
+                    shareLabel.opacity(0.4)
                 }
                 .disabled(true)
                 .help("Generating PDF…")
@@ -166,8 +144,32 @@ struct ShareButton: View {
             let title = fileURL?.deletingPathExtension().lastPathComponent ??
                         "Document"
             let url = await exportPDF(text: text, title: title)
-            await MainActor.run { pdfURL = url }
+            let thumb = url.flatMap { firstPageThumbnail(of: $0) }
+            await MainActor.run {
+                pdfURL = url
+                pdfThumb = thumb
+            }
         }
+    }
+
+    @ViewBuilder
+    private var shareLabel: some View {
+        if compact {
+            Image(systemName: "square.and.arrow.up")
+        } else {
+            Label("Share as PDF", systemImage: "square.and.arrow.up")
+        }
+    }
+
+    private func firstPageThumbnail(of url: URL) -> Image? {
+        guard let doc = PDFDocument(url: url),
+              let page = doc.page(at: 0) else { return nil }
+        let size = CGSize(width: 512, height: 512)
+        #if os(macOS)
+        return Image(nsImage: page.thumbnail(of: size, for: .cropBox))
+        #else
+        return Image(uiImage: page.thumbnail(of: size, for: .cropBox))
+        #endif
     }
 
 }

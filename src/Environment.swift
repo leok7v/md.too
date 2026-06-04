@@ -11,9 +11,6 @@ extension EnvironmentValues {
     }
 }
 
-// Set inside a block quote so all text rendered within it (including
-// nested paragraphs, lists, and tables reached through recursion) uses
-// the secondary color, without threading a flag through every view.
 struct SecondaryTextKey: EnvironmentKey {
     static let defaultValue = false
 }
@@ -91,12 +88,6 @@ struct SourceButton: View {
 
 }
 
-// Image prefetch lives next to PrefetchedImagesKey - same concept,
-// consumption side (PrefetchedImagesKey) plus production side (this).
-// Used by PDFExport (PDF render) and QuickLookViewController (QL preview).
-// Both consumers walk the same [Block] tree and fetch the same URLs;
-// the only difference is the final decode (CGImage vs SwiftUI Image),
-// which stays at each consumer's call site.
 enum ImagePrefetch {
 
     static func collectURLs(in blocks: [Block]) -> Set<URL> {

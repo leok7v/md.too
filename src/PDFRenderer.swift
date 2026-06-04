@@ -24,9 +24,6 @@ enum TempPDFs {
     }
 }
 
-// Async prefetch + decode helper for the single-text-surface path
-// (DocumentText). Mirrors PDFExport.prefetchImages but returns
-// platform images (NSImage / UIImage) suitable for NSTextAttachment.
 func prefetchDocumentImages(in blocks: [Block])
     async -> [URL: DocumentText.DocumentImage] {
     let urls = ImagePrefetch.collectURLs(in: blocks)
@@ -42,9 +39,6 @@ func prefetchDocumentImages(in blocks: [Block])
     return result
 }
 
-// Sync PDF render for the pasteboard's lazy .pdf flavor (no image
-// prefetch - the request callback is sync). Async exportPDF (below)
-// is the path for Save / Share which DO prefetch images.
 func exportPDFDataSync(text: String, title: String) -> Data? {
     let blocks = Markdown.parse(text)
     return PDFExport.data(blocks: blocks, title: title)
@@ -128,10 +122,6 @@ enum PDFExport {
         return datas.compactMapValues { d in decode(d) }
     }
 
-    // Sync sibling of `write` that returns Data via CGDataConsumer over
-    // NSMutableData. Used by the pasteboard's lazy .pdf flavor where the
-    // request callback is synchronous, so there is no time to prefetch
-    // images - any missing image renders as its alt-text placeholder.
     static func data(blocks: [Block], title: String,
                      images: [URL: CGImage] = [:]) -> Data? {
         var result: Data? = nil
@@ -200,8 +190,6 @@ private final class PDFRenderer {
     let monoSize: CGFloat = 10
     var pageNumber = 0
     var y: CGFloat = 0
-    // Left inset for content nested inside lists / quotes. Header and
-    // footer ignore it (they pin to the true margin).
     var listIndent: CGFloat = 0
 
     init(ctx: CGContext,
@@ -414,7 +402,6 @@ private final class PDFRenderer {
         let m = NSMutableAttributedString(attributedString: ns)
         let full = NSRange(location: 0, length: m.length)
         m.addAttribute(.font, value: monoCTFont(), range: full)
-        // Core Text honors only CGColor; the highlighter emits NSColor.
         m.enumerateAttribute(.foregroundColor, in: full,
                              options: []) { value, range, _ in
             if let c = value as? PlatformColor {
@@ -455,9 +442,6 @@ private final class PDFRenderer {
         }
     }
 
-    // Quote content is full block content, drawn at a deeper indent
-    // with a vertical bar. The bar is drawn per page region so a quote
-    // that spans a page break still gets a bar on each page.
     private func drawQuote(_ blocks: [Block]) {
         let saved = listIndent
         let barX = margin + saved
@@ -478,10 +462,6 @@ private final class PDFRenderer {
         }
     }
 
-    // A list draws each item's marker at the current indent, then
-    // renders the item's blocks one gutter deeper via draw(), so nested
-    // lists, paragraphs, code, quotes, and tables all compose. The
-    // marker shares the first content line's baseline.
     private func drawList(_ items: [ListItem], tight: Bool) {
         let saved = listIndent
         let gutter: CGFloat = 20
@@ -517,16 +497,6 @@ private final class PDFRenderer {
                                   rows: [[String]],
                                   cols: Int) {
         let rowPad: CGFloat = 4
-        // Per-column minimum widths derived from the longest single
-        // word in each column's header + cells, measured in the bold
-        // body font (header is bold; data text is the same size and
-        // breaks against the same character widths). Plus 2 * rowPad
-        // for the cell's left/right inset. Without this, the
-        // sqrt(charWidth)-weighted distribution starves columns whose
-        // content is short OVERALL but whose single longest token
-        // (e.g. the header word "Rating") needs more width than the
-        // weighted share allocates - CT framesetter then breaks the
-        // word mid-letter.
         let minWidths: [CGFloat] = (0..<cols).map { c in
             let word = TableMetrics.longestWord(headers: headers,
                                                 rows: rows, col: c)
@@ -536,11 +506,6 @@ private final class PDFRenderer {
             return CTLineGetBoundsWithOptions(line, []).width
                    + 2 * rowPad
         }
-        // Char-weighted text shares from the shared metric (same recipe
-        // as the on-screen table), with min-widths above as the floor.
-        // Image cells then push their column to at least their
-        // image-aware width, and we re-fit if that pushed the total
-        // over contentWidth.
         var colWidths = TableMetrics.pointWidths(headers: headers,
                                                  rows: rows,
                                                  available: contentWidth,
@@ -585,10 +550,6 @@ private final class PDFRenderer {
             }
             ensureSpace(rowH + rowPad * 2)
             let savedY = y
-            // Fill the shade band BEFORE the cells so the text draws on
-            // top of it (normal blend). The earlier destinationOver
-            // approach hid shaded rows: PDF contexts don't reliably
-            // composite-under, so the opaque band painted over the text.
             if let shade {
                 ctx.setFillColor(shade)
                 ctx.fill(CGRect(x: contentLeft,
@@ -684,11 +645,6 @@ private final class PDFRenderer {
                       explicitHeight: explicitHeight).height
     }
 
-    // Parse the cell as Markdown and bake each inline run's intent
-    // (bold, italic, code, strikethrough) into explicit Core Text
-    // attributes. AttributedString(markdown:) only records the intent;
-    // NSTextView interprets it, but Core Text honors only .font and
-    // .strikethroughStyle, so the traits must be resolved here.
     private func cellAttributed(_ text: String,
                                 bold: Bool) -> NSAttributedString {
         let parsed = Markdown.parse(text)
@@ -758,8 +714,6 @@ private final class PDFRenderer {
         return result
     }
 
-    // Lay a text cell into a tall scratch frame to learn its rendered
-    // height, so a row's shade band can be filled before the cells draw.
     private func textCellHeight(_ txt: String, bold: Bool,
                                 width: CGFloat) -> CGFloat {
         let inner = cellAttributed(txt, bold: bold)
@@ -901,29 +855,12 @@ private final class PDFRenderer {
         return CGColor(srgbRed: 0.96, green: 0.96, blue: 0.97, alpha: 1.0)
     }
 
-    // Slightly stronger than rowShadeColor, mirroring the on-screen
-    // header's Color.primary.opacity(0.07) vs the zebra's 0.04.
     private var headerShadeColor: CGColor {
         return CGColor(srgbRed: 0.93, green: 0.93, blue: 0.94, alpha: 1.0)
     }
 
 }
 
-// HtmlExport and PlainExport live next to PDFExport because the three
-// are companion serializers over the same [Block] tree (and HtmlExport
-// reuses ImagePrefetch / TableMetrics). Kept here while the surface is
-// small; can split into their own file once they outgrow.
-
-// Theme-neutral HTML: no body background, no body foreground (inherit
-// the destination's), only rgba(128,128,128,...) grays for stripes and
-// borders, no near-white / near-black, no JS, no external references.
-// Images render only when their bytes were prefetched and inlined as
-// base64; otherwise they fall back to a styled alt-text placeholder.
-//
-// Styles inline on every element instead of a <style> block: paste
-// targets (Gmail, Mail, Safari contenteditable) strip <style> and
-// <head> on sanitize; TextEdit's HTML-to-RTF converter ignores most
-// selectors. Inline survives all of them, at the cost of payload size.
 enum HtmlExport {
 
     static func render(_ blocks: [Block], title: String,
@@ -1098,9 +1035,6 @@ enum HtmlExport {
             result = "<p><img alt=\"\(escAttr(alt))\" " +
                      "src=\"\(src)\" style=\"\(style)\"></p>\n"
         } else {
-            // No external <img src=URL>: the plan rule is "absolutely
-            // no external references". Without inlined bytes, emit a
-            // styled placeholder so paste targets still see the alt.
             let label = alt.isEmpty ? url.absoluteString : alt
             result = "<p style=\"\(imagePlaceholderStyle)\">" +
                      "[\(esc(label))]</p>\n"
@@ -1218,10 +1152,6 @@ enum HtmlExport {
         "font-style:italic;"
 }
 
-// Plaintext serializer for the pasteboard's .string flavor. Tables use
-// TableMetrics.serializeMonospaced so columns line up; everything else
-// renders as readable Markdown-flavored text the user can drop into a
-// terminal or a plain-text editor.
 enum PlainExport {
 
     static func render(_ blocks: [Block]) -> String {
@@ -1284,22 +1214,8 @@ enum PlainExport {
     }
 }
 
-// PLAN-TABLES Step 2: single text surface. Walks [Block] and produces
-// one NSAttributedString that an NSTextView / UITextView can render
-// with native continuous selection. ROUND 1 covers paragraph +
-// heading + rule with inline-intent translation (bold / italic / code
-// / strike / link); other block types fall back to PlainExport raw
-// text until later rounds style them. Behind a `singleSurface`
-// AppStorage flag in MarkdownView, default off. See
-// single-text-surface-intent.md for the staged rounds.
 enum DocumentText {
 
-    // Atomic-range tag values. PLAN-SELECTION's arbiter reads these
-    // to decide when to snap a selection that crosses a block to the
-    // whole block. Absence of the tag means "inline" (paragraph /
-    // heading / list-item / quote-content); presence means "atomic"
-    // (the user can range-select inside the block but a selection
-    // that started outside snaps to whole).
     enum AtomicKind: String {
         case code
         case table
@@ -1355,31 +1271,6 @@ enum DocumentText {
         return result
     }
 
-    // NSTextTable tables. Each cell is one paragraph whose paragraph
-    // style carries an NSTextTableBlock anchoring it into the right
-    // (row, column) of a shared NSTextTable. NSTextView reads those
-    // textBlocks at layout time and lays out the table with real cell
-    // boxes: cells WRAP within their column, columns proportion to
-    // content via `automaticLayoutAlgorithm`, the whole table reflows
-    // when the view's width changes. Headers are bold with a stronger
-    // background tint; data rows alternate with a subtler tint via the
-    // cell's backgroundColor (rendered as the cell's box fill, not a
-    // range-attribute background, so it covers the whole wrapped cell
-    // even on multi-line content).
-    //
-    // Cells go through `tableCell` for inline Markdown
-    // (`**bold**` / `*italic*` / `` `code` `` / `~~strike~~` /
-    // `[link](url)`). Every cell carries `atomicKindKey = table` plus
-    // a shared `atomicId` so PLAN-SELECTION's arbiter still treats the
-    // whole table as one atomic block.
-    //
-    // The earlier tab-stop model (Option A in the original fork) is
-    // gone - tab tables couldn't wrap within a column, so cells with
-    // long content (PROMPT-RESULTS.md's Response column) truncated
-    // with `.byTruncatingTail`. NSTextTable is the proper Cocoa text-
-    // table API and was the answer the intent doc didn't consider.
-    // `relayoutTables` retired with the tab-stop model: NSTextTable
-    // handles its own view-width-aware layout.
     private static func table(headers: [String], rows: [[String]],
                               images: [URL: DocumentImage])
         -> NSAttributedString {
@@ -1390,17 +1281,7 @@ enum DocumentText {
             #if os(macOS)
             let textTable = NSTextTable()
             textTable.numberOfColumns = cols
-            // fixedLayoutAlgorithm respects the explicit width on each
-            // NSTextTableBlock; automatic layout ignores widths and
-            // defaults to roughly-equal columns at narrow widths, which
-            // is what produced the 33/33/33 look in early testing.
             textTable.layoutAlgorithm = .fixedLayoutAlgorithm
-            // Per-column percentage shares from TableMetrics so the
-            // narrow-content column (Rating) stays narrow and the
-            // long-content column (Response) gets the lion's share -
-            // matches the block-tree TableBlock's sqrt-weighted model.
-            // Asking for available=100 normalises the result to
-            // percentages.
             let shares = TableMetrics.pointWidths(headers: headers,
                                                   rows: rows,
                                                   available: 100)
@@ -1428,15 +1309,6 @@ enum DocumentText {
             }
             m.append(NSAttributedString(string: "\n"))
             #else
-            // iOS fallback: NSTextTable is AppKit-only, so on iOS we
-            // emit tab-stop paragraphs (one row = one paragraph, cells
-            // tab-separated). Cells line up across rows via the same
-            // sqrt-weighted point widths the macOS path uses, but they
-            // TRUNCATE at column boundaries instead of wrapping
-            // (lineBreakMode = .byTruncatingTail). Acceptable for short
-            // cells; long-cell tables surface truncation. The richer
-            // NSTextTable model is not available without rolling our
-            // own table layout, which is out of scope.
             let widths = TableMetrics.pointWidths(headers: headers,
                                                   rows: rows,
                                                   available: 320)
@@ -1499,9 +1371,6 @@ enum DocumentText {
                 attributedString: tableCell(cellText, base: base,
                                             images: images))
             if cellAttr.length == 0 {
-                // Empty cell still needs at least one character so the
-                // paragraph exists and the cell box renders. A no-break
-                // space is the invisible placeholder.
                 cellAttr.append(NSAttributedString(
                     string: "\u{00A0}",
                     attributes: [.font: base,
@@ -1552,19 +1421,6 @@ enum DocumentText {
     }
     #endif
 
-    // Parse a cell as one paragraph of Markdown and translate each
-    // inline run's intent (bold / italic / code / strikethrough / link)
-    // into explicit Core-Text-honored attributes on top of `base` (the
-    // row's font, which already carries .bold for header rows). Mirrors
-    // PDFRenderer.cellAttributed; the difference is that the result
-    // composes into one cell paragraph instead of its own framesetter.
-    //
-    // When the cell is a block-level image (`![alt](url){height=NNN}`)
-    // the parser yields `.image(...)` rather than `.paragraph(...)`;
-    // emit an `NSTextAttachment` for it (using the prefetched image
-    // from `images` when available, a `[Image: alt]` placeholder
-    // otherwise). Without this branch the raw markdown text leaks
-    // into the cell as literal source.
     private static func tableCell(_ text: String,
                                   base: PlatformFont,
                                   images: [URL: DocumentImage])
@@ -1595,10 +1451,6 @@ enum DocumentText {
                 case .paragraph(let attr):
                     appendInlineRuns(attr, base: base, into: m)
                 default:
-                    // Other block kinds in a cell (rare - a fenced code
-                    // block inside a table cell, etc) fall back to the
-                    // raw cell text in the row's body font. Keeps the
-                    // table from breaking; the cell content surfaces.
                     m.append(NSAttributedString(
                         string: text,
                         attributes: [
@@ -1657,9 +1509,6 @@ enum DocumentText {
         #endif
     }
 
-    // Apply quote indent on top of any existing paragraph indent
-    // (so a list / heading inside a quote keeps its own indent and
-    // gains the quote shift on top), and tint behind the whole range.
     private static func quote(_ blocks: [Block],
                               images: [URL: DocumentImage])
         -> NSAttributedString {
@@ -1683,12 +1532,6 @@ enum DocumentText {
         return m
     }
 
-    // Single-paragraph items get marker + tab + body on one paragraph
-    // with the item's paragraph style; nested lists recurse at deeper
-    // depth. Multi-block items get the continuation indent merged into
-    // each non-list block past the first via `listItem`, so a follow-up
-    // paragraph or fence sits under the bullet body, not at the left
-    // margin.
     private static func list(items: [ListItem], tight: Bool,
                              depth: Int,
                              images: [URL: DocumentImage])
@@ -1752,13 +1595,6 @@ enum DocumentText {
             line.append(render(first, images: images))
         }
         line.append(NSAttributedString(string: "\n"))
-        // Continuation indent for the item's second-and-later blocks.
-        // Same additive-merge pattern as `quote`: a follow-up paragraph,
-        // fence, image, or quote sits flush with the head body (column =
-        // list's headIndent), not at the left margin. Without it the
-        // continuation visually escapes the bullet and reads as
-        // top-level content. Nested lists own their own indent in
-        // `list(depth: depth + 1)` so they bypass the merge.
         let contIndent = para.headIndent
         for rest in item.blocks.dropFirst() {
             if case .list(let inner, let innerTight) = rest {
@@ -1786,10 +1622,6 @@ enum DocumentText {
         return line
     }
 
-    // NSTextAttachment for inlined images. Placeholder text when the
-    // image data has not been prefetched yet; MarkdownView's .task
-    // prefetches asynchronously and re-renders with the real images
-    // once they arrive.
     private static func image(alt: String, url: URL,
                               width: CGFloat?, height: CGFloat?,
                               images: [URL: DocumentImage])
@@ -1856,12 +1688,8 @@ enum DocumentText {
                                               baseFont: baseFont)
         let m = NSMutableAttributedString(attributedString: highlighted)
         let full = NSRange(location: 0, length: m.length)
-        // Subtle code-block tint; theme-neutral via low-alpha gray
-        // (darkens on light, lightens on dark).
         m.addAttribute(.backgroundColor, value: codeBackgroundColor(),
                        range: full)
-        // Atomic tags so PLAN-SELECTION's arbiter can snap to whole
-        // when a drag from outside crosses this fence's boundary.
         m.addAttribute(atomicKindKey,
                        value: AtomicKind.code.rawValue, range: full)
         m.addAttribute(atomicIdKey, value: UUID().uuidString,
@@ -1902,8 +1730,6 @@ enum DocumentText {
     }
 
     private static func rule() -> NSAttributedString {
-        // ASCII-ish horizontal rule for Round 1; a real divider with
-        // custom paragraph drawing lands in a later round.
         let attrs: [NSAttributedString.Key: Any] = [
             .font: bodyFont(),
             .foregroundColor: secondaryColor(),
@@ -1914,9 +1740,6 @@ enum DocumentText {
     }
 
     private static func placeholder(for block: Block) -> NSAttributedString {
-        // Round 1 placeholder for as-yet-unstyled block types. Later
-        // rounds replace these one at a time (code, lists+quotes,
-        // tables, images).
         let raw = PlainExport.render([block])
         return NSAttributedString(string: raw,
                                   attributes: [
@@ -1925,11 +1748,6 @@ enum DocumentText {
                                   ])
     }
 
-    // Walk AttributedString runs, baking inlinePresentationIntent
-    // into explicit .font / .strikethrough / .link attributes. NSText
-    // View interprets intent at draw time, but Core Text and any
-    // downstream serialization (RTF, PDF) honor only the explicit
-    // attributes - same lesson as PDFRenderer.cellRunFont.
     private static func translateInline(_ attr: AttributedString,
                                         base: PlatformFont,
                                         into m: NSMutableAttributedString) {

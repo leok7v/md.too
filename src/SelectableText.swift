@@ -94,13 +94,5 @@ struct NativeText {
         return ns
     }
 
-    // The four per-platform helpers (primaryColor, secondaryColor,
-    // mergeTraits, boldFont) live in Bridges-macOS.swift and
-    // Bridges-iOS.swift, exposed via extensions on NativeText. Each
-    // Bridges file is target-membership-gated, so only the right
-    // platform's implementation links into each target. This file
-    // stays platform-agnostic apart from the AppKit/UIKit import
-    // needed for NSAttributedString.Key.font/.foregroundColor.
-
 }
 

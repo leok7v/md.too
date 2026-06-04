@@ -145,17 +145,6 @@ final class MarkdownFileWatcher: NSObject, NSFilePresenter {
         self.onChange = onChange
         super.init()
         NSFileCoordinator.addFilePresenter(self)
-        // Initial coordinated read - handles iCloud-stubbed files
-        // (Files-app sharing). The FileDocument framework's
-        // `configuration.file.regularFileContents` returns whatever
-        // bytes are currently materialized; an iCloud file that is
-        // not fully downloaded reports a smaller "EOF" than its
-        // actual size, so `String(contentsOf:URL)` (which does loop
-        // internally until that EOF) only sees a truncated head.
-        // NSFileCoordinator.coordinate(readingItemAt:) triggers full
-        // materialization before the read and emits the complete
-        // content via onChange, replacing the partial FileDocument
-        // initial text in the view's @State.
         reload()
     }
 
@@ -173,19 +162,10 @@ final class MarkdownFileWatcher: NSObject, NSFilePresenter {
     }
 
     func presentedItemDidMove(to newURL: URL) {
-        // Atomic-write editors rename a temp over the real file.
-        // Treat that as a content change and re-read the same URL.
         presentedItemDidChange()
     }
 
     private func reload() {
-        // NSFileCoordinator.coordinate(readingItemAt:...) is synchronous
-        // and can block until the file is available - if another process
-        // (an atomic-write editor saving over our open file) holds it,
-        // the block lasts as long as their write. Apple's docs say not
-        // to call this on the main thread for that reason. Dispatch the
-        // coordinator + read to a background queue and bounce the
-        // resulting text back to main for the @State write in the view.
         let targetURL = url
         let changeHandler = onChange
         DispatchQueue.global(qos: .userInitiated).async {

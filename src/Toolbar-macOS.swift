@@ -1,8 +1,6 @@
 import SwiftUI
 import AppKit
 
-// The system save glyph with a tiny "pdf" / "html" badge bottom-right,
-// so the two save buttons are visually distinguishable at toolbar size.
 private struct SaveGlyph: View {
 
     let badge: String

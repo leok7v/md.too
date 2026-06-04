@@ -20,12 +20,6 @@ final class QuickLookViewController: NSViewController, QLPreviewingController {
 
     func preparePreviewOfFile(at url: URL) async throws {
         let text = try String(contentsOf: url, encoding: .utf8)
-        // QL extensions tear down their host once preparePreviewOfFile
-        // returns, so SwiftUI's `.task` modifiers may never run. Prefetch
-        // every image URL the document references here, on the await side
-        // of preparePreview, and pass the resulting [URL: Image] map to
-        // MarkdownView via Environment so ImageBlockView can render
-        // synchronously.
         let blocks = Markdown.parse(text)
         let prefetched = await Self.prefetchImages(in: blocks)
         await MainActor.run {

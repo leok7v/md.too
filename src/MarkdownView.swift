@@ -9,27 +9,11 @@ struct MarkdownView: View {
 
     let text: String
     let fileURL: URL?
+    var onClose: (() -> Void)? = nil
 
     @AppStorage("themeMode")
     private var themeRaw: String = ThemeMode.system.rawValue
 
-    // PLAN-TABLES Step 2 feature flag. Default per-platform:
-    //   macOS: ON  - DocumentText into one NSTextView via NSTextTable;
-    //               AppKit's text system handles long-doc layout
-    //               reliably and the arbiter gives atomic-block snap
-    //               on cross-block drag selections.
-    //   iOS:   OFF - UITextView truncates tall attributed strings
-    //               at an internal layout limit even with TextKit 1
-    //               (Dockerfile / math / image content past a certain
-    //               offset just stops rendering). The per-block
-    //               BlockView path renders fine on iOS because each
-    //               block is its own short UITextView and the outer
-    //               SwiftUI ScrollView handles vertical scrolling.
-    //               Same model im.ai uses on iOS, same model that
-    //               worked here before commit 88d12c9 flipped the
-    //               default on.
-    // Opt out / opt in via:
-    //   defaults write <bundle-id> singleSurface -bool {YES,NO}
     #if os(macOS)
     @AppStorage("singleSurface")
     private var singleSurface: Bool = true
@@ -57,9 +41,11 @@ struct MarkdownView: View {
         #endif
     }
 
-    init(text: String, fileURL: URL? = nil) {
+    init(text: String, fileURL: URL? = nil,
+         onClose: (() -> Void)? = nil) {
         self.text = text
         self.fileURL = fileURL
+        self.onClose = onClose
     }
 
     @ViewBuilder
@@ -99,6 +85,7 @@ struct MarkdownView: View {
             #endif
             return v
         }()
+        #if os(macOS)
         withAutosave.toolbar {
             ToolbarItem(placement: .primaryAction) {
                 SourceButton(showingSource: showSource) {
@@ -108,10 +95,6 @@ struct MarkdownView: View {
             ToolbarItem(placement: .primaryAction) {
                 CopyDocButton(text: displayText)
             }
-            #if os(macOS)
-            // macOS has room for the full toolbar - keep PDF / HTML /
-            // Share / Theme as visible buttons. The nav bar fits all
-            // six.
             ToolbarItem(placement: .primaryAction) {
                 SaveButton(text: displayText, fileURL: fileURL)
             }
@@ -126,27 +109,6 @@ struct MarkdownView: View {
                     themeRaw = theme.next.rawValue
                 }
             }
-            #else
-            // iOS: the nav bar can host roughly two primary buttons
-            // alongside DocumentGroup's own back / title / file menu
-            // chrome. Anything beyond that gets silently dropped by
-            // SwiftUI - `.primaryAction` does not auto-overflow on iOS
-            // (the `...` shown by DocumentGroup is its OWN menu, not
-            // ours). Surface the secondary actions via an explicit
-            // `Menu` so they're always reachable.
-            ToolbarItem(placement: .primaryAction) {
-                Menu {
-                    ShareButton(text: displayText, fileURL: fileURL)
-                    Button {
-                        themeRaw = theme.next.rawValue
-                    } label: {
-                        Label(theme.help, systemImage: theme.symbol)
-                    }
-                } label: {
-                    Image(systemName: "ellipsis.circle")
-                }
-            }
-            #endif
         }
         .onAppear {
             startWatchingIfNeeded()
@@ -154,8 +116,53 @@ struct MarkdownView: View {
         .onDisappear {
             watcher = nil
         }
+        #else
+        withAutosave
+            .safeAreaInset(edge: .top, spacing: 0) {
+                iOSToolbarOverlay
+            }
+            .onAppear {
+                startWatchingIfNeeded()
+            }
+            .onDisappear {
+                watcher = nil
+            }
+        #endif
         #endif
     }
+
+    #if os(iOS) && !QUICKLOOK_EXTENSION
+    @ViewBuilder
+    private var iOSToolbarOverlay: some View {
+        HStack(spacing: 12) {
+            if let onClose {
+                Button(action: onClose) {
+                    Image(systemName: "chevron.backward")
+                        .font(.headline)
+                }
+                .accessibilityLabel("Back to Files")
+            }
+            Text(fileURL?.lastPathComponent ?? "Document")
+                .font(.headline)
+                .lineLimit(1)
+                .truncationMode(.tail)
+            Spacer(minLength: 8)
+            SourceButton(showingSource: showSource) {
+                showSource.toggle()
+            }
+            CopyDocButton(text: displayText)
+            ShareButton(text: displayText, fileURL: fileURL)
+            ThemeButton(theme: theme) {
+                themeRaw = theme.next.rawValue
+            }
+        }
+        .buttonStyle(.plain)
+        .foregroundStyle(.primary)
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
+        .background(.bar)
+    }
+    #endif
 
     #if !QUICKLOOK_EXTENSION
     private func startWatchingIfNeeded() {
@@ -188,10 +195,6 @@ struct MarkdownView: View {
         }
     }
 
-    // DocumentText lives in PDFRenderer.swift (apps-only target
-    // membership); the QL extension cannot see it. QL also has no
-    // toolbar to flip the flag, so falling back to the block-tree
-    // path there is the right behavior anyway.
     #if !QUICKLOOK_EXTENSION
     @State private var documentImages: [URL: DocumentText.DocumentImage] = [:]
     #endif

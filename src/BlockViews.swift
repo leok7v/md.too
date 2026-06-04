@@ -96,11 +96,6 @@ private struct ImageBlockView: View {
         req.setValue(agent, forHTTPHeaderField: "User-Agent")
         var done = false
         var attempt = 0
-        // !Task.isCancelled in the guard: when SwiftUI cancels the
-        // .task(id:) on view destruction or URL change, the in-flight
-        // URLSession + Task.sleep both throw CancellationError; the
-        // try? swallows it but without this check the loop would still
-        // run one more wasted iteration before attempt < 2 falsifies.
         while attempt < 2, !done, !Task.isCancelled {
             do {
                 let (data, response) =
@@ -178,9 +173,6 @@ private struct ListBlock: View {
         }
     }
 
-    // Every row shares one gutter width (the widest marker in this
-    // list) so the content column never shifts row-to-row. Each nested
-    // list adds its own gutter, so depth indents consistently.
     private var gutterWidth: CGFloat {
         let widest = items.map { item in
             item.checked == nil ? item.marker.count : 1
@@ -236,9 +228,6 @@ enum TableMetrics {
         return n
     }
 
-    // Max content width per column in characters (raw max, >= 1). This is
-    // the true width for monospaced / ASCII export and the shared basis
-    // for on-screen and PDF point widths, so the renderers agree.
     static func charWidths(headers: [String], rows: [[String]]) -> [Int] {
         let n = columnCount(headers: headers, rows: rows)
         var widths = [Int](repeating: 1, count: n)
@@ -252,19 +241,6 @@ enum TableMetrics {
         return widths
     }
 
-    // Per-column point widths for a given available width. Weights are
-    // sqrt(charWidth) so wide columns don't starve narrow ones; the
-    // result sums to `available`. Shared by on-screen and PDF so the
-    // two renderers proportion columns the same way.
-    //
-    // When `minimums` is supplied (one per column, points), each column
-    // gets at least its minimum first and the remainder distributes by
-    // sqrt(charWidth). This prevents a short-content column from being
-    // squeezed below its single-longest-word width - the failure mode
-    // where a one-word "Rating" header breaks mid-letter at narrow
-    // widths. Callers measure their own fonts (PDF uses CT line bounds;
-    // NSTextTable on screen uses percentage widths so per-column min is
-    // less critical there).
     static func pointWidths(headers: [String], rows: [[String]],
                             available: CGFloat,
                             minimums: [CGFloat]? = nil) -> [CGFloat] {
@@ -294,10 +270,22 @@ enum TableMetrics {
         return result
     }
 
-    // Longest single word across a column's header + cells, used by
-    // `pointWidths`' minimums to keep the column wide enough to render
-    // that word without breaking mid-letter. Whitespace-separated; no
-    // hyphen splitting (we want the WHOLE hyphenated token to fit).
+    static func normalize(_ s: String) -> String {
+        let trimmed = s.trimmingCharacters(in: .whitespaces)
+        var out = ""
+        var inSpace = false
+        for ch in trimmed {
+            if ch.isWhitespace {
+                if !inSpace { out.append(" ") }
+                inSpace = true
+            } else {
+                out.append(ch)
+                inSpace = false
+            }
+        }
+        return out
+    }
+
     static func longestWord(headers: [String], rows: [[String]],
                             col: Int) -> String {
         var best = ""
@@ -315,7 +303,6 @@ enum TableMetrics {
         return best
     }
 
-    // Width-aligned ASCII table for the copy payload and text export.
     static func serializeMonospaced(headers: [String],
                                     rows: [[String]]) -> String {
         let n = columnCount(headers: headers, rows: rows)
@@ -360,27 +347,29 @@ private struct TableBlock: View {
     @State private var available: CGFloat = 0
 
     var body: some View {
-        let n = TableMetrics.columnCount(headers: headers, rows: rows)
-        let widths = pointWidths(n)
-        let fitWidth: CGFloat? = widths == nil ? nil : max(0, available - 16)
+        let h = headers.map { s in TableMetrics.normalize(s) }
+        let r = rows.map { row in
+            row.map { s in TableMetrics.normalize(s) }
+        }
+        let n = TableMetrics.columnCount(headers: h, rows: r)
+        let layout = columnLayout(n, headers: h, rows: r)
+        let fitWidth: CGFloat? = layout.wrap
+            ? max(0, available - 16) : nil
         ScrollView(.horizontal, showsIndicators: false) {
             VStack(alignment: .leading, spacing: 0) {
-                if !headers.isEmpty {
-                    // Header gets a slightly stronger band than the
-                    // zebra so it reads as a header in both themes,
-                    // not just the same shade as the first data row.
-                    rowView(headers, bold: true,
+                if !h.isEmpty {
+                    rowView(h, bold: true,
                             shade: Color.primary.opacity(0.07),
-                            n: n, widths: widths)
+                            n: n, widths: layout.widths, wrap: layout.wrap)
                     Divider()
                 }
-                ForEach(Array(rows.enumerated()),
-                        id: \.offset) { idx, r in
-                    rowView(r, bold: false,
+                ForEach(Array(r.enumerated()),
+                        id: \.offset) { idx, row in
+                    rowView(row, bold: false,
                             shade: idx % 2 == 1
                                 ? Color.primary.opacity(0.04)
                                 : Color.clear,
-                            n: n, widths: widths)
+                            n: n, widths: layout.widths, wrap: layout.wrap)
                 }
             }
             .padding(8)
@@ -401,36 +390,86 @@ private struct TableBlock: View {
         }
         .overlay(alignment: .topTrailing) {
             CopyButton(string:
-                TableMetrics.serializeMonospaced(headers: headers,
-                                                 rows: rows))
+                TableMetrics.serializeMonospaced(headers: h, rows: r))
                 .padding(6)
         }
     }
 
-    // Distribute the measured viewport across columns, sqrt-dampened by
-    // content length so wide columns don't starve narrow ones. nil means
-    // the table can't fit the viewport, so cells render at natural width
-    // inside the horizontal scroll instead.
-    private func pointWidths(_ n: Int) -> [CGFloat]? {
-        var result: [CGFloat]? = nil
+    private func columnLayout(_ n: Int,
+                              headers h: [String],
+                              rows r: [[String]])
+        -> (widths: [CGFloat]?, wrap: Bool)
+    {
+        var result: ([CGFloat]?, Bool) = (nil, false)
         let usable = available - CGFloat(max(n - 1, 0)) * 12 - 16
-        let minWidth = 48 * CGFloat(n)
-        if available > 0, usable >= minWidth {
-            let widths = TableMetrics.pointWidths(headers: headers,
-                                                  rows: rows,
-                                                  available: usable)
-            if !widths.isEmpty { result = widths }
+        if available > 0, n > 0 {
+            let natural = naturalColumnWidths(n, headers: h, rows: r)
+            let naturalSum = natural.reduce(0, +)
+            if naturalSum <= usable {
+                result = (natural, false)
+            } else {
+                let mins = minimumColumnWidths(n, headers: h, rows: r)
+                let widths = TableMetrics.pointWidths(headers: h,
+                                                      rows: r,
+                                                      available: usable,
+                                                      minimums: mins)
+                if !widths.isEmpty {
+                    result = (widths, true)
+                }
+            }
         }
         return result
     }
 
+    private func minimumColumnWidths(_ n: Int,
+                                     headers h: [String],
+                                     rows r: [[String]]) -> [CGFloat] {
+        let attrs: [NSAttributedString.Key: Any] = [
+            .font: FontRole.body.platformFont
+        ]
+        var widths = [CGFloat](repeating: 0, count: n)
+        for c in 0..<n {
+            let word = TableMetrics.longestWord(headers: h,
+                                                rows: r, col: c)
+            let w = (word as NSString).size(withAttributes: attrs).width
+            widths[c] = ceil(w) + 4
+        }
+        return widths
+    }
+
+    private func naturalColumnWidths(_ n: Int,
+                                     headers h: [String],
+                                     rows r: [[String]]) -> [CGFloat] {
+        let body = FontRole.body.platformFont
+        let bold = boldFont(of: body)
+        let bodyAttrs: [NSAttributedString.Key: Any] = [.font: body]
+        let boldAttrs: [NSAttributedString.Key: Any] = [.font: bold]
+        var widths = [CGFloat](repeating: 0, count: n)
+        for c in 0..<n {
+            var maxW: CGFloat = 0
+            if c < h.count {
+                let s = (h[c] as NSString)
+                    .size(withAttributes: boldAttrs).width
+                if s > maxW { maxW = s }
+            }
+            for row in r where c < row.count {
+                let s = (row[c] as NSString)
+                    .size(withAttributes: bodyAttrs).width
+                if s > maxW { maxW = s }
+            }
+            widths[c] = ceil(maxW) + 4
+        }
+        return widths
+    }
+
     private func rowView(_ cells: [String], bold: Bool, shade: Color,
-                         n: Int, widths: [CGFloat]?) -> some View {
-        let fill: CGFloat? = widths == nil ? nil : .infinity
+                         n: Int, widths: [CGFloat]?,
+                         wrap: Bool) -> some View {
+        let fill: CGFloat? = wrap ? .infinity : nil
         return HStack(alignment: .top, spacing: 12) {
             ForEach(Array(0..<n), id: \.self) { i in
                 let text = i < cells.count ? cells[i] : ""
-                cell(text, bold: bold, width: widths?[i])
+                cell(text, bold: bold, width: widths?[i], wrap: wrap)
             }
         }
         .frame(maxWidth: fill, alignment: .leading)
@@ -440,7 +479,7 @@ private struct TableBlock: View {
 
     @ViewBuilder
     private func cell(_ text: String, bold: Bool,
-                      width: CGFloat?) -> some View {
+                      width: CGFloat?, wrap: Bool) -> some View {
         let parsed = Markdown.parse(text)
         if let first = parsed.first,
            case .image(let alt, let url, let w, let h) = first {
@@ -448,11 +487,11 @@ private struct TableBlock: View {
                 .frame(width: width, alignment: .leading)
         } else if let width {
             SelectableText(attributed: cellAttributed(text, parsed: parsed),
-                                 role: .body, bold: bold)
+                           role: .body, nowrap: !wrap, bold: bold)
                 .frame(width: width, alignment: .leading)
         } else {
             SelectableText(attributed: cellAttributed(text, parsed: parsed),
-                                 role: .body, nowrap: true, bold: bold)
+                           role: .body, nowrap: true, bold: bold)
                 .fixedSize(horizontal: true, vertical: false)
         }
     }
