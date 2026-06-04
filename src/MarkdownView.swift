@@ -13,18 +13,30 @@ struct MarkdownView: View {
     @AppStorage("themeMode")
     private var themeRaw: String = ThemeMode.system.rawValue
 
-    // PLAN-TABLES Step 2 feature flag. Default ON; opt out via:
-    //   defaults write <bundle-id> singleSurface -bool NO
-    // When ON, the rendered view goes through DocumentText into one
-    // SelectableText for native continuous selection; when OFF, the
-    // per-block BlockView path renders. The block-tree path is the
-    // deliberate rollback lane: if a regression surfaces in the
-    // single-surface render (image attachment failure, table layout
-    // glitch, NSTextView cost on a very long document), flipping the
-    // flag back is the recovery path - no code revert needed. The
-    // optionality is the point; no scheduled removal.
+    // PLAN-TABLES Step 2 feature flag. Default per-platform:
+    //   macOS: ON  - DocumentText into one NSTextView via NSTextTable;
+    //               AppKit's text system handles long-doc layout
+    //               reliably and the arbiter gives atomic-block snap
+    //               on cross-block drag selections.
+    //   iOS:   OFF - UITextView truncates tall attributed strings
+    //               at an internal layout limit even with TextKit 1
+    //               (Dockerfile / math / image content past a certain
+    //               offset just stops rendering). The per-block
+    //               BlockView path renders fine on iOS because each
+    //               block is its own short UITextView and the outer
+    //               SwiftUI ScrollView handles vertical scrolling.
+    //               Same model im.ai uses on iOS, same model that
+    //               worked here before commit 88d12c9 flipped the
+    //               default on.
+    // Opt out / opt in via:
+    //   defaults write <bundle-id> singleSurface -bool {YES,NO}
+    #if os(macOS)
     @AppStorage("singleSurface")
     private var singleSurface: Bool = true
+    #else
+    @AppStorage("singleSurface")
+    private var singleSurface: Bool = false
+    #endif
 
     @State private var showSource = false
 
