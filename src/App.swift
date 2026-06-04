@@ -105,7 +105,11 @@ struct MarkdownPreviewApp: App {
     var body: some Scene {
         let scene = DocumentGroup(viewing: MarkdownDocument.self) { file in
             MarkdownView(text: file.document.text, fileURL: file.fileURL)
+                #if os(macOS)
+                .frame(minWidth: 640, minHeight: 480)
+                #else
                 .frame(minWidth: 360, minHeight: 360)
+                #endif
         }
         .commands {
             CommandGroup(replacing: .newItem) {}

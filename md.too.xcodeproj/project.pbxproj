@@ -588,6 +588,7 @@
 				);
 				MACOSX_DEPLOYMENT_TARGET = 13.0;
 				PRODUCT_BUNDLE_IDENTIFIER = "com.leok7v.md.too$(APP_BUNDLE_SUFFIX)";
+				"PRODUCT_BUNDLE_IDENTIFIER[sdk=macosx*]" = com.leok7v.md.too;
 				PRODUCT_MODULE_NAME = MarkdownPreview;
 				PRODUCT_NAME = md.too;
 				PROVISIONING_PROFILE_SPECIFIER = "";
@@ -621,6 +622,7 @@
 				);
 				MACOSX_DEPLOYMENT_TARGET = 13.0;
 				PRODUCT_BUNDLE_IDENTIFIER = "com.leok7v.md.too$(APP_BUNDLE_SUFFIX)";
+				"PRODUCT_BUNDLE_IDENTIFIER[sdk=macosx*]" = com.leok7v.md.too;
 				PRODUCT_MODULE_NAME = MarkdownPreview;
 				PRODUCT_NAME = md.too;
 				PROVISIONING_PROFILE_SPECIFIER = "";
