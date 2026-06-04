@@ -1344,7 +1344,8 @@ enum DocumentText {
                 result = list(items: items, tight: tight, depth: 0,
                               images: images)
             case .table(let headers, let rows):
-                result = table(headers: headers, rows: rows)
+                result = table(headers: headers, rows: rows,
+                               images: images)
             case .rule:
                 result = rule()
             case .image(let alt, let url, let w, let h):
@@ -1379,8 +1380,9 @@ enum DocumentText {
     // table API and was the answer the intent doc didn't consider.
     // `relayoutTables` retired with the tab-stop model: NSTextTable
     // handles its own view-width-aware layout.
-    private static func table(headers: [String],
-                              rows: [[String]]) -> NSAttributedString {
+    private static func table(headers: [String], rows: [[String]],
+                              images: [URL: DocumentImage])
+        -> NSAttributedString {
         let m = NSMutableAttributedString()
         let cols = max(headers.count, rows.map(\.count).max() ?? 0)
         if cols > 0 {
@@ -1409,7 +1411,8 @@ enum DocumentText {
                                   shares: shares,
                                   bold: true,
                                   tint: tableHeaderTint(),
-                                  atomicId: atomicId))
+                                  atomicId: atomicId,
+                                  images: images))
                 rowIdx += 1
             }
             for (idx, row) in rows.enumerated() {
@@ -1419,7 +1422,8 @@ enum DocumentText {
                                   rowIdx: rowIdx, cols: cols,
                                   shares: shares,
                                   bold: false, tint: tint,
-                                  atomicId: atomicId))
+                                  atomicId: atomicId,
+                                  images: images))
                 rowIdx += 1
             }
             m.append(NSAttributedString(string: "\n"))
@@ -1447,14 +1451,16 @@ enum DocumentText {
                 m.append(tableRowTabStops(cells: headers,
                                           stops: stops, bold: true,
                                           tint: tableHeaderTint(),
-                                          atomicId: atomicId))
+                                          atomicId: atomicId,
+                                          images: images))
             }
             for (idx, row) in rows.enumerated() {
                 let tint: PlatformColor = idx % 2 == 1
                     ? tableZebraTint() : clearColor()
                 m.append(tableRowTabStops(cells: row, stops: stops,
                                           bold: false, tint: tint,
-                                          atomicId: atomicId))
+                                          atomicId: atomicId,
+                                          images: images))
             }
             m.append(NSAttributedString(string: "\n"))
             #endif
@@ -1469,7 +1475,9 @@ enum DocumentText {
                                  shares: [CGFloat],
                                  bold: Bool,
                                  tint: PlatformColor,
-                                 atomicId: String) -> NSAttributedString {
+                                 atomicId: String,
+                                 images: [URL: DocumentImage])
+        -> NSAttributedString {
         let m = NSMutableAttributedString()
         let base = bold ? boldFont(of: bodyFont()) : bodyFont()
         for col in 0..<cols {
@@ -1488,7 +1496,8 @@ enum DocumentText {
             let para = NSMutableParagraphStyle()
             para.textBlocks = [block]
             let cellAttr = NSMutableAttributedString(
-                attributedString: tableCell(cellText, base: base))
+                attributedString: tableCell(cellText, base: base,
+                                            images: images))
             if cellAttr.length == 0 {
                 // Empty cell still needs at least one character so the
                 // paragraph exists and the cell box renders. A no-break
@@ -1516,7 +1525,8 @@ enum DocumentText {
                                          stops: [NSTextTab],
                                          bold: Bool,
                                          tint: PlatformColor,
-                                         atomicId: String)
+                                         atomicId: String,
+                                         images: [URL: DocumentImage])
         -> NSAttributedString {
         let para = NSMutableParagraphStyle()
         para.tabStops = stops
@@ -1528,7 +1538,7 @@ enum DocumentText {
                 m.append(NSAttributedString(
                     string: "\t", attributes: [.font: base]))
             }
-            m.append(tableCell(cell, base: base))
+            m.append(tableCell(cell, base: base, images: images))
         }
         m.append(NSAttributedString(string: "\n",
                                     attributes: [.font: base]))
@@ -1547,18 +1557,62 @@ enum DocumentText {
     // into explicit Core-Text-honored attributes on top of `base` (the
     // row's font, which already carries .bold for header rows). Mirrors
     // PDFRenderer.cellAttributed; the difference is that the result
-    // composes into one tab-separated row paragraph instead of its own
-    // framesetter. Inline images in cells stay as their alt text - the
-    // single-surface path does not inline images inside table rows.
+    // composes into one cell paragraph instead of its own framesetter.
+    //
+    // When the cell is a block-level image (`![alt](url){height=NNN}`)
+    // the parser yields `.image(...)` rather than `.paragraph(...)`;
+    // emit an `NSTextAttachment` for it (using the prefetched image
+    // from `images` when available, a `[Image: alt]` placeholder
+    // otherwise). Without this branch the raw markdown text leaks
+    // into the cell as literal source.
     private static func tableCell(_ text: String,
-                                  base: PlatformFont)
+                                  base: PlatformFont,
+                                  images: [URL: DocumentImage])
         -> NSAttributedString {
         let parsed = Markdown.parse(text)
-        var attr = AttributedString(text)
-        if let first = parsed.first, case .paragraph(let a) = first {
-            attr = a
-        }
         let m = NSMutableAttributedString()
+        if let first = parsed.first {
+            switch first {
+                case .image(let alt, let url, let w, let h):
+                    if let img = images[url] {
+                        let attachment = NSTextAttachment()
+                        attachment.image = img
+                        attachment.bounds = imageBounds(img,
+                                                        width: w,
+                                                        height: h)
+                        m.append(NSAttributedString(
+                            attachment: attachment))
+                    } else {
+                        let label = alt.isEmpty
+                            ? url.absoluteString : alt
+                        m.append(NSAttributedString(
+                            string: "[Image: \(label)]",
+                            attributes: [
+                                .font: base,
+                                .foregroundColor: secondaryColor(),
+                            ]))
+                    }
+                case .paragraph(let attr):
+                    appendInlineRuns(attr, base: base, into: m)
+                default:
+                    // Other block kinds in a cell (rare - a fenced code
+                    // block inside a table cell, etc) fall back to the
+                    // raw cell text in the row's body font. Keeps the
+                    // table from breaking; the cell content surfaces.
+                    m.append(NSAttributedString(
+                        string: text,
+                        attributes: [
+                            .font: base,
+                            .foregroundColor: textColor(),
+                        ]))
+            }
+        }
+        return m
+    }
+
+    private static func appendInlineRuns(_ attr: AttributedString,
+                                         base: PlatformFont,
+                                         into m: NSMutableAttributedString) {
         for run in attr.runs {
             let segment = String(attr[run.range].characters)
             let intent = run.inlinePresentationIntent ?? []
@@ -1577,7 +1631,6 @@ enum DocumentText {
             m.append(NSAttributedString(string: segment,
                                         attributes: attrs))
         }
-        return m
     }
 
     private static func tableHeaderTint() -> PlatformColor {

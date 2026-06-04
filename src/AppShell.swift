@@ -145,6 +145,18 @@ final class MarkdownFileWatcher: NSObject, NSFilePresenter {
         self.onChange = onChange
         super.init()
         NSFileCoordinator.addFilePresenter(self)
+        // Initial coordinated read - handles iCloud-stubbed files
+        // (Files-app sharing). The FileDocument framework's
+        // `configuration.file.regularFileContents` returns whatever
+        // bytes are currently materialized; an iCloud file that is
+        // not fully downloaded reports a smaller "EOF" than its
+        // actual size, so `String(contentsOf:URL)` (which does loop
+        // internally until that EOF) only sees a truncated head.
+        // NSFileCoordinator.coordinate(readingItemAt:) triggers full
+        // materialization before the read and emits the complete
+        // content via onChange, replacing the partial FileDocument
+        // initial text in the view's @State.
+        reload()
     }
 
     deinit {
