@@ -11,3 +11,7 @@ APP_BUNDLE_SUFFIX =
 
 #include? "Local.xcconfig"
 #include "version.xcconfig"
+// version-generated.xcconfig is written by Scripts/stamp-version.sh on
+// every build; gitignored. Optional so a fresh checkout builds before
+// the first stamp runs (version.xcconfig provides the fallback).
+#include? "version-generated.xcconfig"

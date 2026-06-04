@@ -29,6 +29,9 @@ Package.resolved
 # Per-developer xcconfig (provides DEVELOPMENT_TEAM via Base.xcconfig)
 config/Local.xcconfig
 
+# Auto-stamped per build by Scripts/stamp-version.sh
+config/version-generated.xcconfig
+
 # Apple secrets — should never be in the repo
 AuthKey_*.p8
 *.p12

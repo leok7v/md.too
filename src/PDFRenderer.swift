@@ -1384,6 +1384,8 @@ enum DocumentText {
         let m = NSMutableAttributedString()
         let cols = max(headers.count, rows.map(\.count).max() ?? 0)
         if cols > 0 {
+            let atomicId = UUID().uuidString
+            #if os(macOS)
             let textTable = NSTextTable()
             textTable.numberOfColumns = cols
             // fixedLayoutAlgorithm respects the explicit width on each
@@ -1400,7 +1402,6 @@ enum DocumentText {
             let shares = TableMetrics.pointWidths(headers: headers,
                                                   rows: rows,
                                                   available: 100)
-            let atomicId = UUID().uuidString
             var rowIdx = 0
             if !headers.isEmpty {
                 m.append(tableRow(cells: headers, table: textTable,
@@ -1422,10 +1423,46 @@ enum DocumentText {
                 rowIdx += 1
             }
             m.append(NSAttributedString(string: "\n"))
+            #else
+            // iOS fallback: NSTextTable is AppKit-only, so on iOS we
+            // emit tab-stop paragraphs (one row = one paragraph, cells
+            // tab-separated). Cells line up across rows via the same
+            // sqrt-weighted point widths the macOS path uses, but they
+            // TRUNCATE at column boundaries instead of wrapping
+            // (lineBreakMode = .byTruncatingTail). Acceptable for short
+            // cells; long-cell tables surface truncation. The richer
+            // NSTextTable model is not available without rolling our
+            // own table layout, which is out of scope.
+            let widths = TableMetrics.pointWidths(headers: headers,
+                                                  rows: rows,
+                                                  available: 320)
+            var stops: [NSTextTab] = []
+            var x: CGFloat = 0
+            for w in widths {
+                x += w
+                stops.append(NSTextTab(textAlignment: .left,
+                                       location: x))
+            }
+            if !headers.isEmpty {
+                m.append(tableRowTabStops(cells: headers,
+                                          stops: stops, bold: true,
+                                          tint: tableHeaderTint(),
+                                          atomicId: atomicId))
+            }
+            for (idx, row) in rows.enumerated() {
+                let tint: PlatformColor = idx % 2 == 1
+                    ? tableZebraTint() : clearColor()
+                m.append(tableRowTabStops(cells: row, stops: stops,
+                                          bold: false, tint: tint,
+                                          atomicId: atomicId))
+            }
+            m.append(NSAttributedString(string: "\n"))
+            #endif
         }
         return m
     }
 
+    #if os(macOS)
     private static func tableRow(cells: [String],
                                  table: NSTextTable,
                                  rowIdx: Int, cols: Int,
@@ -1474,6 +1511,36 @@ enum DocumentText {
         }
         return m
     }
+    #else
+    private static func tableRowTabStops(cells: [String],
+                                         stops: [NSTextTab],
+                                         bold: Bool,
+                                         tint: PlatformColor,
+                                         atomicId: String)
+        -> NSAttributedString {
+        let para = NSMutableParagraphStyle()
+        para.tabStops = stops
+        para.lineBreakMode = .byTruncatingTail
+        let base = bold ? boldFont(of: bodyFont()) : bodyFont()
+        let m = NSMutableAttributedString()
+        for (i, cell) in cells.enumerated() {
+            if i > 0 {
+                m.append(NSAttributedString(
+                    string: "\t", attributes: [.font: base]))
+            }
+            m.append(tableCell(cell, base: base))
+        }
+        m.append(NSAttributedString(string: "\n",
+                                    attributes: [.font: base]))
+        let full = NSRange(location: 0, length: m.length)
+        m.addAttribute(.paragraphStyle, value: para, range: full)
+        m.addAttribute(.backgroundColor, value: tint, range: full)
+        m.addAttribute(atomicKindKey,
+                       value: AtomicKind.table.rawValue, range: full)
+        m.addAttribute(atomicIdKey, value: atomicId, range: full)
+        return m
+    }
+    #endif
 
     // Parse a cell as one paragraph of Markdown and translate each
     // inline run's intent (bold / italic / code / strikethrough / link)
