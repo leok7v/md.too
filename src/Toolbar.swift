@@ -126,6 +126,10 @@ struct ShareButton: View {
     @State private var pdfURL: URL?
 
     var body: some View {
+        // macOS toolbar = icon-only chrome; iOS uses ShareButton inside
+        // an overflow Menu where a bare Image renders as an unlabeled
+        // row. Use a Label on iOS so the Menu row shows icon + text;
+        // keep the macOS toolbar icon-only via the Image branch.
         Group {
             if let pdfURL {
                 let label = fileURL?
@@ -136,12 +140,23 @@ struct ShareButton: View {
                     preview: SharePreview(
                         label, image: Image(systemName: "doc.richtext"))
                 ) {
+                    #if os(iOS)
+                    Label("Share as PDF",
+                          systemImage: "square.and.arrow.up")
+                    #else
                     Image(systemName: "square.and.arrow.up")
+                    #endif
                 }
                 .help("Share as PDF")
             } else {
                 Button(action: {}) {
+                    #if os(iOS)
+                    Label("Generating PDF…",
+                          systemImage: "square.and.arrow.up")
+                        .opacity(0.4)
+                    #else
                     Image(systemName: "square.and.arrow.up").opacity(0.4)
+                    #endif
                 }
                 .disabled(true)
                 .help("Generating PDF…")

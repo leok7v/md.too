@@ -97,13 +97,15 @@ struct MarkdownView: View {
                 CopyDocButton(text: displayText)
             }
             #if os(macOS)
+            // macOS has room for the full toolbar - keep PDF / HTML /
+            // Share / Theme as visible buttons. The nav bar fits all
+            // six.
             ToolbarItem(placement: .primaryAction) {
                 SaveButton(text: displayText, fileURL: fileURL)
             }
             ToolbarItem(placement: .primaryAction) {
                 SaveHtmlButton(text: displayText, fileURL: fileURL)
             }
-            #endif
             ToolbarItem(placement: .primaryAction) {
                 ShareButton(text: displayText, fileURL: fileURL)
             }
@@ -112,6 +114,27 @@ struct MarkdownView: View {
                     themeRaw = theme.next.rawValue
                 }
             }
+            #else
+            // iOS: the nav bar can host roughly two primary buttons
+            // alongside DocumentGroup's own back / title / file menu
+            // chrome. Anything beyond that gets silently dropped by
+            // SwiftUI - `.primaryAction` does not auto-overflow on iOS
+            // (the `...` shown by DocumentGroup is its OWN menu, not
+            // ours). Surface the secondary actions via an explicit
+            // `Menu` so they're always reachable.
+            ToolbarItem(placement: .primaryAction) {
+                Menu {
+                    ShareButton(text: displayText, fileURL: fileURL)
+                    Button {
+                        themeRaw = theme.next.rawValue
+                    } label: {
+                        Label(theme.help, systemImage: theme.symbol)
+                    }
+                } label: {
+                    Image(systemName: "ellipsis.circle")
+                }
+            }
+            #endif
         }
         .onAppear {
             startWatchingIfNeeded()
