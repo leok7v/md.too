@@ -26,24 +26,19 @@ For context: the most popular JavaScript Markdown library, `marked`, reports abo
 ## Toolbar
 
 The toolbar (in both apps, and a reduced cluster in the top-right of the Quick Look pane) carries these actions:
-<img width="476" height="68" alt="toolbar-buttons" src="https://github.com/user-attachments/assets/594bba04-aaf5-4a33-9d97-ec8533059f2a" />
 
-- **Source** — <img width="41" height="34" alt="source" src="https://github.com/user-attachments/assets/8bce80c6-e43c-49fe-aa18-22b5dbdef31c" />
-toggle between the rendered document and the raw Markdown text. Read-only either way; the source view exists so you can copy verbatim Markdown when the destination needs source rather than a formatted paste.
-- **Copy** — <img width="38" height="34" alt="copy" src="https://github.com/user-attachments/assets/64660758-812b-4423-b8ac-9dfcae473f03" />
-copy the whole document to the clipboard with multiple flavors attached:
+`䷀   ⎘   ⤓ᴘᴅꜰ   ⤓ₕₜₘₗ   ↥   ◐☼☽`
+
+- **䷀ Source** — toggle between the rendered document and the raw Markdown text. Read-only either way; the source view exists so you can copy verbatim Markdown when the destination needs source rather than a formatted paste.
+- **⎘ Copy** — copy the whole document to the clipboard with multiple flavors attached:
   - **Plain text** — falls into Terminal, an `<input>` field, or a code editor as readable Markdown-flavored text. Tables are width-aligned ASCII so columns line up.
   - **HTML** — pastes into Mail, Gmail, Notes, or any rich-text editor with bold / italic / code / links / tables / zebra striping preserved. Inline styles only, no `<style>` block, so paste sanitizers leave the formatting alone.
   - **RTF** (macOS) — pastes into TextEdit and other Cocoa rich-text targets.
   - **PDF** — drops a fully laid-out PDF into Pages, Keynote, or Preview. Rendered on demand the first time the target asks for it, so Copy itself stays instant.
-- **Save as PDF** (macOS) — <img width="37" height="34" alt="save-pdf" src="https://github.com/user-attachments/assets/ce738bdf-2f87-4223-8029-aa3c04222490" />
-paginated PDF with embedded images, syntax-highlighted code blocks, zebra-striped tables, page numbers, and the document title in the header. The page size follows your locale (Letter in the US, A4 elsewhere).
-- **Save as HTML** (macOS) — <img width="37" height="34" alt="save-html" src="https://github.com/user-attachments/assets/80f67fc7-cf6f-46b7-90ec-31dbcb5d7497" />
-single self-contained `.html` file with all images inlined as base64 and styles attached inline on every element. Theme-neutral grays, no JavaScript, no external references — opens and prints anywhere, survives email, and round-trips through TextEdit's HTML-to-RTF converter.
-- **Share** — <img width="37" height="34" alt="share" src="https://github.com/user-attachments/assets/8c021dd9-68e9-4f9f-9c8d-53cd9759e852" />
-system Share sheet with a freshly-rendered PDF attached.
-- **Theme** — <img width="37" height="34" alt="theme" src="https://github.com/user-attachments/assets/36ec6808-8b71-4497-8e0e-4c952e332f74" />
-system / light / dark cycle for the current window only. The document is never modified.
+- **⤓ᴘᴅꜰ Save as PDF** (macOS) — paginated PDF with embedded images, syntax-highlighted code blocks, zebra-striped tables, page numbers, and the document title in the header. The page size follows your locale (Letter in the US, A4 elsewhere).
+- **⤓ₕₜₘₗ Save as HTML** (macOS) — single self-contained `.html` file with all images inlined as base64 and styles attached inline on every element. Theme-neutral grays, no JavaScript, no external references — opens and prints anywhere, survives email, and round-trips through TextEdit's HTML-to-RTF converter.
+- **↥ Share** — system Share sheet with a freshly-rendered PDF attached.
+- **◐☼☽ Theme** — system / light / dark cycle for the current window only. The document is never modified.
 
 The Quick Look extension shows only the Source and Theme buttons; saving, copying, and sharing happen in the full app.
 
