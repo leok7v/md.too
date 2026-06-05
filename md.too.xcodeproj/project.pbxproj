@@ -727,6 +727,7 @@
 					"@executable_path/Frameworks",
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = "com.leok7v.md.too$(APP_BUNDLE_SUFFIX)";
+				"PRODUCT_BUNDLE_IDENTIFIER[sdk=iphoneos*]" = com.leok7v.md.too;
 				PRODUCT_MODULE_NAME = MarkdownPreview;
 				PRODUCT_NAME = md.too;
 				PROVISIONING_PROFILE_SPECIFIER = "";
@@ -758,6 +759,7 @@
 					"@executable_path/Frameworks",
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = "com.leok7v.md.too$(APP_BUNDLE_SUFFIX)";
+				"PRODUCT_BUNDLE_IDENTIFIER[sdk=iphoneos*]" = com.leok7v.md.too;
 				PRODUCT_MODULE_NAME = MarkdownPreview;
 				PRODUCT_NAME = md.too;
 				PROVISIONING_PROFILE_SPECIFIER = "";
