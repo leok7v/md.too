@@ -1,10 +1,5 @@
 import SwiftUI
 import PDFKit
-#if os(macOS)
-import AppKit
-#elseif os(iOS)
-import UIKit
-#endif
 
 struct CopyDocButton: View {
 
@@ -36,77 +31,14 @@ struct CopyDocButton: View {
         let blocks = Markdown.parse(text)
         let plain = PlainExport.render(blocks)
         let html = HtmlExport.render(blocks, title: "Document")
-        #if os(macOS)
-        let pb = NSPasteboard.general
-        pb.clearContents()
-        let item = NSPasteboardItem()
-        item.setString(plain, forType: .string)
-        item.setString(html, forType: .html)
-        if let rtf = htmlToRtf(html) {
-            item.setData(rtf, forType: .rtf)
-        }
-        CopyPdfProvider.shared.set(text: text)
-        item.setDataProvider(CopyPdfProvider.shared, forTypes: [.pdf])
-        pb.writeObjects([item])
-        #else
-        UIPasteboard.general.setItems([[
-            "public.utf8-plain-text": plain,
-            "public.html": html,
-        ]])
-        #endif
+        platformCopyMarkdown(plain: plain, html: html, sourceText: text)
         withAnimation(.easeInOut(duration: 0.15)) { copied = true }
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
             withAnimation(.easeInOut(duration: 0.15)) { copied = false }
         }
     }
 
-    #if os(macOS)
-    private func htmlToRtf(_ html: String) -> Data? {
-        var result: Data? = nil
-        if let data = html.data(using: .utf8),
-           let attr = try? NSAttributedString(
-                data: data,
-                options: [
-                    .documentType: NSAttributedString.DocumentType.html,
-                    .characterEncoding: String.Encoding.utf8.rawValue,
-                ],
-                documentAttributes: nil) {
-            result = try? attr.data(
-                from: NSRange(location: 0, length: attr.length),
-                documentAttributes: [
-                    .documentType: NSAttributedString.DocumentType.rtf,
-                ])
-        }
-        return result
-    }
-    #endif
-
 }
-
-#if os(macOS)
-
-private final class CopyPdfProvider: NSObject, NSPasteboardItemDataProvider {
-
-    static let shared = CopyPdfProvider()
-
-    private var text: String = ""
-
-    func set(text: String) {
-        self.text = text
-    }
-
-    func pasteboard(_ pasteboard: NSPasteboard?,
-                    item: NSPasteboardItem,
-                    provideDataForType type: NSPasteboard.PasteboardType) {
-        if type == .pdf,
-           let data = exportPDFDataSync(text: text, title: "Document") {
-            item.setData(data, forType: .pdf)
-        }
-    }
-
-}
-
-#endif
 
 struct ShareButton: View {
 
@@ -123,11 +55,9 @@ struct ShareButton: View {
                     .deletingPathExtension()
                     .lastPathComponent ?? "Document"
                 ShareLink(
-                    item: pdfURL,
-                    preview: SharePreview(
-                        label,
-                        image: pdfThumb
-                            ?? Image(systemName: "doc.richtext"))
+                      item: pdfURL,
+                   preview: SharePreview( label,
+                     image: pdfThumb ?? Image(systemName: "doc.richtext"))
                 ) {
                     shareLabel
                 }
@@ -162,14 +92,13 @@ struct ShareButton: View {
     }
 
     private func firstPageThumbnail(of url: URL) -> Image? {
-        guard let doc = PDFDocument(url: url),
-              let page = doc.page(at: 0) else { return nil }
-        let size = CGSize(width: 512, height: 512)
-        #if os(macOS)
-        return Image(nsImage: page.thumbnail(of: size, for: .cropBox))
-        #else
-        return Image(uiImage: page.thumbnail(of: size, for: .cropBox))
-        #endif
+        var result: Image? = nil
+        if let doc = PDFDocument(url: url),
+           let page = doc.page(at: 0) {
+            let size = CGSize(width: 512, height: 512)
+            result = platformPDFPageThumbnail(page, size: size)
+        }
+        return result
     }
 
 }

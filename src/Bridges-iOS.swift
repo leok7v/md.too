@@ -45,12 +45,12 @@ extension NativeText: UIViewRepresentable {
             var result = super.intrinsicContentSize
             layoutManager.ensureLayout(for: textContainer)
             let r = layoutManager.usedRect(for: textContainer)
-            let h = r.height + textContainerInset.top
-                            + textContainerInset.bottom
+            let h = r.height + textContainerInset.top +
+                               textContainerInset.bottom
             let w: CGFloat
             if nowrap {
-                w = r.width + textContainerInset.left
-                            + textContainerInset.right
+                w = r.width + textContainerInset.left +
+                              textContainerInset.right
             } else {
                 w = UIView.noIntrinsicMetric
             }
@@ -69,33 +69,31 @@ extension NativeText: UIViewRepresentable {
 
 }
 
-extension NativeText {
+struct WindowAppearanceApplier: UIViewRepresentable {
 
-    var primaryColor: UIColor { UIColor.label }
-    var secondaryColor: UIColor { UIColor.secondaryLabel }
+    let scheme: ColorScheme?
 
-    func mergeTraits(of source: UIFont, into base: UIFont,
-                     bold: Bool) -> UIFont {
-        var result = base
-        var traits = source.fontDescriptor.symbolicTraits
-        traits.formUnion(base.fontDescriptor.symbolicTraits)
-        if bold { traits.insert(.traitBold) }
-        if let descriptor = base.fontDescriptor
-            .withSymbolicTraits(traits) {
-            result = UIFont(descriptor: descriptor,
-                            size: base.pointSize)
-        }
-        return result
+    func makeUIView(context: Context) -> UIView {
+        let v = UIView(frame: .zero)
+        apply(to: v)
+        return v
     }
 
-    func boldFont(_ f: UIFont) -> UIFont {
-        var result = f
-        var traits = f.fontDescriptor.symbolicTraits
-        traits.insert(.traitBold)
-        if let d = f.fontDescriptor.withSymbolicTraits(traits) {
-            result = UIFont(descriptor: d, size: f.pointSize)
+    func updateUIView(_ uiView: UIView, context: Context) {
+        apply(to: uiView)
+    }
+
+    private func apply(to view: UIView) {
+        var style: UIUserInterfaceStyle = .unspecified
+        switch scheme {
+            case .none: style = .unspecified
+            case .light: style = .light
+            case .dark: style = .dark
+            @unknown default: style = .unspecified
         }
-        return result
+        DispatchQueue.main.async {
+            view.window?.overrideUserInterfaceStyle = style
+        }
     }
 
 }

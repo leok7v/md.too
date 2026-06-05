@@ -1,9 +1,11 @@
 import SwiftUI
-#if os(macOS)
-import AppKit
-#elseif os(iOS)
-import UIKit
-#endif
+
+enum AtomicKind: String {
+    case code, table, image
+}
+
+let atomicKindKey = NSAttributedString.Key("AtomicKind.kind")
+let atomicIdKey = NSAttributedString.Key("AtomicKind.id")
 
 struct SelectableText: View {
 
@@ -59,8 +61,7 @@ struct NativeText {
     func resolved() -> NSAttributedString {
         let ns: NSMutableAttributedString
         if let nsAttributed {
-            ns = NSMutableAttributedString(
-                attributedString: nsAttributed)
+            ns = NSMutableAttributedString(attributedString: nsAttributed)
         } else if let attributed {
             ns = NSMutableAttributedString(
                 attributedString: NSAttributedString(attributed))
@@ -69,25 +70,24 @@ struct NativeText {
         }
         let full = NSRange(location: 0, length: ns.length)
         let baseFont = role.platformFont
-        ns.enumerateAttribute(.font,
-                              in: full,
-                              options: []) { value, range, _ in
+        ns.enumerateAttribute(.font, in: full, options: []) {
+            value, range, _ in
             if let f = value as? PlatformFont {
-                let merged = mergeTraits(of: f, into: baseFont,
-                                         bold: bold)
+                let merged = platformMergeFontTraits(
+                    of: f, into: baseFont, additionalBold: bold)
                 ns.addAttribute(.font, value: merged, range: range)
             } else {
-                let final = bold ? boldFont(baseFont) : baseFont
+                let final = bold ? boldFont(of: baseFont) : baseFont
                 ns.addAttribute(.font, value: final, range: range)
             }
         }
-        let defaultColor = secondary ? secondaryColor : primaryColor
+        let defaultColor: PlatformColor = secondary ?
+            platformSecondaryColor : platformDefaultTextColor
         ns.enumerateAttribute(.foregroundColor,
                               in: full,
                               options: []) { value, range, _ in
             if value == nil {
-                ns.addAttribute(.foregroundColor,
-                                value: defaultColor,
+                ns.addAttribute(.foregroundColor, value: defaultColor,
                                 range: range)
             }
         }

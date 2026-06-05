@@ -25,7 +25,7 @@ struct IOSDocumentRoot: View {
     var body: some View {
         Group {
             if let url {
-                MarkdownView(text: text, fileURL: url, onClose: close)
+                ContentView(text: text, fileURL: url, onClose: close)
             } else {
                 empty
             }

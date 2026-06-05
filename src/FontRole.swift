@@ -30,3 +30,20 @@ enum FontRole {
     }
 
 }
+
+func styledRunFont(intent: InlinePresentationIntent,
+                   base: PlatformFont,
+                   size: CGFloat? = nil,
+                   additionalBold: Bool = false) -> PlatformFont {
+    let s = size ?? base.pointSize
+    var result = base
+    if intent.contains(.code) {
+        result = monoFont(at: s)
+    } else {
+        result = platformBoldItalicFont(
+            of: base,
+            bold: additionalBold || intent.contains(.stronglyEmphasized),
+            italic: intent.contains(.emphasized))
+    }
+    return result
+}

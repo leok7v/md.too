@@ -1,5 +1,7 @@
 import SwiftUI
+import PDFKit
 import AppKit
+
 
 private struct SaveGlyph: View {
 
@@ -46,12 +48,10 @@ struct SaveButton: View {
         panel.begin { response in
             if response == .OK, let dest = panel.url {
                 Task {
-                    let pdf = await exportPDF(text: captured,
-                                              title: title)
+                    let pdf = await exportPDF(text: captured, title: title)
                     if let pdf {
                         try? FileManager.default.removeItem(at: dest)
-                        try? FileManager.default.copyItem(at: pdf,
-                                                          to: dest)
+                        try? FileManager.default.copyItem(at: pdf, to: dest)
                     }
                 }
             }
@@ -85,8 +85,7 @@ struct SaveHtmlButton: View {
             if response == .OK, let dest = panel.url {
                 Task {
                     let blocks = Markdown.parse(captured)
-                    let images = await HtmlExport.prefetchImages(
-                        in: blocks)
+                    let images = await HtmlExport.prefetchImages(in: blocks)
                     let html = HtmlExport.render(
                         blocks, title: title, images: images)
                     if let data = html.data(using: .utf8) {

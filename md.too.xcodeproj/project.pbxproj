@@ -25,9 +25,8 @@
 		1A2B3C4D5300000000000011 /* Bridges-macOS.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A2B3C4D5200000000000011 /* Bridges-macOS.swift */; };
 		1A2B3C4D5300000000000012 /* Bridges-macOS.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A2B3C4D5200000000000011 /* Bridges-macOS.swift */; };
 		1A2B3C4D5300000000000013 /* Bridges-iOS.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A2B3C4D5200000000000012 /* Bridges-iOS.swift */; };
-		1A2B3C4D5300000000000014 /* Platform.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A2B3C4D5200000000000013 /* Platform.swift */; };
-		1A2B3C4D5300000000000015 /* Platform.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A2B3C4D5200000000000013 /* Platform.swift */; };
-		1A2B3C4D5300000000000016 /* Platform.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A2B3C4D5200000000000013 /* Platform.swift */; };
+		1A2B3C4D5300000000000014 /* Platform-macOS.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A2B3C4D5200000000000013 /* Platform-macOS.swift */; };
+		1A2B3C4D5300000000000016 /* Platform-macOS.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A2B3C4D5200000000000013 /* Platform-macOS.swift */; };
 		1A2B3C4D5300000000000017 /* FontRole.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A2B3C4D5200000000000014 /* FontRole.swift */; };
 		1A2B3C4D5300000000000018 /* FontRole.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A2B3C4D5200000000000014 /* FontRole.swift */; };
 		1A2B3C4D5300000000000019 /* FontRole.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A2B3C4D5200000000000014 /* FontRole.swift */; };
@@ -36,20 +35,45 @@
 		1A2B3C4D530000000000001C /* Environment.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A2B3C4D5200000000000015 /* Environment.swift */; };
 		1A2B3C4D530000000000001D /* App-macOS.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A2B3C4D5200000000000016 /* App-macOS.swift */; };
 		1A2B3C4D530000000000001E /* App-iOS.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A2B3C4D520000000000002A /* App-iOS.swift */; };
-		1A2B3C4D530000000000001F /* AppShell.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A2B3C4D5200000000000017 /* AppShell.swift */; };
-		1A2B3C4D5300000000000020 /* AppShell.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A2B3C4D5200000000000017 /* AppShell.swift */; };
+		1A2B3C4D530000000000001F /* FileWatcher.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A2B3C4D5200000000000017 /* FileWatcher.swift */; };
+		1A2B3C4D5300000000000020 /* FileWatcher.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A2B3C4D5200000000000017 /* FileWatcher.swift */; };
 		1A2B3C4D5300000000000021 /* Toolbar.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A2B3C4D5200000000000018 /* Toolbar.swift */; };
 		1A2B3C4D5300000000000022 /* Toolbar.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A2B3C4D5200000000000018 /* Toolbar.swift */; };
 		1A2B3C4D5300000000000023 /* Toolbar-macOS.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A2B3C4D5200000000000019 /* Toolbar-macOS.swift */; };
 		1A2B3C4D5300000000000024 /* MarkdownView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A2B3C4D520000000000001A /* MarkdownView.swift */; };
 		1A2B3C4D5300000000000025 /* MarkdownView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A2B3C4D520000000000001A /* MarkdownView.swift */; };
-		1A2B3C4D5300000000000026 /* MarkdownView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A2B3C4D520000000000001A /* MarkdownView.swift */; };
 		1A2B3C4D5300000000000027 /* BlockViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A2B3C4D520000000000001B /* BlockViews.swift */; };
 		1A2B3C4D5300000000000028 /* BlockViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A2B3C4D520000000000001B /* BlockViews.swift */; };
 		1A2B3C4D5300000000000029 /* BlockViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A2B3C4D520000000000001B /* BlockViews.swift */; };
 		1A2B3C4D530000000000002A /* SelectableText.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A2B3C4D520000000000001C /* SelectableText.swift */; };
 		1A2B3C4D530000000000002B /* SelectableText.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A2B3C4D520000000000001C /* SelectableText.swift */; };
 		1A2B3C4D530000000000002C /* SelectableText.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A2B3C4D520000000000001C /* SelectableText.swift */; };
+		1A2B3C4D530000000000002E /* Platform-iOS.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A2B3C4D530000000000002D /* Platform-iOS.swift */; };
+		1A2B3C4D5300000000000030 /* DocumentText-macOS.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A2B3C4D530000000000002F /* DocumentText-macOS.swift */; };
+		1A2B3C4D5300000000000032 /* DocumentText-iOS.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A2B3C4D5300000000000031 /* DocumentText-iOS.swift */; };
+		1A2B3C4D5300000000000034 /* ContentView-macOS.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A2B3C4D5300000000000033 /* ContentView-macOS.swift */; };
+		1A2B3C4D5300000000000036 /* ContentView-iOS.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A2B3C4D5300000000000035 /* ContentView-iOS.swift */; };
+		B31730772FD226CE00C6B7F0 /* HtmlExport.swift in Sources */ = {isa = PBXBuildFile; fileRef = B31730762FD226CE00C6B7F0 /* HtmlExport.swift */; };
+		B31730782FD226CE00C6B7F0 /* HtmlExport.swift in Sources */ = {isa = PBXBuildFile; fileRef = B31730762FD226CE00C6B7F0 /* HtmlExport.swift */; };
+		B31730792FD226CE00C6B7F0 /* HtmlExport.swift in Sources */ = {isa = PBXBuildFile; fileRef = B31730762FD226CE00C6B7F0 /* HtmlExport.swift */; };
+		B317307B2FD226F500C6B7F0 /* PlainExport.swift in Sources */ = {isa = PBXBuildFile; fileRef = B317307A2FD226F500C6B7F0 /* PlainExport.swift */; };
+		B317307C2FD226F500C6B7F0 /* PlainExport.swift in Sources */ = {isa = PBXBuildFile; fileRef = B317307A2FD226F500C6B7F0 /* PlainExport.swift */; };
+		B317307D2FD226F500C6B7F0 /* PlainExport.swift in Sources */ = {isa = PBXBuildFile; fileRef = B317307A2FD226F500C6B7F0 /* PlainExport.swift */; };
+		B317307F2FD2273100C6B7F0 /* DocumentText.swift in Sources */ = {isa = PBXBuildFile; fileRef = B317307E2FD2273100C6B7F0 /* DocumentText.swift */; };
+		B31730812FD2273100C6B7F0 /* DocumentText.swift in Sources */ = {isa = PBXBuildFile; fileRef = B317307E2FD2273100C6B7F0 /* DocumentText.swift */; };
+		B31730832FD2283E00C6B7F0 /* TeX.swift in Sources */ = {isa = PBXBuildFile; fileRef = B31730822FD2283E00C6B7F0 /* TeX.swift */; };
+		B31730842FD2283E00C6B7F0 /* TeX.swift in Sources */ = {isa = PBXBuildFile; fileRef = B31730822FD2283E00C6B7F0 /* TeX.swift */; };
+		B31730852FD2283E00C6B7F0 /* TeX.swift in Sources */ = {isa = PBXBuildFile; fileRef = B31730822FD2283E00C6B7F0 /* TeX.swift */; };
+		B5000001AAAAAAAAAAAAAAAA /* ImagePrefetch.swift in Sources */ = {isa = PBXBuildFile; fileRef = B5000000AAAAAAAAAAAAAAAA /* ImagePrefetch.swift */; };
+		B5000002AAAAAAAAAAAAAAAA /* ImagePrefetch.swift in Sources */ = {isa = PBXBuildFile; fileRef = B5000000AAAAAAAAAAAAAAAA /* ImagePrefetch.swift */; };
+		B5000003AAAAAAAAAAAAAAAA /* ImagePrefetch.swift in Sources */ = {isa = PBXBuildFile; fileRef = B5000000AAAAAAAAAAAAAAAA /* ImagePrefetch.swift */; };
+		B5000011AAAAAAAAAAAAAAAA /* TableMetrics.swift in Sources */ = {isa = PBXBuildFile; fileRef = B5000010AAAAAAAAAAAAAAAA /* TableMetrics.swift */; };
+		B5000012AAAAAAAAAAAAAAAA /* TableMetrics.swift in Sources */ = {isa = PBXBuildFile; fileRef = B5000010AAAAAAAAAAAAAAAA /* TableMetrics.swift */; };
+		B5000013AAAAAAAAAAAAAAAA /* TableMetrics.swift in Sources */ = {isa = PBXBuildFile; fileRef = B5000010AAAAAAAAAAAAAAAA /* TableMetrics.swift */; };
+		B6000001AAAAAAAAAAAAAAAA /* MarkdownDocument.swift in Sources */ = {isa = PBXBuildFile; fileRef = B6000000AAAAAAAAAAAAAAAA /* MarkdownDocument.swift */; };
+		B6000002AAAAAAAAAAAAAAAA /* MarkdownDocument.swift in Sources */ = {isa = PBXBuildFile; fileRef = B6000000AAAAAAAAAAAAAAAA /* MarkdownDocument.swift */; };
+		B6000011AAAAAAAAAAAAAAAA /* PDFExport.swift in Sources */ = {isa = PBXBuildFile; fileRef = B6000010AAAAAAAAAAAAAAAA /* PDFExport.swift */; };
+		B6000012AAAAAAAAAAAAAAAA /* PDFExport.swift in Sources */ = {isa = PBXBuildFile; fileRef = B6000010AAAAAAAAAAAAAAAA /* PDFExport.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -94,17 +118,30 @@
 		1A2B3C4D5200000000000010 /* QuickLook.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuickLook.swift; sourceTree = "<group>"; };
 		1A2B3C4D5200000000000011 /* Bridges-macOS.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Bridges-macOS.swift"; sourceTree = "<group>"; };
 		1A2B3C4D5200000000000012 /* Bridges-iOS.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Bridges-iOS.swift"; sourceTree = "<group>"; };
-		1A2B3C4D5200000000000013 /* Platform.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Platform.swift; sourceTree = "<group>"; };
+		1A2B3C4D5200000000000013 /* Platform-macOS.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Platform-macOS.swift"; sourceTree = "<group>"; };
 		1A2B3C4D5200000000000014 /* FontRole.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FontRole.swift; sourceTree = "<group>"; };
 		1A2B3C4D5200000000000015 /* Environment.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Environment.swift; sourceTree = "<group>"; };
 		1A2B3C4D5200000000000016 /* App-macOS.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "App-macOS.swift"; sourceTree = "<group>"; };
-		1A2B3C4D520000000000002A /* App-iOS.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "App-iOS.swift"; sourceTree = "<group>"; };
-		1A2B3C4D5200000000000017 /* AppShell.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppShell.swift; sourceTree = "<group>"; };
+		1A2B3C4D5200000000000017 /* FileWatcher.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileWatcher.swift; sourceTree = "<group>"; };
 		1A2B3C4D5200000000000018 /* Toolbar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Toolbar.swift; sourceTree = "<group>"; };
 		1A2B3C4D5200000000000019 /* Toolbar-macOS.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Toolbar-macOS.swift"; sourceTree = "<group>"; };
 		1A2B3C4D520000000000001A /* MarkdownView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarkdownView.swift; sourceTree = "<group>"; };
 		1A2B3C4D520000000000001B /* BlockViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BlockViews.swift; sourceTree = "<group>"; };
 		1A2B3C4D520000000000001C /* SelectableText.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SelectableText.swift; sourceTree = "<group>"; };
+		1A2B3C4D520000000000002A /* App-iOS.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "App-iOS.swift"; sourceTree = "<group>"; };
+		1A2B3C4D530000000000002D /* Platform-iOS.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Platform-iOS.swift"; sourceTree = "<group>"; };
+		1A2B3C4D530000000000002F /* DocumentText-macOS.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "DocumentText-macOS.swift"; sourceTree = "<group>"; };
+		1A2B3C4D5300000000000031 /* DocumentText-iOS.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "DocumentText-iOS.swift"; sourceTree = "<group>"; };
+		1A2B3C4D5300000000000033 /* ContentView-macOS.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ContentView-macOS.swift"; sourceTree = "<group>"; };
+		1A2B3C4D5300000000000035 /* ContentView-iOS.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ContentView-iOS.swift"; sourceTree = "<group>"; };
+		B31730762FD226CE00C6B7F0 /* HtmlExport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HtmlExport.swift; sourceTree = "<group>"; };
+		B317307A2FD226F500C6B7F0 /* PlainExport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlainExport.swift; sourceTree = "<group>"; };
+		B317307E2FD2273100C6B7F0 /* DocumentText.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DocumentText.swift; sourceTree = "<group>"; };
+		B31730822FD2283E00C6B7F0 /* TeX.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TeX.swift; sourceTree = "<group>"; };
+		B5000000AAAAAAAAAAAAAAAA /* ImagePrefetch.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImagePrefetch.swift; sourceTree = "<group>"; };
+		B5000010AAAAAAAAAAAAAAAA /* TableMetrics.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TableMetrics.swift; sourceTree = "<group>"; };
+		B6000000AAAAAAAAAAAAAAAA /* MarkdownDocument.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarkdownDocument.swift; sourceTree = "<group>"; };
+		B6000010AAAAAAAAAAAAAAAA /* PDFExport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PDFExport.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -157,20 +194,33 @@
 			children = (
 				1A2B3C4D520000000000002A /* App-iOS.swift */,
 				1A2B3C4D5200000000000016 /* App-macOS.swift */,
-				1A2B3C4D5200000000000017 /* AppShell.swift */,
 				1A2B3C4D520000000000001B /* BlockViews.swift */,
 				1A2B3C4D5200000000000012 /* Bridges-iOS.swift */,
 				1A2B3C4D5200000000000011 /* Bridges-macOS.swift */,
+				1A2B3C4D5300000000000035 /* ContentView-iOS.swift */,
+				1A2B3C4D5300000000000033 /* ContentView-macOS.swift */,
+				B317307E2FD2273100C6B7F0 /* DocumentText.swift */,
+				1A2B3C4D5300000000000031 /* DocumentText-iOS.swift */,
+				1A2B3C4D530000000000002F /* DocumentText-macOS.swift */,
 				1A2B3C4D5200000000000015 /* Environment.swift */,
+				1A2B3C4D5200000000000017 /* FileWatcher.swift */,
 				1A2B3C4D5200000000000014 /* FontRole.swift */,
 				1A2B3C4D520000000000000B /* Highlight.swift */,
 				1A2B3C4D520000000000000C /* highlights.ini */,
+				B31730762FD226CE00C6B7F0 /* HtmlExport.swift */,
+				B5000000AAAAAAAAAAAAAAAA /* ImagePrefetch.swift */,
+				B6000000AAAAAAAAAAAAAAAA /* MarkdownDocument.swift */,
 				1A2B3C4D5200000000000001 /* MarkdownParser.swift */,
 				1A2B3C4D520000000000001A /* MarkdownView.swift */,
+				B6000010AAAAAAAAAAAAAAAA /* PDFExport.swift */,
 				1A2B3C4D520000000000000F /* PDFRenderer.swift */,
-				1A2B3C4D5200000000000013 /* Platform.swift */,
+				B317307A2FD226F500C6B7F0 /* PlainExport.swift */,
+				1A2B3C4D530000000000002D /* Platform-iOS.swift */,
+				1A2B3C4D5200000000000013 /* Platform-macOS.swift */,
 				1A2B3C4D5200000000000010 /* QuickLook.swift */,
 				1A2B3C4D520000000000001C /* SelectableText.swift */,
+				B5000010AAAAAAAAAAAAAAAA /* TableMetrics.swift */,
+				B31730822FD2283E00C6B7F0 /* TeX.swift */,
 				1A2B3C4D5200000000000018 /* Toolbar.swift */,
 				1A2B3C4D5200000000000019 /* Toolbar-macOS.swift */,
 			);
@@ -384,18 +434,28 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				1A2B3C4D5300000000000014 /* Platform.swift in Sources */,
+				1A2B3C4D5300000000000014 /* Platform-macOS.swift in Sources */,
 				1A2B3C4D5300000000000017 /* FontRole.swift in Sources */,
 				1A2B3C4D530000000000001A /* Environment.swift in Sources */,
 				1A2B3C4D530000000000001D /* App-macOS.swift in Sources */,
-				1A2B3C4D530000000000001F /* AppShell.swift in Sources */,
+				1A2B3C4D530000000000001F /* FileWatcher.swift in Sources */,
 				1A2B3C4D5300000000000021 /* Toolbar.swift in Sources */,
 				1A2B3C4D5300000000000023 /* Toolbar-macOS.swift in Sources */,
 				1A2B3C4D5300000000000001 /* MarkdownParser.swift in Sources */,
 				1A2B3C4D5300000000000024 /* MarkdownView.swift in Sources */,
+				1A2B3C4D5300000000000034 /* ContentView-macOS.swift in Sources */,
+				B31730812FD2273100C6B7F0 /* DocumentText.swift in Sources */,
 				1A2B3C4D5300000000000027 /* BlockViews.swift in Sources */,
 				1A2B3C4D530000000000002A /* SelectableText.swift in Sources */,
+				B317307D2FD226F500C6B7F0 /* PlainExport.swift in Sources */,
+				B6000001AAAAAAAAAAAAAAAA /* MarkdownDocument.swift in Sources */,
+				B6000011AAAAAAAAAAAAAAAA /* PDFExport.swift in Sources */,
 				1A2B3C4D530000000000000E /* PDFRenderer.swift in Sources */,
+				1A2B3C4D5300000000000030 /* DocumentText-macOS.swift in Sources */,
+				B31730792FD226CE00C6B7F0 /* HtmlExport.swift in Sources */,
+				B31730852FD2283E00C6B7F0 /* TeX.swift in Sources */,
+				B5000001AAAAAAAAAAAAAAAA /* ImagePrefetch.swift in Sources */,
+				B5000011AAAAAAAAAAAAAAAA /* TableMetrics.swift in Sources */,
 				1A2B3C4D5300000000000011 /* Bridges-macOS.swift in Sources */,
 				1A2B3C4D5300000000000007 /* Highlight.swift in Sources */,
 			);
@@ -405,19 +465,29 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				1A2B3C4D5300000000000015 /* Platform.swift in Sources */,
+				1A2B3C4D530000000000002E /* Platform-iOS.swift in Sources */,
 				1A2B3C4D5300000000000018 /* FontRole.swift in Sources */,
+				B317307C2FD226F500C6B7F0 /* PlainExport.swift in Sources */,
+				B31730782FD226CE00C6B7F0 /* HtmlExport.swift in Sources */,
 				1A2B3C4D530000000000001B /* Environment.swift in Sources */,
 				1A2B3C4D530000000000001E /* App-iOS.swift in Sources */,
-				1A2B3C4D5300000000000020 /* AppShell.swift in Sources */,
+				1A2B3C4D5300000000000020 /* FileWatcher.swift in Sources */,
+				B317307F2FD2273100C6B7F0 /* DocumentText.swift in Sources */,
 				1A2B3C4D5300000000000022 /* Toolbar.swift in Sources */,
 				1A2B3C4D5300000000000002 /* MarkdownParser.swift in Sources */,
 				1A2B3C4D5300000000000025 /* MarkdownView.swift in Sources */,
+				B31730832FD2283E00C6B7F0 /* TeX.swift in Sources */,
+				1A2B3C4D5300000000000036 /* ContentView-iOS.swift in Sources */,
 				1A2B3C4D5300000000000028 /* BlockViews.swift in Sources */,
 				1A2B3C4D530000000000002B /* SelectableText.swift in Sources */,
+				B6000002AAAAAAAAAAAAAAAA /* MarkdownDocument.swift in Sources */,
+				B6000012AAAAAAAAAAAAAAAA /* PDFExport.swift in Sources */,
 				1A2B3C4D530000000000000F /* PDFRenderer.swift in Sources */,
+				1A2B3C4D5300000000000032 /* DocumentText-iOS.swift in Sources */,
 				1A2B3C4D5300000000000013 /* Bridges-iOS.swift in Sources */,
 				1A2B3C4D5300000000000008 /* Highlight.swift in Sources */,
+				B5000002AAAAAAAAAAAAAAAA /* ImagePrefetch.swift in Sources */,
+				B5000012AAAAAAAAAAAAAAAA /* TableMetrics.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -425,16 +495,20 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				1A2B3C4D5300000000000016 /* Platform.swift in Sources */,
+				1A2B3C4D5300000000000016 /* Platform-macOS.swift in Sources */,
 				1A2B3C4D5300000000000019 /* FontRole.swift in Sources */,
 				1A2B3C4D530000000000001C /* Environment.swift in Sources */,
 				1A2B3C4D5300000000000003 /* MarkdownParser.swift in Sources */,
-				1A2B3C4D5300000000000026 /* MarkdownView.swift in Sources */,
 				1A2B3C4D5300000000000029 /* BlockViews.swift in Sources */,
 				1A2B3C4D530000000000002C /* SelectableText.swift in Sources */,
+				B31730772FD226CE00C6B7F0 /* HtmlExport.swift in Sources */,
 				1A2B3C4D5300000000000010 /* QuickLook.swift in Sources */,
 				1A2B3C4D5300000000000012 /* Bridges-macOS.swift in Sources */,
+				B31730842FD2283E00C6B7F0 /* TeX.swift in Sources */,
 				1A2B3C4D5300000000000009 /* Highlight.swift in Sources */,
+				B317307B2FD226F500C6B7F0 /* PlainExport.swift in Sources */,
+				B5000003AAAAAAAAAAAAAAAA /* ImagePrefetch.swift in Sources */,
+				B5000013AAAAAAAAAAAAAAAA /* TableMetrics.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

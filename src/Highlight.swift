@@ -1,9 +1,4 @@
 import Foundation
-#if os(macOS)
-import AppKit
-#elseif os(iOS)
-import UIKit
-#endif
 
 enum Highlight {
 
@@ -105,11 +100,7 @@ enum Highlight {
         }
     }
 
-    #if os(macOS)
-    private static let defaultFg = NSColor.textColor
-    #else
-    private static let defaultFg = UIColor.label
-    #endif
+    private static let defaultFg = platformDefaultTextColor
 
     private struct Spec {
         let keywords: [String]
@@ -264,22 +255,7 @@ enum Highlight {
 
     private static func adaptive(light: PlatformColor,
                                   dark: PlatformColor) -> PlatformColor {
-        #if os(macOS)
-        return NSColor(name: nil) { appearance in
-            let darkMatches: [NSAppearance.Name] = [
-                .darkAqua,
-                .vibrantDark,
-                .accessibilityHighContrastDarkAqua,
-                .accessibilityHighContrastVibrantDark,
-            ]
-            let isDark = appearance.bestMatch(from: darkMatches) != nil
-            return isDark ? dark : light
-        }
-        #else
-        return UIColor { traits in
-            traits.userInterfaceStyle == .dark ? dark : light
-        }
-        #endif
+        platformAdaptiveColor(light: light, dark: dark)
     }
 
 }

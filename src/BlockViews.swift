@@ -1,9 +1,4 @@
 import SwiftUI
-#if os(macOS)
-import AppKit
-#elseif os(iOS)
-import UIKit
-#endif
 
 struct BlockView: View {
 
@@ -104,16 +99,7 @@ private struct ImageBlockView: View {
                    !(200...299).contains(http.statusCode) {
                     throw URLError(.badServerResponse)
                 }
-                var decoded: Image? = nil
-                #if os(macOS)
-                if let nsImage = NSImage(data: data) {
-                    decoded = Image(nsImage: nsImage)
-                }
-                #else
-                if let uiImage = UIImage(data: data) {
-                    decoded = Image(uiImage: uiImage)
-                }
-                #endif
+                let decoded = platformDecodeImage(data)
                 if let decoded {
                     image = decoded
                     done = true
@@ -220,119 +206,6 @@ private struct CodeBlock: View {
 
 }
 
-enum TableMetrics {
-
-    static func columnCount(headers: [String], rows: [[String]]) -> Int {
-        var n = headers.count
-        for row in rows where row.count > n { n = row.count }
-        return n
-    }
-
-    static func charWidths(headers: [String], rows: [[String]]) -> [Int] {
-        let n = columnCount(headers: headers, rows: rows)
-        var widths = [Int](repeating: 1, count: n)
-        var all = rows
-        all.insert(headers, at: 0)
-        for cells in all {
-            for (i, cell) in cells.enumerated() where i < n {
-                if cell.count > widths[i] { widths[i] = cell.count }
-            }
-        }
-        return widths
-    }
-
-    static func pointWidths(headers: [String], rows: [[String]],
-                            available: CGFloat,
-                            minimums: [CGFloat]? = nil) -> [CGFloat] {
-        let n = columnCount(headers: headers, rows: rows)
-        var result = [CGFloat](repeating: 0, count: n)
-        let chars = charWidths(headers: headers, rows: rows)
-        let weights = chars.map { c in sqrt(CGFloat(c)) }
-        let sum = weights.reduce(0, +)
-        if available > 0, n > 0 {
-            if let mins = minimums, mins.count == n {
-                let minSum = mins.reduce(0, +)
-                if minSum >= available, minSum > 0 {
-                    let scale = available / minSum
-                    result = mins.map { v in v * scale }
-                } else if sum > 0 {
-                    let remainder = available - minSum
-                    result = (0..<n).map { i in
-                        mins[i] + remainder * weights[i] / sum
-                    }
-                } else {
-                    result = mins
-                }
-            } else if sum > 0 {
-                result = weights.map { wt in available * wt / sum }
-            }
-        }
-        return result
-    }
-
-    static func normalize(_ s: String) -> String {
-        let trimmed = s.trimmingCharacters(in: .whitespaces)
-        var out = ""
-        var inSpace = false
-        for ch in trimmed {
-            if ch.isWhitespace {
-                if !inSpace { out.append(" ") }
-                inSpace = true
-            } else {
-                out.append(ch)
-                inSpace = false
-            }
-        }
-        return out
-    }
-
-    static func longestWord(headers: [String], rows: [[String]],
-                            col: Int) -> String {
-        var best = ""
-        var column: [String] = []
-        if col < headers.count { column.append(headers[col]) }
-        for row in rows where col < row.count {
-            column.append(row[col])
-        }
-        for cell in column {
-            for word in cell.split(separator: " ",
-                                   omittingEmptySubsequences: true) {
-                if word.count > best.count { best = String(word) }
-            }
-        }
-        return best
-    }
-
-    static func serializeMonospaced(headers: [String],
-                                    rows: [[String]]) -> String {
-        let n = columnCount(headers: headers, rows: rows)
-        let widths = charWidths(headers: headers, rows: rows)
-        var lines: [String] = []
-        if !headers.isEmpty {
-            lines.append(monoRow(headers, n: n, widths: widths))
-            let dashes = (0..<n).map { i in
-                String(repeating: "-", count: widths[i])
-            }
-            lines.append("| " + dashes.joined(separator: " | ") + " |")
-        }
-        for row in rows {
-            lines.append(monoRow(row, n: n, widths: widths))
-        }
-        return lines.joined(separator: "\n") + "\n"
-    }
-
-    private static func monoRow(_ cells: [String], n: Int,
-                                widths: [Int]) -> String {
-        var parts: [String] = []
-        for i in 0..<n {
-            let cell = i < cells.count ? cells[i] : ""
-            let fill = max(0, widths[i] - cell.count)
-            parts.append(cell + String(repeating: " ", count: fill))
-        }
-        return "| " + parts.joined(separator: " | ") + " |"
-    }
-}
-
 private struct TableWidthKey: PreferenceKey {
     static let defaultValue: CGFloat = 0
     static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
@@ -363,8 +236,7 @@ private struct TableBlock: View {
                             n: n, widths: layout.widths, wrap: layout.wrap)
                     Divider()
                 }
-                ForEach(Array(r.enumerated()),
-                        id: \.offset) { idx, row in
+                ForEach(Array(r.enumerated()), id: \.offset) { idx, row in
                     rowView(row, bold: false,
                             shade: idx % 2 == 1
                                 ? Color.primary.opacity(0.04)
@@ -398,8 +270,7 @@ private struct TableBlock: View {
     private func columnLayout(_ n: Int,
                               headers h: [String],
                               rows r: [[String]])
-        -> (widths: [CGFloat]?, wrap: Bool)
-    {
+        -> (widths: [CGFloat]?, wrap: Bool) {
         var result: ([CGFloat]?, Bool) = (nil, false)
         let usable = available - CGFloat(max(n - 1, 0)) * 12 - 16
         if available > 0, n > 0 {
@@ -505,6 +376,7 @@ private struct TableBlock: View {
         }
         return result
     }
+
 }
 
 private struct CopyButton: View {
@@ -525,12 +397,7 @@ private struct CopyButton: View {
     }
 
     private func copy() {
-        #if os(macOS)
-        NSPasteboard.general.clearContents()
-        NSPasteboard.general.setString(string, forType: .string)
-        #else
-        UIPasteboard.general.string = string
-        #endif
+        platformSetClipboardString(string)
         copied = true
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { copied = false }
     }

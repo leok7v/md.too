@@ -5,10 +5,8 @@ extension NativeText: NSViewRepresentable {
 
     final class Coordinator: NSObject, NSTextViewDelegate {
 
-        #if !QUICKLOOK_EXTENSION
         private var anchor: Int = 0
         private var anchorScope: NSRange? = nil
-        #endif
 
         func textView(_ tv: NSTextView, clickedOnLink link: Any,
                         at: Int) -> Bool {
@@ -26,7 +24,6 @@ extension NativeText: NSViewRepresentable {
             return handled
         }
 
-        #if !QUICKLOOK_EXTENSION
         func textView(_ textView: NSTextView,
                       willChangeSelectionFromCharacterRange
                                   oldRange: NSRange,
@@ -64,7 +61,7 @@ extension NativeText: NSViewRepresentable {
             if pos >= 0, pos < storage.length {
                 var effective = NSRange(location: 0, length: 0)
                 let value = storage.attribute(
-                    DocumentText.atomicKindKey,
+                    atomicKindKey,
                     at: pos, effectiveRange: &effective)
                 if value != nil { result = effective }
             }
@@ -72,11 +69,10 @@ extension NativeText: NSViewRepresentable {
         }
 
         private func expandToAtomicBoundaries(_ range: NSRange,
-                                              in storage: NSTextStorage)
-            -> NSRange {
+                         in storage: NSTextStorage) -> NSRange {
             var lo = range.location
             var hi = range.location + range.length
-            storage.enumerateAttribute(DocumentText.atomicKindKey,
+            storage.enumerateAttribute(atomicKindKey,
                                        in: range,
                                        options: []) { value, r, _ in
                 if value != nil {
@@ -87,7 +83,6 @@ extension NativeText: NSViewRepresentable {
             }
             return NSRange(location: lo, length: hi - lo)
         }
-        #endif
 
     }
 
@@ -163,29 +158,77 @@ extension NativeText: NSViewRepresentable {
 
 }
 
-extension NativeText {
+struct WindowAppearanceApplier: NSViewRepresentable {
 
-    var primaryColor: NSColor { NSColor.textColor }
-    var secondaryColor: NSColor { NSColor.secondaryLabelColor }
+    let scheme: ColorScheme?
 
-    func mergeTraits(of source: NSFont, into base: NSFont,
-                     bold: Bool) -> NSFont {
-        var result = base
-        var traits = source.fontDescriptor.symbolicTraits
-        traits.formUnion(base.fontDescriptor.symbolicTraits)
-        if bold { traits.insert(.bold) }
-        let descriptor = base.fontDescriptor.withSymbolicTraits(traits)
-        result = NSFont(descriptor: descriptor,
-                        size: base.pointSize) ?? base
-        return result
+    final class Coordinator {
+        var scheme: ColorScheme?
+        var observers: [NSObjectProtocol] = []
+        weak var view: NSView?
+        deinit {
+            for o in observers {
+                NotificationCenter.default.removeObserver(o)
+            }
+        }
     }
 
-    func boldFont(_ f: NSFont) -> NSFont {
-        var result = f
-        var traits = f.fontDescriptor.symbolicTraits
-        traits.insert(.bold)
-        let d = f.fontDescriptor.withSymbolicTraits(traits)
-        result = NSFont(descriptor: d, size: f.pointSize) ?? f
+    func makeCoordinator() -> Coordinator { Coordinator() }
+
+    func makeNSView(context: Context) -> NSView {
+        let v = NSView(frame: .zero)
+        let coord = context.coordinator
+        coord.scheme = scheme
+        coord.view = v
+        let names: [Notification.Name] = [
+            NSWindow.didResignKeyNotification,
+            NSWindow.didBecomeKeyNotification,
+            NSApplication.didBecomeActiveNotification,
+            NSApplication.didResignActiveNotification,
+        ]
+        coord.observers = names.map { name in
+            NotificationCenter.default.addObserver(
+                forName: name,
+                object: nil,
+                queue: .main
+            ) { [weak coord] _ in
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
+                    if let coord, let view = coord.view {
+                        view.window?.appearance =
+                            Self.appearanceFor(coord.scheme)
+                    }
+                }
+            }
+        }
+        DispatchQueue.main.async {
+            v.window?.appearance = Self.appearanceFor(scheme)
+        }
+        return v
+    }
+
+    func updateNSView(_ nsView: NSView, context: Context) {
+        context.coordinator.scheme = scheme
+        DispatchQueue.main.async {
+            nsView.window?.appearance = Self.appearanceFor(scheme)
+        }
+    }
+
+    static func dismantleNSView(_ nsView: NSView,
+                                coordinator: Coordinator) {
+        for o in coordinator.observers {
+            NotificationCenter.default.removeObserver(o)
+        }
+    }
+
+    private static func appearanceFor(_ scheme: ColorScheme?)
+        -> NSAppearance? {
+        var result: NSAppearance? = nil
+        switch scheme {
+            case .none: result = nil
+            case .light: result = NSAppearance(named: .aqua)
+            case .dark: result = NSAppearance(named: .darkAqua)
+            @unknown default: result = nil
+        }
         return result
     }
 

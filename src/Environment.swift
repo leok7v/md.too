@@ -26,6 +26,10 @@ enum ThemeMode: String, CaseIterable {
 
     case system, light, dark
 
+    init(raw: String) {
+        self = ThemeMode(rawValue: raw) ?? .system
+    }
+
     var colorScheme: ColorScheme? {
         switch self {
             case .system: return nil
@@ -88,55 +92,3 @@ struct SourceButton: View {
 
 }
 
-enum ImagePrefetch {
-
-    static func collectURLs(in blocks: [Block]) -> Set<URL> {
-        var urls: Set<URL> = []
-        for b in blocks {
-            switch b {
-                case .image(_, let u, _, _): urls.insert(u)
-                case .table(_, let rows):
-                    for row in rows {
-                        for cell in row {
-                            if let info = imageInCell(cell) {
-                                urls.insert(info.0)
-                            }
-                        }
-                    }
-                default: break
-            }
-        }
-        return urls
-    }
-
-    static func imageInCell(_ cell: String)
-        -> (URL, CGFloat?, CGFloat?)? {
-        var result: (URL, CGFloat?, CGFloat?)? = nil
-        let parsed = Markdown.parse(cell)
-        if let first = parsed.first,
-           case .image(_, let url, let width, let height) = first {
-            result = (url, width, height)
-        }
-        return result
-    }
-
-    static func fetch(_ urls: Set<URL>) async -> [URL: Data] {
-        let agent = "Markdown.Preview/1.0" +
-                    " (https://github.com/leok7v/md.too)"
-        return await withTaskGroup(of: (URL, Data?).self) { group in
-            for u in urls {
-                group.addTask {
-                    var req = URLRequest(url: u)
-                    req.setValue(agent, forHTTPHeaderField: "User-Agent")
-                    let data = try? await URLSession.shared
-                        .data(for: req).0
-                    return (u, data)
-                }
-            }
-            var result: [URL: Data] = [:]
-            for await (u, d) in group { if let d { result[u] = d } }
-            return result
-        }
-    }
-
-}

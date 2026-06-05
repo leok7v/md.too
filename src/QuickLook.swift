@@ -29,7 +29,7 @@ final class QuickLookViewController: NSViewController, QLPreviewingController {
             }
             for sub in view.subviews { sub.removeFromSuperview() }
             let root = AnyView(
-                MarkdownView(text: text)
+                QLContent(text: text)
                     .environment(\.prefetchedImages, prefetched)
             )
             let host = NSHostingController(rootView: root)
@@ -62,10 +62,57 @@ final class QuickLookViewController: NSViewController, QLPreviewingController {
 
     private static func prefetchImages(in blocks: [Block])
         async -> [URL: Image] {
-        let urls = ImagePrefetch.collectURLs(in: blocks)
-        let datas = await ImagePrefetch.fetch(urls)
-        return datas.compactMapValues { d in
-            NSImage(data: d).map { ns in Image(nsImage: ns) }
+        await ImagePrefetch.fetchAndDecode(in: blocks,
+                                           decode: platformDecodeImage)
+    }
+
+}
+
+struct QLContent: View {
+
+    let text: String
+
+    @AppStorage("themeMode")
+    private var themeRaw: String = ThemeMode.system.rawValue
+    @State private var showSource = false
+
+    private var theme: ThemeMode { ThemeMode(raw: themeRaw) }
+
+    var body: some View {
+        ScrollView(.vertical) {
+            content
+                .padding(20)
+                .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .background(systemBackground)
+        .preferredColorScheme(theme.colorScheme)
+        .overlay(alignment: .topTrailing) {
+            HStack(spacing: 8) {
+                SourceButton(showingSource: showSource) {
+                    showSource.toggle()
+                }
+                ThemeButton(theme: theme) {
+                    themeRaw = theme.next.rawValue
+                }
+            }
+            .buttonStyle(.plain)
+            .padding(8)
+        }
+    }
+
+    @ViewBuilder
+    private var content: some View {
+        if showSource {
+            SelectableText(attributed: AttributedString(text),
+                           role: .mono)
+        } else {
+            let blocks = Markdown.parse(text)
+            VStack(alignment: .leading, spacing: 12) {
+                ForEach(Array(blocks.enumerated()),
+                        id: \.offset) { _, block in
+                    BlockView(block: block)
+                }
+            }
         }
     }
 

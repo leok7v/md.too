@@ -34,6 +34,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     init() {
         TempPDFs.cleanOnLaunch()
+        pdfDataExporter = { text, title in
+            exportPDFDataSync(text: text, title: title)
+        }
         DispatchQueue.main.async { Self.seedOpenPanelDirectory() }
     }
 
@@ -63,7 +66,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     var body: some Scene {
         DocumentGroup(viewing: MarkdownDocument.self) { file in
-            MarkdownView(text: file.document.text, fileURL: file.fileURL)
+            ContentView(text: file.document.text, fileURL: file.fileURL)
                 .frame(minWidth: 640, minHeight: 480)
         }
         .commands {

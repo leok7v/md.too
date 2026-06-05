@@ -97,30 +97,66 @@ A short loop through [EXAMPLE.md](EXAMPLE.md) on each platform — parsing, synt
 
 ## Source code
 
-[`src/`](src) is the whole codebase: 16 hand-written Swift files plus a bundled [`highlights.ini`](src/highlights.ini). No SPM packages, no CocoaPods, no vendored sources.
+[`src/`](src) is the whole codebase: 30 hand-written Swift files plus a bundled [`highlights.ini`](src/highlights.ini). No SPM packages, no CocoaPods, no vendored sources. Every file depends only on files in lower layers — the dependency graph is a tree, not a web, and zero `#if os(...)` walls remain anywhere in the source.
 
-Cross-target — compiled into the macOS app, the iOS app, and the Quick Look extension:
+The layout is layered. A given file references only symbols from files in layers below it, so reading top-down or bottom-up never requires holding a cycle in your head.
 
-- [`MarkdownParser.swift`](src/MarkdownParser.swift) — `MarkdownDocument` (FileDocument), block parser with CommonMark container model, tiny LaTeX subset.
-- [`MarkdownView.swift`](src/MarkdownView.swift) — top-level SwiftUI view; composes the toolbar and routes between rendered, source, and the single-text-surface paths.
-- [`BlockViews.swift`](src/BlockViews.swift) — per-block render (heading, list, code, table, image), plus `TableMetrics` (the shared column-width primitive used by the on-screen, PDF, and HTML table renderers).
-- [`SelectableText.swift`](src/SelectableText.swift) — selectable / copyable text wrapper around `NSTextView` / `UITextView`.
-- [`Highlight.swift`](src/Highlight.swift) — regex syntax highlighter, driven by [`highlights.ini`](src/highlights.ini).
-- [`Platform.swift`](src/Platform.swift), [`FontRole.swift`](src/FontRole.swift), [`Environment.swift`](src/Environment.swift) — typealiases, font / theme support, image prefetch, and the small Source / Theme toolbar buttons.
+**Layer 0 — leaves, no in-module deps:**
 
-Apps only — macOS + iOS, not the Quick Look extension:
+- [`Platform-macOS.swift`](src/Platform-macOS.swift), [`Platform-iOS.swift`](src/Platform-iOS.swift) — typealiases (`PlatformFont`, `PlatformColor`, `PlatformImage`), every `platform*` helper (font traits, colors, decoding, clipboard, light-appearance, PDF thumbnails). `@_exported import AppKit`/`UIKit` so consumers don't restate the framework dependency. Re-routes through a `pdfDataExporter` hook so `CopyPdfProvider` can sit here without dragging in apps-only code.
+- [`TeX.swift`](src/TeX.swift) — `$…$` / `$$…$$` LaTeX subset to Unicode/AttributedString.
+- [`FileWatcher.swift`](src/FileWatcher.swift) — `NSFilePresenter` wrapper for live file-on-disk reload.
+- [`Environment.swift`](src/Environment.swift) — pure SwiftUI primitives: `PrefetchedImagesKey`, `SecondaryTextKey`, `ThemeMode`, `ThemeButton`, `SourceButton`.
 
-- [`App.swift`](src/App.swift) — `@main`, `DocumentGroup`, Open-panel seeding.
-- [`AppShell.swift`](src/AppShell.swift) — on-disk file-change watcher, window-frame autosave, system-theme bridge.
-- [`Toolbar.swift`](src/Toolbar.swift) — Copy (multi-flavor pasteboard with lazy PDF) and Share buttons.
-- [`PDFRenderer.swift`](src/PDFRenderer.swift) — paginated PDF export, theme-neutral HTML export, plain-text export, and `DocumentText` (the document-wide single text surface that backs continuous cross-block selection).
+**Layer 1 — parser, fonts, highlighter:**
 
-Per platform / per target:
+- [`FontRole.swift`](src/FontRole.swift) — `FontRole` enum mapping `.body` / `.heading(n)` / `.mono` to a `PlatformFont`.
+- [`MarkdownParser.swift`](src/MarkdownParser.swift) — `Block` enum, `ListItem`, and the block parser with CommonMark container model + link-reference rewrite. Pure data; no SwiftUI.
+- [`Highlight.swift`](src/Highlight.swift) — regex syntax highlighter driven by [`highlights.ini`](src/highlights.ini).
 
-- [`Bridges-macOS.swift`](src/Bridges-macOS.swift) — `NSViewRepresentable` for selectable text, plus the anchor-scope selection arbiter that snaps a drag to whole when it crosses an atomic block (code, table, image). macOS app + Quick Look extension.
-- [`Bridges-iOS.swift`](src/Bridges-iOS.swift) — `UIViewRepresentable` for selectable text. iOS app only.
+**Layer 2 — shared data helpers and selectable text:**
+
+- [`TableMetrics.swift`](src/TableMetrics.swift) — column-width math (counts, char widths, point widths with optional minimums, longest-word, monospace serialization). Used by the on-screen table view, the PDF table renderer, and the HTML/plain exports.
+- [`ImagePrefetch.swift`](src/ImagePrefetch.swift) — walks `[Block]` and concurrently fetches remote image URLs.
+- [`SelectableText.swift`](src/SelectableText.swift) — `SelectableText` SwiftUI view + `NativeText` builder + the `AtomicKind` / `atomicKindKey` / `atomicIdKey` constants that mark code / table / image runs.
+
+**Layer 3 — bridges and pure-data exporters:**
+
+- [`Bridges-macOS.swift`](src/Bridges-macOS.swift), [`Bridges-iOS.swift`](src/Bridges-iOS.swift) — `NS/UIViewRepresentable` for `NativeText`, plus `WindowAppearanceApplier`. macOS variant also carries the anchor-scope selection arbiter that snaps a drag to whole when it crosses an atomic block (code, table, image).
+- [`HtmlExport.swift`](src/HtmlExport.swift) — `[Block]` → self-contained HTML with inline styles.
+- [`PlainExport.swift`](src/PlainExport.swift) — `[Block]` → Markdown-flavored plain text, tables width-aligned.
+
+**Layer 4 — block views:**
+
+- [`BlockViews.swift`](src/BlockViews.swift) — per-block SwiftUI render (heading, list, code, table, image, quote, rule). `TableBlock` handles per-column natural-width measurement and graceful overflow.
+
+**Layer 5–6 — single-surface and PDF (apps only):**
+
+- [`DocumentText.swift`](src/DocumentText.swift) — document-wide `NSAttributedString` builder that backs continuous cross-block selection on the single-surface code path.
+- [`DocumentText-macOS.swift`](src/DocumentText-macOS.swift), [`DocumentText-iOS.swift`](src/DocumentText-iOS.swift) — platform-specific table layout via `extension DocumentText { static func table(...) }` (`NSTextTable` on macOS, tab-stop paragraphs on iOS).
+- [`PDFExport.swift`](src/PDFExport.swift) — entry layer: `TempPDFs`, `prefetchDocumentImages`, `exportPDF` / `exportPDFDataSync`, and the `PDFExport` enum that sets up the `CGContext` and drives the renderer.
+- [`PDFRenderer.swift`](src/PDFRenderer.swift) — the `PDFRenderer` class itself: a CT-based page-by-page composer with embedded images, syntax-highlighted code, zebra tables, page numbers.
+
+**Layer 7 — toolbar:**
+
+- [`Toolbar.swift`](src/Toolbar.swift) — `CopyDocButton` (multi-flavor pasteboard with lazy PDF) and `ShareButton`. Apps only.
 - [`Toolbar-macOS.swift`](src/Toolbar-macOS.swift) — Save-as-PDF and Save-as-HTML panels. macOS app only.
-- [`QuickLook.swift`](src/QuickLook.swift) — `QLPreviewingController`. Quick Look extension only.
+
+**Layer 8 — top-level views:**
+
+- [`MarkdownView.swift`](src/MarkdownView.swift) — chrome-less rendering core that routes between source / rendered / single-surface and prefetches inline images. Apps only.
+- [`QuickLook.swift`](src/QuickLook.swift) — `QLPreviewingController` plus `QLContent`, a stripped preview view. Quick Look extension only.
+
+**Layer 9 — chrome:**
+
+- [`ContentView-macOS.swift`](src/ContentView-macOS.swift) — wraps `MarkdownView` with the macOS `.toolbar` and `WindowFrameAutosave`. macOS app only.
+- [`ContentView-iOS.swift`](src/ContentView-iOS.swift) — wraps `MarkdownView` with the iOS `.safeAreaInset` top bar. iOS app only.
+
+**Layer 10 — entry points:**
+
+- [`MarkdownDocument.swift`](src/MarkdownDocument.swift) — `MarkdownDocument: FileDocument`, the UTType-aware document model that `DocumentGroup` (macOS) and `.fileImporter` (iOS) bind to. Apps only.
+- [`App-macOS.swift`](src/App-macOS.swift) — `@main`, `DocumentGroup`, `AppDelegate`, Open-panel seeding. Wires `pdfDataExporter` back to `exportPDFDataSync` so the layer-0 `CopyPdfProvider` can deliver lazy PDF to the pasteboard. macOS app only.
+- [`App-iOS.swift`](src/App-iOS.swift) — `@main`, `WindowGroup`, `IOSDocumentRoot` (file importer). iOS app only.
 
 [`config/`](config) holds the three `Info-*.plist` files for the app and extension targets, four `*.entitlements` files (release + debug pairs for the apps and the extension), and `Base.xcconfig` / `version.xcconfig` / a gitignored per-developer `Local.xcconfig`.
 
