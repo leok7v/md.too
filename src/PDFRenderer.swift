@@ -313,13 +313,16 @@ final class PDFRenderer {
                                   cols: Int) {
         let rowPad: CGFloat = 4
         let minWidths: [CGFloat] = (0..<cols).map { c in
-            let word = TableMetrics.longestWord(headers: headers,
-                                                rows: rows, col: c)
-            let attr = NSAttributedString(string: word,
-                attributes: [.font: bodyFontBold()])
-            let line = CTLineCreateWithAttributedString(attr)
-            return CTLineGetBoundsWithOptions(line, []).width
-                   + 2 * rowPad
+            var widest: CGFloat = 0
+            if c < headers.count {
+                let w = cellRenderedWidth(headers[c], bold: true)
+                if w > widest { widest = w }
+            }
+            for row in rows where c < row.count {
+                let w = cellRenderedWidth(row[c], bold: false)
+                if w > widest { widest = w }
+            }
+            return widest + 2 * rowPad
         }
         var colWidths = TableMetrics.pointWidths(headers: headers,
                                                  rows: rows,
@@ -432,6 +435,38 @@ final class PDFRenderer {
                       explicitHeight: explicitHeight).height
     }
 
+    private static let numericTokenRE: NSRegularExpression? =
+        try? NSRegularExpression(pattern: #"\d[\d.,]*\d"#)
+
+    // Wrap '.' and ',' between digits with U+2060 (WORD JOINER) so
+    // CoreText cannot split a number like "70.1" or "1,234.56" across
+    // lines when a table cell is narrower than the natural numeric
+    // width. Locale-independent on purpose: we render the .md as
+    // typed, so the pattern protects both decimal conventions.
+
+    private func protectNumerics(_ s: String) -> String {
+        var result = s
+        if let re = Self.numericTokenRE {
+            let ns = s as NSString
+            let full = NSRange(location: 0, length: ns.length)
+            let matches = re.matches(in: s, range: full)
+            if !matches.isEmpty {
+                let m = NSMutableString(string: s)
+                for match in matches.reversed() {
+                    let token = ns.substring(with: match.range)
+                    let joined = token
+                        .replacingOccurrences(
+                            of: ".", with: "\u{2060}.\u{2060}")
+                        .replacingOccurrences(
+                            of: ",", with: "\u{2060},\u{2060}")
+                    m.replaceCharacters(in: match.range, with: joined)
+                }
+                result = m as String
+            }
+        }
+        return result
+    }
+
     private func cellAttributed(_ text: String,
                                 bold: Bool) -> NSAttributedString {
         let parsed = Markdown.parse(text)
@@ -459,12 +494,19 @@ final class PDFRenderer {
                     NSUnderlineStyle.single.rawValue
                 attrs[.strikethroughColor] = textColor
             }
-            let segment = String(attr[run.range].characters)
+            let segment = protectNumerics(
+                String(attr[run.range].characters))
             m.append(NSAttributedString(string: segment, attributes: attrs))
         }
         return m
     }
 
+
+    private func cellRenderedWidth(_ text: String, bold: Bool) -> CGFloat {
+        let attr = cellAttributed(text, bold: bold)
+        let line = CTLineCreateWithAttributedString(attr)
+        return CTLineGetBoundsWithOptions(line, []).width
+    }
 
     private func textCellHeight(_ txt: String, bold: Bool,
                                 width: CGFloat) -> CGFloat {
