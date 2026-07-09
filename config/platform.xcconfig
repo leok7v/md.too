@@ -1,0 +1,8 @@
+// platform.xcconfig -- committed, hand-maintained. Per-SDK source
+// membership for the merged multiplatform target: Name-iOS.swift
+// compiles only for iOS SDKs, Name-macOS.swift only for macOS SDK.
+// Sibling files gate by name suffix; cross-platform files (no
+// suffix) compile on both.
+EXCLUDED_SOURCE_FILE_NAMES[sdk=iphoneos*] = *-macOS.swift
+EXCLUDED_SOURCE_FILE_NAMES[sdk=iphonesimulator*] = *-macOS.swift
+EXCLUDED_SOURCE_FILE_NAMES[sdk=macosx*] = *-iOS.swift

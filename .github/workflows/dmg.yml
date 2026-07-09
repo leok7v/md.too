@@ -47,7 +47,7 @@ jobs:
         run: |
           xcodebuild \
             -project md.too.xcodeproj \
-            -scheme "md.too macOS" \
+            -scheme "md.too" -destination "generic/platform=macOS" \
             -configuration Release \
             -derivedDataPath build \
             CODE_SIGNING_ALLOWED=NO \
@@ -66,7 +66,7 @@ jobs:
           # is just a trigger; bump version.xcconfig before tagging.
           xcodebuild \
             -project md.too.xcodeproj \
-            -scheme "md.too macOS" \
+            -scheme "md.too" -destination "generic/platform=macOS" \
             -configuration Release \
             -derivedDataPath build \
             CODE_SIGN_STYLE=Manual \

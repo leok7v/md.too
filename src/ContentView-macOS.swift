@@ -47,13 +47,8 @@ struct ContentView: View {
             .watchingFile(fileURL, into: $liveText)
     }
 
-    @ViewBuilder
     private var autosave: some View {
-        if let url = fileURL {
-            WindowFrameAutosave(name: "Markdown.Preview:\(url.path)")
-        } else {
-            Color.clear
-        }
+        WindowFrameAutosave(name: "md.too.document")
     }
 
 }

@@ -12,7 +12,6 @@
 		1A2B3C4D5300000000000003 /* MarkdownParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A2B3C4D5200000000000001 /* MarkdownParser.swift */; };
 		1A2B3C4D5300000000000004 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 1A2B3C4D5200000000000007 /* Assets.xcassets */; };
 		1A2B3C4D5300000000000005 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 1A2B3C4D5200000000000007 /* Assets.xcassets */; };
-		1A2B3C4D5300000000000006 /* md.too QuickLook.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 1A2B3C4D520000000000000A /* md.too QuickLook.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		1A2B3C4D5300000000000007 /* Highlight.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A2B3C4D520000000000000B /* Highlight.swift */; };
 		1A2B3C4D5300000000000008 /* Highlight.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A2B3C4D520000000000000B /* Highlight.swift */; };
 		1A2B3C4D5300000000000009 /* Highlight.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A2B3C4D520000000000000B /* Highlight.swift */; };
@@ -87,17 +86,6 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXCopyFilesBuildPhase section */
-		1A2B3C4D5A00000000000001 /* Embed Foundation Extensions */ = {
-			isa = PBXCopyFilesBuildPhase;
-			buildActionMask = 2147483647;
-			dstPath = "";
-			dstSubfolderSpec = 13;
-			files = (
-				1A2B3C4D5300000000000006 /* md.too QuickLook.appex in Embed Foundation Extensions */,
-			);
-			name = "Embed Foundation Extensions";
-			runOnlyForDeploymentPostprocessing = 0;
-		};
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
@@ -109,7 +97,6 @@
 		1A2B3C4D5200000000000006 /* Info-QuickLook.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "Info-QuickLook.plist"; sourceTree = "<group>"; };
 		1A2B3C4D5200000000000007 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		1A2B3C4D5200000000000008 /* md.too.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = md.too.app; sourceTree = BUILT_PRODUCTS_DIR; };
-		1A2B3C4D5200000000000009 /* md.too.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = md.too.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		1A2B3C4D520000000000000A /* md.too QuickLook.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = "md.too QuickLook.appex"; sourceTree = BUILT_PRODUCTS_DIR; };
 		1A2B3C4D520000000000000B /* Highlight.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Highlight.swift; sourceTree = "<group>"; };
 		1A2B3C4D520000000000000C /* highlights.ini */ = {isa = PBXFileReference; lastKnownFileType = text; path = highlights.ini; sourceTree = "<group>"; };
@@ -183,7 +170,6 @@
 			isa = PBXGroup;
 			children = (
 				1A2B3C4D5200000000000008 /* md.too.app */,
-				1A2B3C4D5200000000000009 /* md.too.app */,
 				1A2B3C4D520000000000000A /* md.too QuickLook.appex */,
 			);
 			name = Products;
@@ -243,42 +229,24 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
-		1A2B3C4D5400000000000001 /* md.too macOS */ = {
+		1A2B3C4D5400000000000001 /* md.too */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = 1A2B3C4D5500000000000002 /* Build configuration list for PBXNativeTarget "md.too macOS" */;
+			buildConfigurationList = 1A2B3C4D5500000000000002 /* Build configuration list for PBXNativeTarget "md.too" */;
 			buildPhases = (
 				1A2B3C4D5700000000000001 /* Sources */,
 				1A2B3C4D5800000000000001 /* Frameworks */,
 				1A2B3C4D5900000000000001 /* Resources */,
-				1A2B3C4D5A00000000000001 /* Embed Foundation Extensions */,
 				1A2B3C4D5E00000000000001 /* Stamp Version */,
+				1A2B3C4D5F00000000000001 /* Embed QuickLook (macOS only) */,
 			);
 			buildRules = (
 			);
 			dependencies = (
 				1A2B3C4D5C00000000000001 /* PBXTargetDependency */,
 			);
-			name = "md.too macOS";
+			name = "md.too";
 			productName = md.too;
 			productReference = 1A2B3C4D5200000000000008 /* md.too.app */;
-			productType = "com.apple.product-type.application";
-		};
-		1A2B3C4D5400000000000002 /* md.too iOS */ = {
-			isa = PBXNativeTarget;
-			buildConfigurationList = 1A2B3C4D5500000000000003 /* Build configuration list for PBXNativeTarget "md.too iOS" */;
-			buildPhases = (
-				1A2B3C4D5700000000000002 /* Sources */,
-				1A2B3C4D5800000000000002 /* Frameworks */,
-				1A2B3C4D5900000000000002 /* Resources */,
-				1A2B3C4D5E00000000000002 /* Stamp Version */,
-			);
-			buildRules = (
-			);
-			dependencies = (
-			);
-			name = "md.too iOS";
-			productName = md.too;
-			productReference = 1A2B3C4D5200000000000009 /* md.too.app */;
 			productType = "com.apple.product-type.application";
 		};
 		1A2B3C4D5400000000000003 /* md.too QuickLook */ = {
@@ -312,9 +280,6 @@
 					1A2B3C4D5400000000000001 = {
 						CreatedOnToolsVersion = 15.0;
 					};
-					1A2B3C4D5400000000000002 = {
-						CreatedOnToolsVersion = 15.0;
-					};
 					1A2B3C4D5400000000000003 = {
 						CreatedOnToolsVersion = 15.0;
 					};
@@ -333,8 +298,7 @@
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
-				1A2B3C4D5400000000000001 /* md.too macOS */,
-				1A2B3C4D5400000000000002 /* md.too iOS */,
+				1A2B3C4D5400000000000001 /* md.too */,
 				1A2B3C4D5400000000000003 /* md.too QuickLook */,
 			);
 		};
@@ -350,15 +314,6 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		1A2B3C4D5900000000000002 /* Resources */ = {
-			isa = PBXResourcesBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-				1A2B3C4D5300000000000005 /* Assets.xcassets in Resources */,
-				1A2B3C4D530000000000000B /* highlights.ini in Resources */,
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
 		1A2B3C4D5900000000000003 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -371,25 +326,6 @@
 
 /* Begin PBXShellScriptBuildPhase section */
 		1A2B3C4D5E00000000000001 /* Stamp Version */ = {
-			isa = PBXShellScriptBuildPhase;
-			alwaysOutOfDate = 1;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			inputFileListPaths = (
-			);
-			inputPaths = (
-			);
-			name = "Stamp Version";
-			outputFileListPaths = (
-			);
-			outputPaths = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-			shellPath = /bin/sh;
-			shellScript = "\"$SRCROOT/Scripts/stamp-version.sh\"\n";
-		};
-		1A2B3C4D5E00000000000002 /* Stamp Version */ = {
 			isa = PBXShellScriptBuildPhase;
 			alwaysOutOfDate = 1;
 			buildActionMask = 2147483647;
@@ -427,6 +363,25 @@
 			shellPath = /bin/sh;
 			shellScript = "\"$SRCROOT/Scripts/stamp-version.sh\"\n";
 		};
+		1A2B3C4D5F00000000000001 /* Embed QuickLook (macOS only) */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+			);
+			name = "Embed QuickLook (macOS only)";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "if [ \"${PLATFORM_NAME}\" = \"macosx\" ]; then\n  dest=\"${TARGET_BUILD_DIR}/${WRAPPER_NAME}/Contents/PlugIns\"\n  mkdir -p \"$dest\"\n  rm -rf \"$dest/md.too QuickLook.appex\"\n  ditto \"${BUILT_PRODUCTS_DIR}/md.too QuickLook.appex\" \"$dest/md.too QuickLook.appex\"\nfi\n";
+		};
 /* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
@@ -458,36 +413,11 @@
 				B5000011AAAAAAAAAAAAAAAA /* TableMetrics.swift in Sources */,
 				1A2B3C4D5300000000000011 /* Bridges-macOS.swift in Sources */,
 				1A2B3C4D5300000000000007 /* Highlight.swift in Sources */,
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
-		1A2B3C4D5700000000000002 /* Sources */ = {
-			isa = PBXSourcesBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-				1A2B3C4D530000000000002E /* Platform-iOS.swift in Sources */,
-				1A2B3C4D5300000000000018 /* FontRole.swift in Sources */,
-				B317307C2FD226F500C6B7F0 /* PlainExport.swift in Sources */,
-				B31730782FD226CE00C6B7F0 /* HtmlExport.swift in Sources */,
-				1A2B3C4D530000000000001B /* Environment.swift in Sources */,
 				1A2B3C4D530000000000001E /* App-iOS.swift in Sources */,
-				1A2B3C4D5300000000000020 /* FileWatcher.swift in Sources */,
-				B317307F2FD2273100C6B7F0 /* DocumentText.swift in Sources */,
-				1A2B3C4D5300000000000022 /* Toolbar.swift in Sources */,
-				1A2B3C4D5300000000000002 /* MarkdownParser.swift in Sources */,
-				1A2B3C4D5300000000000025 /* MarkdownView.swift in Sources */,
-				B31730832FD2283E00C6B7F0 /* TeX.swift in Sources */,
 				1A2B3C4D5300000000000036 /* ContentView-iOS.swift in Sources */,
-				1A2B3C4D5300000000000028 /* BlockViews.swift in Sources */,
-				1A2B3C4D530000000000002B /* SelectableText.swift in Sources */,
-				B6000002AAAAAAAAAAAAAAAA /* MarkdownDocument.swift in Sources */,
-				B6000012AAAAAAAAAAAAAAAA /* PDFExport.swift in Sources */,
-				1A2B3C4D530000000000000F /* PDFRenderer.swift in Sources */,
 				1A2B3C4D5300000000000032 /* DocumentText-iOS.swift in Sources */,
+				1A2B3C4D530000000000002E /* Platform-iOS.swift in Sources */,
 				1A2B3C4D5300000000000013 /* Bridges-iOS.swift in Sources */,
-				1A2B3C4D5300000000000008 /* Highlight.swift in Sources */,
-				B5000002AAAAAAAAAAAAAAAA /* ImagePrefetch.swift in Sources */,
-				B5000012AAAAAAAAAAAAAAAA /* TableMetrics.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -517,6 +447,9 @@
 /* Begin PBXTargetDependency section */
 		1A2B3C4D5C00000000000001 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
+			platformFilters = (
+				macos,
+			);
 			target = 1A2B3C4D5400000000000003 /* md.too QuickLook */;
 			targetProxy = 1A2B3C4D5B00000000000001 /* PBXContainerItemProxy */;
 		};
@@ -559,7 +492,7 @@
 				COPY_PHASE_STRIP = NO;
 				DEAD_CODE_STRIPPING = YES;
 				DEBUG_INFORMATION_FORMAT = dwarf;
-				DEVELOPMENT_TEAM = "";
+				DEVELOPMENT_TEAM = "$(LOCAL_DEVELOPMENT_TEAM)";
 				"DEVELOPMENT_TEAM[sdk=macosx*]" = "";
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_TESTABILITY = YES;
@@ -624,7 +557,7 @@
 				COPY_PHASE_STRIP = NO;
 				DEAD_CODE_STRIPPING = YES;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
-				DEVELOPMENT_TEAM = "";
+				DEVELOPMENT_TEAM = "$(LOCAL_DEVELOPMENT_TEAM)";
 				"DEVELOPMENT_TEAM[sdk=macosx*]" = "";
 				ENABLE_NS_ASSERTIONS = NO;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
@@ -650,7 +583,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
-				CODE_SIGN_ENTITLEMENTS = config/Markdown.Preview.debug.entitlements;
+				"CODE_SIGN_ENTITLEMENTS[sdk=macosx*]" = config/Markdown.Preview.debug.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "-";
 				CODE_SIGN_STYLE = Manual;
@@ -658,82 +591,33 @@
 				DEAD_CODE_STRIPPING = YES;
 				ENABLE_HARDENED_RUNTIME = YES;
 				GENERATE_INFOPLIST_FILE = NO;
-				INFOPLIST_FILE = "config/Info-macOS.plist";
-				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.productivity";
-				LD_RUNPATH_SEARCH_PATHS = (
-					"$(inherited)",
-					"@executable_path/../Frameworks",
-				);
-				MACOSX_DEPLOYMENT_TARGET = 13.0;
-				PRODUCT_BUNDLE_IDENTIFIER = "com.leok7v.md.too$(APP_BUNDLE_SUFFIX)";
-				"PRODUCT_BUNDLE_IDENTIFIER[sdk=macosx*]" = com.leok7v.md.too;
-				PRODUCT_MODULE_NAME = MarkdownPreview;
-				PRODUCT_NAME = md.too;
-				PROVISIONING_PROFILE_SPECIFIER = "";
-				"PROVISIONING_PROFILE_SPECIFIER[sdk=macosx*]" = "";
-				SDKROOT = macosx;
-				SUPPORTED_PLATFORMS = macosx;
-				SWIFT_EMIT_LOC_STRINGS = YES;
-				SWIFT_VERSION = 5.0;
-			};
-			name = Debug;
-		};
-		1A2B3C4D5600000000000004 /* Release */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
-				CODE_SIGN_ENTITLEMENTS = config/Markdown.Preview.entitlements;
-				CODE_SIGN_IDENTITY = "Apple Development";
-				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "-";
-				CODE_SIGN_STYLE = Manual;
-				COMBINE_HIDPI_IMAGES = YES;
-				DEAD_CODE_STRIPPING = YES;
-				ENABLE_HARDENED_RUNTIME = YES;
-				GENERATE_INFOPLIST_FILE = NO;
-				INFOPLIST_FILE = "config/Info-macOS.plist";
-				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.productivity";
-				LD_RUNPATH_SEARCH_PATHS = (
-					"$(inherited)",
-					"@executable_path/../Frameworks",
-				);
-				MACOSX_DEPLOYMENT_TARGET = 13.0;
-				PRODUCT_BUNDLE_IDENTIFIER = "com.leok7v.md.too$(APP_BUNDLE_SUFFIX)";
-				"PRODUCT_BUNDLE_IDENTIFIER[sdk=macosx*]" = com.leok7v.md.too;
-				PRODUCT_MODULE_NAME = MarkdownPreview;
-				PRODUCT_NAME = md.too;
-				PROVISIONING_PROFILE_SPECIFIER = "";
-				"PROVISIONING_PROFILE_SPECIFIER[sdk=macosx*]" = "";
-				SDKROOT = macosx;
-				SUPPORTED_PLATFORMS = macosx;
-				SWIFT_EMIT_LOC_STRINGS = YES;
-				SWIFT_VERSION = 5.0;
-			};
-			name = Release;
-		};
-		1A2B3C4D5600000000000005 /* Debug */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
-				CODE_SIGN_IDENTITY = "Apple Development";
-				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "-";
-				CODE_SIGN_STYLE = Manual;
-				GENERATE_INFOPLIST_FILE = NO;
-				INFOPLIST_FILE = "config/Info-iOS.plist";
-				INFOPLIST_KEY_CFBundleDisplayName = Markdown;
+				"INFOPLIST_FILE[sdk=iphoneos*]" = "config/Info-iOS.plist";
+				"INFOPLIST_FILE[sdk=iphonesimulator*]" = "config/Info-iOS.plist";
+				"INFOPLIST_FILE[sdk=macosx*]" = "config/Info-macOS.plist";
+				"INFOPLIST_KEY_CFBundleDisplayName[sdk=iphoneos*]" = Markdown;
+				"INFOPLIST_KEY_CFBundleDisplayName[sdk=iphonesimulator*]" = Markdown;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.productivity";
 				IPHONEOS_DEPLOYMENT_TARGET = 18.6;
-				LD_RUNPATH_SEARCH_PATHS = (
+				"LD_RUNPATH_SEARCH_PATHS[sdk=iphoneos*]" = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = "com.leok7v.md.too$(APP_BUNDLE_SUFFIX)";
-				"PRODUCT_BUNDLE_IDENTIFIER[sdk=iphoneos*]" = com.leok7v.md.too;
+				"LD_RUNPATH_SEARCH_PATHS[sdk=iphonesimulator*]" = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 13.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.leok7v.md.too;
 				PRODUCT_MODULE_NAME = MarkdownPreview;
 				PRODUCT_NAME = md.too;
 				PROVISIONING_PROFILE_SPECIFIER = "";
 				"PROVISIONING_PROFILE_SPECIFIER[sdk=macosx*]" = "";
-				SDKROOT = iphoneos;
-				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SDKROOT = auto;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx";
 				SUPPORTS_MACCATALYST = NO;
 				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = NO;
 				SWIFT_EMIT_LOC_STRINGS = YES;
@@ -742,30 +626,45 @@
 			};
 			name = Debug;
 		};
-		1A2B3C4D5600000000000006 /* Release */ = {
+		1A2B3C4D5600000000000004 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				"CODE_SIGN_ENTITLEMENTS[sdk=macosx*]" = config/Markdown.Preview.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "-";
 				CODE_SIGN_STYLE = Manual;
+				COMBINE_HIDPI_IMAGES = YES;
+				DEAD_CODE_STRIPPING = YES;
+				ENABLE_HARDENED_RUNTIME = YES;
 				GENERATE_INFOPLIST_FILE = NO;
-				INFOPLIST_FILE = "config/Info-iOS.plist";
-				INFOPLIST_KEY_CFBundleDisplayName = Markdown;
+				"INFOPLIST_FILE[sdk=iphoneos*]" = "config/Info-iOS.plist";
+				"INFOPLIST_FILE[sdk=iphonesimulator*]" = "config/Info-iOS.plist";
+				"INFOPLIST_FILE[sdk=macosx*]" = "config/Info-macOS.plist";
+				"INFOPLIST_KEY_CFBundleDisplayName[sdk=iphoneos*]" = Markdown;
+				"INFOPLIST_KEY_CFBundleDisplayName[sdk=iphonesimulator*]" = Markdown;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.productivity";
 				IPHONEOS_DEPLOYMENT_TARGET = 18.6;
-				LD_RUNPATH_SEARCH_PATHS = (
+				"LD_RUNPATH_SEARCH_PATHS[sdk=iphoneos*]" = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = "com.leok7v.md.too$(APP_BUNDLE_SUFFIX)";
-				"PRODUCT_BUNDLE_IDENTIFIER[sdk=iphoneos*]" = com.leok7v.md.too;
+				"LD_RUNPATH_SEARCH_PATHS[sdk=iphonesimulator*]" = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 13.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.leok7v.md.too;
 				PRODUCT_MODULE_NAME = MarkdownPreview;
 				PRODUCT_NAME = md.too;
 				PROVISIONING_PROFILE_SPECIFIER = "";
 				"PROVISIONING_PROFILE_SPECIFIER[sdk=macosx*]" = "";
-				SDKROOT = iphoneos;
-				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SDKROOT = auto;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx";
 				SUPPORTS_MACCATALYST = NO;
 				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = NO;
 				SWIFT_EMIT_LOC_STRINGS = YES;
@@ -790,8 +689,7 @@
 					"@executable_path/../../../../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 13.0;
-				PRODUCT_BUNDLE_IDENTIFIER = "com.leok7v.md.too$(APP_BUNDLE_SUFFIX).QuickLook";
-				"PRODUCT_BUNDLE_IDENTIFIER[sdk=macosx*]" = com.leok7v.md.too.QuickLook;
+				PRODUCT_BUNDLE_IDENTIFIER = com.leok7v.md.too.QuickLook;
 				PRODUCT_MODULE_NAME = MarkdownPreviewQuickLook;
 				PRODUCT_NAME = "md.too QuickLook";
 				REGISTER_APP_GROUPS = YES;
@@ -819,8 +717,7 @@
 					"@executable_path/../../../../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 13.0;
-				PRODUCT_BUNDLE_IDENTIFIER = "com.leok7v.md.too$(APP_BUNDLE_SUFFIX).QuickLook";
-				"PRODUCT_BUNDLE_IDENTIFIER[sdk=macosx*]" = com.leok7v.md.too.QuickLook;
+				PRODUCT_BUNDLE_IDENTIFIER = com.leok7v.md.too.QuickLook;
 				PRODUCT_MODULE_NAME = MarkdownPreviewQuickLook;
 				PRODUCT_NAME = "md.too QuickLook";
 				REGISTER_APP_GROUPS = YES;
@@ -845,20 +742,11 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		1A2B3C4D5500000000000002 /* Build configuration list for PBXNativeTarget "md.too macOS" */ = {
+		1A2B3C4D5500000000000002 /* Build configuration list for PBXNativeTarget "md.too" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				1A2B3C4D5600000000000003 /* Debug */,
 				1A2B3C4D5600000000000004 /* Release */,
-			);
-			defaultConfigurationIsVisible = 0;
-			defaultConfigurationName = Release;
-		};
-		1A2B3C4D5500000000000003 /* Build configuration list for PBXNativeTarget "md.too iOS" */ = {
-			isa = XCConfigurationList;
-			buildConfigurations = (
-				1A2B3C4D5600000000000005 /* Debug */,
-				1A2B3C4D5600000000000006 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

@@ -1,15 +1,10 @@
-// Base.xcconfig — committed (public + devs).
+// Base.xcconfig -- committed (public + devs).
 // Per-developer overrides go in Local.xcconfig (gitignored).
 // Local.xcconfig defines LOCAL_DEVELOPMENT_TEAM; if absent, the team
 // resolves to empty (matches the public-repo convention).
-// APP_BUNDLE_SUFFIX lets a dev build run alongside the Mac App Store
-// install. Default empty (App Store identity). A devs-only
-// Local.xcconfig may set APP_BUNDLE_SUFFIX = .dev so a local install
-// becomes com.leok7v.md.too.dev (+ .QuickLook appex). Default must
-// come BEFORE the #include so Local.xcconfig can override it.
-APP_BUNDLE_SUFFIX =
 
 #include? "Local.xcconfig"
+#include "platform.xcconfig"
 #include "version.xcconfig"
 // version-generated.xcconfig is written by Scripts/stamp-version.sh on
 // every build; gitignored. Optional so a fresh checkout builds before

@@ -55,15 +55,15 @@ A friend asked me last week what a Markdown file is. I had to explain that `.md`
 
 Open `md.too.xcodeproj` in Xcode 15+ and pick a scheme:
 
-- `md.too macOS` — the macOS app (Quick Look extension is bundled automatically).
-- `md.too iOS` — the iOS / iPadOS app.
+- `md.too` — the multiplatform app. Pick a macOS or iOS destination in the toolbar; on macOS the Quick Look extension is embedded automatically.
 - `md.too QuickLook` — the Quick Look extension on its own; normally not needed.
 
 Or from the command line:
 
 ```sh
-xcodebuild -project md.too.xcodeproj -scheme "md.too macOS" build
-xcodebuild -project md.too.xcodeproj -scheme "md.too iOS" \
+xcodebuild -project md.too.xcodeproj -scheme "md.too" \
+  -destination "generic/platform=macOS" build
+xcodebuild -project md.too.xcodeproj -scheme "md.too" \
   -destination "generic/platform=iOS Simulator" build
 ```
 

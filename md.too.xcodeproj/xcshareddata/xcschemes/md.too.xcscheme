@@ -15,9 +15,9 @@
             buildForAnalyzing = "YES">
             <BuildableReference
                BuildableIdentifier = "primary"
-               BlueprintIdentifier = "1A2B3C4D5400000000000002"
+               BlueprintIdentifier = "1A2B3C4D5400000000000001"
                BuildableName = "md.too.app"
-               BlueprintName = "md.too iOS"
+               BlueprintName = "md.too"
                ReferencedContainer = "container:md.too.xcodeproj">
             </BuildableReference>
          </BuildActionEntry>
@@ -45,9 +45,9 @@
          runnableDebuggingMode = "0">
          <BuildableReference
             BuildableIdentifier = "primary"
-            BlueprintIdentifier = "1A2B3C4D5400000000000002"
+            BlueprintIdentifier = "1A2B3C4D5400000000000001"
             BuildableName = "md.too.app"
-            BlueprintName = "md.too iOS"
+            BlueprintName = "md.too"
             ReferencedContainer = "container:md.too.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
@@ -62,9 +62,9 @@
          runnableDebuggingMode = "0">
          <BuildableReference
             BuildableIdentifier = "primary"
-            BlueprintIdentifier = "1A2B3C4D5400000000000002"
+            BlueprintIdentifier = "1A2B3C4D5400000000000001"
             BuildableName = "md.too.app"
-            BlueprintName = "md.too iOS"
+            BlueprintName = "md.too"
             ReferencedContainer = "container:md.too.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
