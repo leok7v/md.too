@@ -31,7 +31,7 @@
                BuildableIdentifier = "primary"
                BlueprintIdentifier = "1A2B3C4D5400000000000001"
                BuildableName = "md.too.app"
-               BlueprintName = "md.too macOS"
+               BlueprintName = "md.too"
                ReferencedContainer = "container:md.too.xcodeproj">
             </BuildableReference>
          </BuildActionEntry>
@@ -63,7 +63,7 @@
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "1A2B3C4D5400000000000001"
             BuildableName = "md.too.app"
-            BlueprintName = "md.too macOS"
+            BlueprintName = "md.too"
             ReferencedContainer = "container:md.too.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
@@ -82,7 +82,7 @@
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "1A2B3C4D5400000000000001"
             BuildableName = "md.too.app"
-            BlueprintName = "md.too macOS"
+            BlueprintName = "md.too"
             ReferencedContainer = "container:md.too.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
