@@ -119,6 +119,11 @@ enum DocumentText {
             m.append(listItem(item, para: para, tight: tight,
                               depth: depth, images: images))
         }
+        // Blocks separate with a blank line and each item already ends
+        // with one newline, so a top-level list owes one more to match
+        // the paragraph / heading convention. A nested list sits inside
+        // an item and must not open a gap mid-list.
+        if depth == 0 { m.append(NSAttributedString(string: "\n")) }
         return m
     }
 
@@ -241,13 +246,9 @@ enum DocumentText {
         // line's background paints: NSTextView draws no line-fragment
         // background for a run's final line when it abuts a plain
         // paragraph break.
-        let sep: String
-        if text.hasSuffix("\n") {
-            sep = "\n\n"
-        } else {
+        if !text.hasSuffix("\n") {
             m.append(NSAttributedString(string: "\n",
                                         attributes: [.font: baseFont]))
-            sep = "\n"
         }
         let full = NSRange(location: 0, length: m.length)
         m.addAttribute(.backgroundColor,
@@ -256,7 +257,7 @@ enum DocumentText {
                        value: AtomicKind.code.rawValue, range: full)
         m.addAttribute(atomicIdKey, value: UUID().uuidString, range: full)
         m.addAttribute(atomicCopyKey, value: text, range: full)
-        m.append(NSAttributedString(string: sep))
+        m.append(NSAttributedString(string: "\n"))
         return m
     }
 
