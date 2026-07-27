@@ -37,6 +37,19 @@ extension DocumentText {
                                   images: images))
                 rowIdx += 1
             }
+            // One contiguous atomic kind / id / copy over the whole table
+            // (cells plus the separators, which carry none per-cell) so
+            // selection-snap sees one unit and the copy overlay yields ONE
+            // button. Stamped before the trailing newline so a drag past
+            // the table stops at the table edge.
+            let content = NSRange(location: 0, length: m.length)
+            m.addAttribute(atomicKindKey,
+                           value: AtomicKind.table.rawValue, range: content)
+            m.addAttribute(atomicIdKey, value: atomicId, range: content)
+            m.addAttribute(atomicCopyKey,
+                           value: TableMetrics.serializeMonospaced(
+                               headers: headers, rows: rows),
+                           range: content)
             m.append(NSAttributedString(string: "\n"))
         }
         return m

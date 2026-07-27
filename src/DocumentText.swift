@@ -237,13 +237,26 @@ enum DocumentText {
         let highlighted = Highlight.attribute(text, language: language,
                                               baseFont: baseFont)
         let m = NSMutableAttributedString(attributedString: highlighted)
+        // A trailing newline INSIDE the tinted range so the last code
+        // line's background paints: NSTextView draws no line-fragment
+        // background for a run's final line when it abuts a plain
+        // paragraph break.
+        let sep: String
+        if text.hasSuffix("\n") {
+            sep = "\n\n"
+        } else {
+            m.append(NSAttributedString(string: "\n",
+                                        attributes: [.font: baseFont]))
+            sep = "\n"
+        }
         let full = NSRange(location: 0, length: m.length)
         m.addAttribute(.backgroundColor,
                        value: platformWhite(0.5, alpha: 0.10), range: full)
         m.addAttribute(atomicKindKey,
                        value: AtomicKind.code.rawValue, range: full)
         m.addAttribute(atomicIdKey, value: UUID().uuidString, range: full)
-        m.append(NSAttributedString(string: "\n\n"))
+        m.addAttribute(atomicCopyKey, value: text, range: full)
+        m.append(NSAttributedString(string: sep))
         return m
     }
 

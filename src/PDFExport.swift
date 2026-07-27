@@ -53,6 +53,26 @@ func exportPDF(text: String, title: String) async -> URL? {
     return result
 }
 
+func exportHTML(text: String, title: String) async -> URL? {
+    let blocks = Markdown.parse(text)
+    let images = await HtmlExport.prefetchImages(in: blocks)
+    let html = HtmlExport.render(blocks, title: title, images: images)
+    let safe = title
+        .replacingOccurrences(of: "/", with: "_")
+        .replacingOccurrences(of: ":", with: "_")
+    let dir = TempPDFs.directory
+    try? FileManager.default.createDirectory(
+        at: dir, withIntermediateDirectories: true)
+    let temp = dir.appendingPathComponent("\(safe).html")
+    try? FileManager.default.removeItem(at: temp)
+    var result: URL? = nil
+    let data = html.data(using: .utf8)
+    if let data, (try? data.write(to: temp)) != nil {
+        result = temp
+    }
+    return result
+}
+
 enum PDFExport {
 
     static func write(blocks: [Block],

@@ -33,6 +33,18 @@ extension DocumentText {
                                           atomicId: atomicId,
                                           images: images))
             }
+            // One contiguous atomic kind / id / copy over the whole table,
+            // stamped before the trailing newline, mirroring the macOS
+            // sibling so both single-surface builders carry the same
+            // copy-source contract.
+            let content = NSRange(location: 0, length: m.length)
+            m.addAttribute(atomicKindKey,
+                           value: AtomicKind.table.rawValue, range: content)
+            m.addAttribute(atomicIdKey, value: atomicId, range: content)
+            m.addAttribute(atomicCopyKey,
+                           value: TableMetrics.serializeMonospaced(
+                               headers: headers, rows: rows),
+                           range: content)
             m.append(NSAttributedString(string: "\n"))
         }
         return m

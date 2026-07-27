@@ -12,6 +12,8 @@
 		1A2B3C4D5300000000000003 /* MarkdownParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A2B3C4D5200000000000001 /* MarkdownParser.swift */; };
 		1A2B3C4D5300000000000004 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 1A2B3C4D5200000000000007 /* Assets.xcassets */; };
 		1A2B3C4D5300000000000005 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 1A2B3C4D5200000000000007 /* Assets.xcassets */; };
+		FA00000000000000000000A2 /* Find.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA00000000000000000000A1 /* Find.swift */; };
+		FA00000000000000000000A3 /* Find.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA00000000000000000000A1 /* Find.swift */; };
 		1A2B3C4D5300000000000007 /* Highlight.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A2B3C4D520000000000000B /* Highlight.swift */; };
 		1A2B3C4D5300000000000008 /* Highlight.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A2B3C4D520000000000000B /* Highlight.swift */; };
 		1A2B3C4D5300000000000009 /* Highlight.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A2B3C4D520000000000000B /* Highlight.swift */; };
@@ -110,6 +112,7 @@
 		1A2B3C4D5200000000000015 /* Environment.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Environment.swift; sourceTree = "<group>"; };
 		1A2B3C4D5200000000000016 /* App-macOS.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "App-macOS.swift"; sourceTree = "<group>"; };
 		1A2B3C4D5200000000000017 /* FileWatcher.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileWatcher.swift; sourceTree = "<group>"; };
+		FA00000000000000000000A1 /* Find.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Find.swift; sourceTree = "<group>"; };
 		1A2B3C4D5200000000000018 /* Toolbar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Toolbar.swift; sourceTree = "<group>"; };
 		1A2B3C4D5200000000000019 /* Toolbar-macOS.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Toolbar-macOS.swift"; sourceTree = "<group>"; };
 		1A2B3C4D520000000000001A /* MarkdownView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarkdownView.swift; sourceTree = "<group>"; };
@@ -190,6 +193,7 @@
 				1A2B3C4D530000000000002F /* DocumentText-macOS.swift */,
 				1A2B3C4D5200000000000015 /* Environment.swift */,
 				1A2B3C4D5200000000000017 /* FileWatcher.swift */,
+				FA00000000000000000000A1 /* Find.swift */,
 				1A2B3C4D5200000000000014 /* FontRole.swift */,
 				1A2B3C4D520000000000000B /* Highlight.swift */,
 				1A2B3C4D520000000000000C /* highlights.ini */,
@@ -394,6 +398,7 @@
 				1A2B3C4D530000000000001A /* Environment.swift in Sources */,
 				1A2B3C4D530000000000001D /* App-macOS.swift in Sources */,
 				1A2B3C4D530000000000001F /* FileWatcher.swift in Sources */,
+				FA00000000000000000000A2 /* Find.swift in Sources */,
 				1A2B3C4D5300000000000021 /* Toolbar.swift in Sources */,
 				1A2B3C4D5300000000000023 /* Toolbar-macOS.swift in Sources */,
 				1A2B3C4D5300000000000001 /* MarkdownParser.swift in Sources */,
@@ -427,6 +432,7 @@
 			files = (
 				1A2B3C4D5300000000000016 /* Platform-macOS.swift in Sources */,
 				1A2B3C4D5300000000000019 /* FontRole.swift in Sources */,
+				FA00000000000000000000A3 /* Find.swift in Sources */,
 				1A2B3C4D530000000000001C /* Environment.swift in Sources */,
 				1A2B3C4D5300000000000003 /* MarkdownParser.swift in Sources */,
 				1A2B3C4D5300000000000029 /* BlockViews.swift in Sources */,

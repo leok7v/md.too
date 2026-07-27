@@ -92,7 +92,7 @@ A short loop through [EXAMPLE.md](EXAMPLE.md) on each platform — parsing, synt
 
 ## Source code
 
-[`src/`](src) is the whole codebase: 30 hand-written Swift files plus a bundled [`highlights.ini`](src/highlights.ini). No SPM packages, no CocoaPods, no vendored sources. Every file depends only on files in lower layers — the dependency graph is a tree, not a web, and zero `#if os(...)` walls remain anywhere in the source.
+[`src/`](src) is the whole codebase: 31 hand-written Swift files plus a bundled [`highlights.ini`](src/highlights.ini). No SPM packages, no CocoaPods, no vendored sources. Every file depends only on files in lower layers — the dependency graph is a tree, not a web, and zero `#if os(...)` walls remain anywhere in the source.
 
 The layout is layered. A given file references only symbols from files in layers below it, so reading top-down or bottom-up never requires holding a cycle in your head.
 
@@ -113,7 +113,8 @@ The layout is layered. A given file references only symbols from files in layers
 
 - [`TableMetrics.swift`](src/TableMetrics.swift) — column-width math (counts, char widths, point widths with optional minimums, longest-word, monospace serialization). Used by the on-screen table view, the PDF table renderer, and the HTML/plain exports.
 - [`ImagePrefetch.swift`](src/ImagePrefetch.swift) — walks `[Block]` and concurrently fetches remote image URLs.
-- [`SelectableText.swift`](src/SelectableText.swift) — `SelectableText` SwiftUI view + `NativeText` builder + the `AtomicKind` / `atomicKindKey` / `atomicIdKey` constants that mark code / table / image runs.
+- [`SelectableText.swift`](src/SelectableText.swift) — `SelectableText` SwiftUI view + `NativeText` builder + the `AtomicKind` / `atomicKindKey` / `atomicIdKey` / `atomicCopyKey` constants that mark code / table / image runs, and the `applyIncremental` splice that preserves selection across live reloads.
+- [`Find.swift`](src/Find.swift) — `MarkdownFindController` + `FindableTextView` protocol + `markdownFindRanges`; Find / Find Next over the single-surface document view, scrolled by aligning the match's fraction of the document to the same fraction of the viewport.
 
 **Layer 3 — bridges and pure-data exporters:**
 

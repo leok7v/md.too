@@ -30,8 +30,10 @@ extension NativeText: UIViewRepresentable {
 
     func updateUIView(_ v: ResizingUITextView, context: Context) {
         let next = resolved()
-        if v.attributedText?.isEqual(to: next) != true {
-            v.attributedText = next
+        if !v.textStorage.isEqual(to: next) {
+            v.textStorage.beginEditing()
+            applyIncremental(v.textStorage, next)
+            v.textStorage.endEditing()
             v.invalidateIntrinsicContentSize()
         }
     }
