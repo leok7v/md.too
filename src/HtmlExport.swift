@@ -125,7 +125,7 @@ enum HtmlExport {
             out += "<thead><tr style=\"\(rowHeaderStyle)\">\n"
             for i in 0..<n {
                 let cell = i < headers.count ? headers[i] : ""
-                out += "<th style=\"\(thStyle)\">" +
+                out += "<th style=\"\(thStyle)\(divider(i, of: n))\">" +
                        "\(inlineFromCell(cell))</th>\n"
             }
             out += "</tr></thead>\n"
@@ -139,12 +139,20 @@ enum HtmlExport {
             out += rowOpen + "\n"
             for i in 0..<n {
                 let cell = i < row.count ? row[i] : ""
-                out += "<td style=\"\(tdStyle)\">" +
+                out += "<td style=\"\(tdStyle)\(divider(i, of: n))\">" +
                        "\(inlineFromCell(cell))</td>\n"
             }
             out += "</tr>\n"
         }
         return out + "</tbody>\n</table>\n"
+    }
+
+    // The last column carries no divider, or the table gains an outer
+    // right border no other edge has. Inline styles cannot express
+    // :not(:last-child), so the column index decides it here.
+
+    private static func divider(_ col: Int, of count: Int) -> String {
+        col < count - 1 ? colDividerStyle : ""
     }
 
     private static func inlineFromCell(_ raw: String) -> String {
@@ -257,14 +265,24 @@ enum HtmlExport {
         "border-collapse:collapse;" +
         "margin:0.5em 0;"
 
+    // 14px, not 10px: half an average character (~4px at the default
+    // ~16px body) on each side, so the gutter between two columns grows
+    // by a full character. Plain px on purpose -- calc() with a ch unit
+    // would express it exactly, but a paste sanitizer that rejects the
+    // function drops the whole declaration and the padding with it.
     private static let thStyle =
-        "padding:6px 10px;" +
+        "padding:6px 14px;" +
         "text-align:left;" +
         "border-bottom:1px solid rgba(128,128,128,0.3);"
 
     private static let tdStyle =
-        "padding:6px 10px;" +
+        "padding:6px 14px;" +
         "border-bottom:1px solid rgba(128,128,128,0.12);"
+
+    // Lighter than the row rules so the grid reads as columns first;
+    // border-collapse on the table merges it with border-bottom.
+    private static let colDividerStyle =
+        "border-right:1px solid rgba(128,128,128,0.20);"
 
     private static let rowHeaderStyle =
         "background:rgba(128,128,128,0.14);"

@@ -312,6 +312,11 @@ final class PDFRenderer {
     private func drawTableImpl(headers: [String], rows: [[String]],
                                   cols: Int) {
         let rowPad: CGFloat = 4
+        // Horizontal inset only. The gutter between two columns is the
+        // previous cell's right margin plus the next cell's left one, so
+        // half an average character on each side buys a full character of
+        // separation without the row band growing taller.
+        let cellPad = rowPad + averageCharWidth(bodyFont()) / 2
         let minWidths: [CGFloat] = (0..<cols).map { c in
             var widest: CGFloat = 0
             if c < headers.count {
@@ -322,7 +327,7 @@ final class PDFRenderer {
                 let w = cellRenderedWidth(row[c], bold: false)
                 if w > widest { widest = w }
             }
-            return widest + 2 * rowPad
+            return widest + 2 * cellPad
         }
         var colWidths = TableMetrics.pointWidths(headers: headers,
                                                  rows: rows,
@@ -353,7 +358,7 @@ final class PDFRenderer {
             var rowH: CGFloat = bodySize * 1.3
             for c in 0..<cols {
                 let txt = c < cells.count ? cells[c] : ""
-                let cellW = colWidths[c] - 2 * rowPad
+                let cellW = colWidths[c] - 2 * cellPad
                 var h: CGFloat = 0
                 if let info = ImagePrefetch.imageInCell(txt),
                    let cg = images[info.0] {
@@ -377,8 +382,8 @@ final class PDFRenderer {
             var x = contentLeft
             for c in 0..<cols {
                 let txt = c < cells.count ? cells[c] : ""
-                let xL = x + rowPad
-                let cellW = colWidths[c] - 2 * rowPad
+                let xL = x + cellPad
+                let cellW = colWidths[c] - 2 * cellPad
                 if let info = ImagePrefetch.imageInCell(txt),
                    let cg = images[info.0] {
                     let used = drawCellImage(cg, x: xL, topY: savedY,
@@ -405,6 +410,19 @@ final class PDFRenderer {
             ctx.setLineWidth(0.5)
             ctx.move(to: CGPoint(x: contentLeft, y: y))
             ctx.addLine(to: CGPoint(x: contentRight, y: y))
+            ctx.strokePath()
+            // Interior column dividers, thinner than the row rules so the
+            // grid reads as columns first. The band starts at the previous
+            // row's rule (savedY + rowPad) so consecutive rows join into
+            // one line, clamped at contentTop for a row that page-broke.
+            let bandTop = min(savedY + rowPad, contentTop)
+            ctx.setLineWidth(0.25)
+            var divider = contentLeft
+            for c in 0..<max(cols - 1, 0) {
+                divider += colWidths[c]
+                ctx.move(to: CGPoint(x: divider, y: bandTop))
+                ctx.addLine(to: CGPoint(x: divider, y: y))
+            }
             ctx.strokePath()
             y -= rowPad
         }
@@ -506,6 +524,19 @@ final class PDFRenderer {
         let attr = cellAttributed(text, bold: bold)
         let line = CTLineCreateWithAttributedString(attr)
         return CTLineGetBoundsWithOptions(line, []).width
+    }
+
+    // Measured off the lowercase alphabet rather than asked of the font:
+    // a proportional face has no single advance to report, and the letters
+    // a reader actually meets are what the gutter should be scaled to.
+
+    private func averageCharWidth(_ font: CTFont) -> CGFloat {
+        let sample = "abcdefghijklmnopqrstuvwxyz"
+        let attr = NSAttributedString(string: sample,
+                                      attributes: [.font: font])
+        let line = CTLineCreateWithAttributedString(attr)
+        let width = CTLineGetBoundsWithOptions(line, []).width
+        return width / CGFloat(sample.count)
     }
 
     private func textCellHeight(_ txt: String, bold: Bool,
