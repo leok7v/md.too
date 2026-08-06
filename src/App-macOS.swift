@@ -71,8 +71,35 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         .commands {
             CommandGroup(replacing: .newItem) {}
+            ZoomCommands()
         }
         .defaultSize(width: 800, height: 600)
+    }
+
+}
+
+// The zoom is one app-wide preference, so the menu drives the stored
+// notch directly and every open document window follows. Cmd-= carries
+// the Zoom In shortcut because the key is unshifted "=" -- macOS shows
+// it as Cmd-+ in the menu.
+
+struct ZoomCommands: Commands {
+
+    @AppStorage(Zoom.key) private var notch: Int = 0
+
+    var body: some Commands {
+        CommandGroup(after: .toolbar) {
+            Button("Zoom In") { notch = Zoom.clamp(notch + 1) }
+                .keyboardShortcut("=", modifiers: .command)
+                .disabled(notch >= Zoom.limit)
+            Button("Zoom Out") { notch = Zoom.clamp(notch - 1) }
+                .keyboardShortcut("-", modifiers: .command)
+                .disabled(notch <= -Zoom.limit)
+            Button("Actual Size") { notch = 0 }
+                .keyboardShortcut("0", modifiers: .command)
+                .disabled(notch == 0)
+            Divider()
+        }
     }
 
 }

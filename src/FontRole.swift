@@ -6,10 +6,18 @@ enum FontRole {
     case heading(Int)
     case mono
 
+    // Every on-screen size passes through here, so the zoom multiplier
+    // is applied once at this single origin. The PDF and HTML exports
+    // carry their own sizes and are deliberately left alone: they render
+    // a document, not the view someone happens to be reading it at.
+
     var platformFont: PlatformFont {
+        let zoom = Zoom.current
         switch self {
             case .body:
-                return PlatformFont.preferredFont(forTextStyle: .body)
+                let base = PlatformFont.preferredFont(forTextStyle: .body)
+                return platformResizedFont(base,
+                                           to: base.pointSize * zoom)
             case .heading(let n):
                 let style: PlatformFont.TextStyle
                 switch n {
@@ -21,11 +29,13 @@ enum FontRole {
                     default: style = .subheadline
                 }
                 let base = PlatformFont.preferredFont(forTextStyle: style)
-                return boldFont(of: base)
+                let sized = platformResizedFont(base,
+                                                to: base.pointSize * zoom)
+                return boldFont(of: sized)
             case .mono:
                 let size = PlatformFont
                     .preferredFont(forTextStyle: .body).pointSize
-                return monoFont(at: size)
+                return monoFont(at: size * zoom)
         }
     }
 

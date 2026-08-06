@@ -7,6 +7,10 @@ struct MarkdownView: View {
     let showSource: Bool
     let singleSurface: Bool
     var find: MarkdownFindController? = nil
+    // Read by FontRole from UserDefaults, not from here. It is a stored
+    // property so a changed notch makes SwiftUI re-run body, which is
+    // what re-measures the document at the new size.
+    var zoom: Int = 0
 
     @State private var documentImages: [URL: DocumentText.DocumentImage] = [:]
 

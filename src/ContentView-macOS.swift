@@ -10,6 +10,7 @@ struct ContentView: View {
     private var themeRaw: String = ThemeMode.system.rawValue
     @AppStorage("singleSurface")
     private var singleSurface: Bool = true
+    @AppStorage(Zoom.key) private var zoom: Int = 0
     @State private var showSource = false
     @State private var liveText: String? = nil
     @State private var expanded = false
@@ -26,7 +27,7 @@ struct ContentView: View {
     var body: some View {
         MarkdownView(displayText: displayText, theme: theme,
                      showSource: showSource, singleSurface: singleSurface,
-                     find: find)
+                     find: find, zoom: zoom)
             .background(autosave)
             .background(findShortcut)
             .safeAreaInset(edge: .top, spacing: 0) { findBarIfVisible }

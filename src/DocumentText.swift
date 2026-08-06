@@ -261,10 +261,12 @@ enum DocumentText {
         return m
     }
 
+    // A point under body, and zoomed with it -- the one size here that
+    // does not come from FontRole, so it applies the multiplier itself.
     private static func monospaceFont() -> PlatformFont {
         let bodySize = PlatformFont.preferredFont(forTextStyle: .body)
             .pointSize
-        return monoFont(at: bodySize - 1)
+        return monoFont(at: (bodySize - 1) * Zoom.current)
     }
 
     private static func paragraph(_ attr: AttributedString)

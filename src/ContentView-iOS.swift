@@ -11,20 +11,67 @@ struct ContentView: View {
     private var themeRaw: String = ThemeMode.system.rawValue
     @AppStorage("singleSurface")
     private var singleSurface: Bool = false
+    @AppStorage(Zoom.key) private var zoom: Int = 0
     @State private var showSource = false
     @State private var liveText: String? = nil
     @State private var expanded = false
     @State private var interaction = 0
+    // The stop the pinch began at, since a magnification is reported
+    // relative to its own start rather than absolutely, and the stop the
+    // readout is already showing, so it is not re-raised every frame.
+    @State private var pinchFrom: Int? = nil
+    @State private var pinchLabel: String? = nil
 
     private var theme: ThemeMode { ThemeMode(raw: themeRaw) }
     private var displayText: String { liveText ?? text }
 
     var body: some View {
         MarkdownView(displayText: displayText, theme: theme,
-                     showSource: showSource, singleSurface: singleSurface)
+                     showSource: showSource, singleSurface: singleSurface,
+                     zoom: zoom)
             .safeAreaInset(edge: .top, spacing: 0) { topBar }
+            .simultaneousGesture(pinchZoom)
+            .overlay { zoomReadout }
             .task(id: interaction) { await collapseAfterIdle() }
             .watchingFile(fileURL, into: $liveText)
+    }
+
+    // Pinch is the phone's way in, there being no menu bar to hang Zoom
+    // on. simultaneousGesture, or it takes the scroll view's own
+    // gestures with it and the document stops scrolling. The stop lands
+    // only when the fingers LIFT: every notch re-measures the whole
+    // document, so following the fingers would relayout it on every
+    // frame of the gesture. The readout is the only thing saying the
+    // gesture was heard at all until then.
+
+    private var pinchZoom: some Gesture {
+        MagnifyGesture()
+            .onChanged { value in
+                let from = pinchFrom ?? zoom
+                if pinchFrom == nil { pinchFrom = from }
+                let want = Zoom.scale(from) * value.magnification
+                pinchLabel = Zoom.percent(Zoom.notch(nearest: want))
+            }
+            .onEnded { value in
+                let from = pinchFrom ?? zoom
+                let want = Zoom.scale(from) * value.magnification
+                zoom = Zoom.notch(nearest: want)
+                pinchFrom = nil
+                pinchLabel = nil
+            }
+    }
+
+    @ViewBuilder
+    private var zoomReadout: some View {
+        if let pinchLabel {
+            Text(pinchLabel)
+                .font(.headline)
+                .monospacedDigit()
+                .padding(.horizontal, 14)
+                .padding(.vertical, 8)
+                .background(.regularMaterial, in: Capsule())
+                .allowsHitTesting(false)
+        }
     }
 
     @ViewBuilder

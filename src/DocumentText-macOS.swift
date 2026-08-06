@@ -3,6 +3,10 @@ import AppKit
 
 extension DocumentText {
 
+    // Horizontal cell padding, as a percentage of the table width so it
+    // can be subtracted from the column-share budget in the same unit.
+    private static var cellPad: CGFloat { 0.6 }
+
     static func table(headers: [String], rows: [[String]],
                       images: [URL: DocumentImage]) -> NSAttributedString {
         let m = NSMutableAttributedString()
@@ -11,10 +15,22 @@ extension DocumentText {
             let atomicId = UUID().uuidString
             let textTable = NSTextTable()
             textTable.numberOfColumns = cols
-            textTable.layoutAlgorithm = .fixedLayoutAlgorithm
+            // Automatic, not fixed: fixed layout is CSS table-layout:
+            // fixed, where a cell whose content outgrows its declared
+            // width spills OVER the next column instead of widening --
+            // headers printed on top of each other. The column shares
+            // below are weighted by character count and cannot know the
+            // rendered size, so any font the widths were not computed
+            // for (a zoom step, a narrow window) overflowed them.
+            textTable.layoutAlgorithm = .automaticLayoutAlgorithm
+            // The shares have to leave room for the padding, or the
+            // table demands 100% plus cellPad * 2 * cols and the last
+            // columns are squeezed off the edge. Percentage padding
+            // keeps that arithmetic in one unit.
+            let budget = max(100 - CGFloat(cols) * cellPad * 2, 50)
             let shares = TableMetrics.pointWidths(headers: headers,
                                                   rows: rows,
-                                                  available: 100)
+                                                  available: budget)
             var rowIdx = 0
             if !headers.isEmpty {
                 m.append(tableRow(cells: headers, table: textTable,
@@ -77,7 +93,14 @@ extension DocumentText {
                                type: .percentageValueType,
                                for: .width)
             }
-            block.setWidth(6, type: .absoluteValueType, for: .padding)
+            block.setWidth(cellPad, type: .percentageValueType,
+                           for: .padding, edge: .minX)
+            block.setWidth(cellPad, type: .percentageValueType,
+                           for: .padding, edge: .maxX)
+            block.setWidth(3, type: .absoluteValueType,
+                           for: .padding, edge: .minY)
+            block.setWidth(3, type: .absoluteValueType,
+                           for: .padding, edge: .maxY)
             block.backgroundColor = tint
             let para = NSMutableParagraphStyle()
             para.textBlocks = [block]
