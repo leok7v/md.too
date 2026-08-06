@@ -31,6 +31,7 @@ struct SelectableText: View {
     let secondary: Bool
     let find: MarkdownFindController?
     @Environment(\.secondaryText) private var envSecondary
+    @Environment(\.textZoom) private var textZoom
     @State private var copySpots: [CopyBlockSpot] = []
 
     init(attributed: AttributedString, role: FontRole = .body,
@@ -64,6 +65,7 @@ struct SelectableText: View {
                    nowrap: nowrap,
                    bold: bold,
                    secondary: secondary || envSecondary,
+                   scale: textZoom,
                    find: find,
                    onCopySpots: { spots in copySpots = spots })
             .fixedSize(horizontal: nowrap, vertical: true)
@@ -117,6 +119,10 @@ struct NativeText {
     let nowrap: Bool
     let bold: Bool
     let secondary: Bool
+    // The zoom this text is rendered at. Stored, not read from the
+    // defaults inside resolved(), so a changed notch changes the
+    // representable and the bridges are asked to update.
+    let scale: CGFloat
     let find: MarkdownFindController?
     let onCopySpots: (([CopyBlockSpot]) -> Void)?
 
@@ -131,7 +137,7 @@ struct NativeText {
             ns = NSMutableAttributedString(string: "")
         }
         let full = NSRange(location: 0, length: ns.length)
-        let baseFont = role.platformFont
+        let baseFont = role.platformFont(scale: scale)
         ns.enumerateAttribute(.font, in: full, options: []) {
             value, range, _ in
             if let f = value as? PlatformFont {

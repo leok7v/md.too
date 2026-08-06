@@ -10,9 +10,17 @@ enum FontRole {
     // is applied once at this single origin. The PDF and HTML exports
     // carry their own sizes and are deliberately left alone: they render
     // a document, not the view someone happens to be reading it at.
+    //
+    // The property reads the stored notch, for builders that run outside
+    // the view tree (DocumentText assembling a document). A view that
+    // must re-render when the notch changes passes the scale it holds as
+    // an environment dependency instead -- see platformFont(scale:).
 
     var platformFont: PlatformFont {
-        let zoom = Zoom.current
+        platformFont(scale: Zoom.current)
+    }
+
+    func platformFont(scale zoom: CGFloat) -> PlatformFont {
         switch self {
             case .body:
                 let base = PlatformFont.preferredFont(forTextStyle: .body)

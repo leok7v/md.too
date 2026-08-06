@@ -21,6 +21,7 @@ struct ContentView: View {
     // readout is already showing, so it is not re-raised every frame.
     @State private var pinchFrom: Int? = nil
     @State private var pinchLabel: String? = nil
+    @State private var settled = 0
 
     private var theme: ThemeMode { ThemeMode(raw: themeRaw) }
     private var displayText: String { liveText ?? text }
@@ -33,6 +34,7 @@ struct ContentView: View {
             .simultaneousGesture(pinchZoom)
             .overlay { zoomReadout }
             .task(id: interaction) { await collapseAfterIdle() }
+            .task(id: settled) { await hideReadout() }
             .watchingFile(fileURL, into: $liveText)
     }
 
@@ -55,10 +57,23 @@ struct ContentView: View {
             .onEnded { value in
                 let from = pinchFrom ?? zoom
                 let want = Zoom.scale(from) * value.magnification
-                zoom = Zoom.notch(nearest: want)
+                let landed = Zoom.notch(nearest: want)
+                zoom = landed
                 pinchFrom = nil
-                pinchLabel = nil
+                // Held past the gesture rather than cleared with it: the
+                // stop only applies when the fingers lift, so tearing the
+                // readout away at that moment hides the one frame that
+                // confirms where it landed.
+                pinchLabel = Zoom.percent(landed)
+                settled += 1
             }
+    }
+
+    private func hideReadout() async {
+        if pinchLabel != nil, pinchFrom == nil {
+            try? await Task.sleep(nanoseconds: 1_200_000_000)
+            if !Task.isCancelled { pinchLabel = nil }
+        }
     }
 
     @ViewBuilder
@@ -71,6 +86,7 @@ struct ContentView: View {
                 .padding(.vertical, 8)
                 .background(.regularMaterial, in: Capsule())
                 .allowsHitTesting(false)
+                .transition(.opacity)
         }
     }
 

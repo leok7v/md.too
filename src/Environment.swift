@@ -22,6 +22,23 @@ extension EnvironmentValues {
     }
 }
 
+// The zoom multiplier the text views render at. FontRole can read the
+// stored notch on its own, but a UserDefaults read is invisible to
+// SwiftUI: with the same AttributedString and the same role, nothing a
+// text view declares would have changed and its representable is never
+// updated. Carrying the scale through the environment makes it a
+// dependency SwiftUI tracks, so every view holding text re-renders.
+struct TextZoomKey: EnvironmentKey {
+    static let defaultValue: CGFloat = 1
+}
+
+extension EnvironmentValues {
+    var textZoom: CGFloat {
+        get { self[TextZoomKey.self] }
+        set { self[TextZoomKey.self] = newValue }
+    }
+}
+
 // Text zoom as a multiplier of ours, NOT a dynamicTypeSize shift: AppKit
 // has no content size category, so the environment value arrives and
 // every size stays where it was. On iOS the system's own Dynamic Type

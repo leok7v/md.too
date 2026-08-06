@@ -29,6 +29,7 @@ extension NativeText: UIViewRepresentable {
     }
 
     func updateUIView(_ v: ResizingUITextView, context: Context) {
+        v.nowrap = nowrap
         let next = resolved()
         if !v.textStorage.isEqual(to: next) {
             v.textStorage.beginEditing()
@@ -36,6 +37,25 @@ extension NativeText: UIViewRepresentable {
             v.textStorage.endEditing()
             v.invalidateIntrinsicContentSize()
         }
+    }
+
+    // Height measured for the PROPOSED width rather than left to the
+    // intrinsic-size dance: SwiftUI keeps the height it already has for
+    // a representable whose invalidation lands after its width settled,
+    // so text that grows -- a zoom step -- renders into the frame the
+    // smaller font was measured at and every block is clipped. nowrap
+    // (code inside a horizontal scroller) keeps its natural width.
+
+    func sizeThatFits(_ proposal: ProposedViewSize,
+                      uiView v: ResizingUITextView,
+                      context: Context) -> CGSize? {
+        var result: CGSize? = nil
+        if !nowrap, let w = proposal.width, w > 0, w.isFinite {
+            let fit = v.sizeThatFits(
+                CGSize(width: w, height: .greatestFiniteMagnitude))
+            result = CGSize(width: w, height: ceil(fit.height))
+        }
+        return result
     }
 
     final class ResizingUITextView: UITextView {

@@ -25,6 +25,7 @@ struct MarkdownView: View {
             .background(systemBackground)
             .background(WindowAppearanceApplier(scheme: theme.colorScheme))
             .preferredColorScheme(theme.colorScheme)
+            .environment(\.textZoom, Zoom.scale(zoom))
             .onAppear {
                 // Aligning the match's fraction of the document to the
                 // same fraction of the viewport puts the match on
