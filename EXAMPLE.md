@@ -61,11 +61,29 @@ Integrals with bounds, which the old renderer used to punt on:
 
 $$\int_{0}^{\infty} e^{-x^2}\,dx = \frac{\sqrt{\pi}}{2}$$
 
+Named operators carry their limits too, and a root can take an index:
+
+$$\lim_{n \to \infty} \sum_{k=1}^{n} \frac{1}{k^2} = \frac{\pi^2}{6} \qquad \sqrt[3]{\frac{x^2+1}{x-1}}$$
+
 Matrices, cases and aligned blocks, which it also used to punt on:
 
 $$\begin{pmatrix} a & b \\ c & d \end{pmatrix}^{-1} = \frac{1}{ad-bc}\begin{pmatrix} d & -b \\ -c & a \end{pmatrix}$$
 
 $$f(n) = \begin{cases} n/2 & \text{even} \\ 3n+1 & \text{odd} \end{cases}$$
+
+An `aligned` block lines its rows up on the relation between them, which is how anyone writing more than one equation expects them to sit:
+
+$$\begin{aligned} \nabla \cdot \mathbf{E} &= \frac{\rho}{\varepsilon_0} \\ \nabla \times \mathbf{B} &= \mu_0\left(\mathbf{J} + \varepsilon_0 \frac{\partial \mathbf{E}}{\partial t}\right) \end{aligned}$$
+
+Fences nest and keep growing, and scripts keep shrinking until they hit scriptscript and stop:
+
+$$\left[\frac{\left(\frac{a}{b}\right)}{c}\right] \qquad A^{B^{C^{D}}} \qquad \frac{\partial u}{\partial t} = \alpha \nabla^2 u$$
+
+The maths alphabets are separate Unicode blocks rather than a font trick, so blackboard bold, script, fraktur, bold, sans and monospace all keep their own letters:
+
+$$\mathbb{RQZ} \quad \mathcal{ABC} \quad \mathfrak{gsl} \quad \mathbf{xyz} \quad \mathsf{uvw} \quad \mathtt{101}$$
+
+Inline, only the ones with a single settled codepoint survive the trip through Unicode: $\mathbb{R}$, $\mathbb{N}$, $\mathbb{Z}$, $\mathbb{Q}$, $\mathbb{C}$. Anything more wants a display.
 
 Greek alphabet, lower and upper, in case you need both at once:
 
