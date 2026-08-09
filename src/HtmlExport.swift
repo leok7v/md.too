@@ -77,6 +77,14 @@ enum HtmlExport {
                 open.append("<del>")
                 close.insert("</del>", at: 0)
             }
+            // Back to the tag the source wrote. The parser consumed it
+            // so the on-screen render could offset a baseline; here the
+            // medium says it natively and says it better.
+            if let level = run[ScriptAttribute.self] {
+                let tag = level > 0 ? "sup" : "sub"
+                open.append("<\(tag)>")
+                close.insert("</\(tag)>", at: 0)
+            }
             out += open.joined() + segment + close.joined()
         }
         return out

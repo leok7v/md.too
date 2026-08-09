@@ -198,6 +198,66 @@ enum TeX {
         return result
     }
 
+    // The plain-text answer to <sub>/<sup>, for the surfaces that have no
+    // baseline to offset: a monospaced table serialization, a character
+    // count, a clipboard paste. Every character or none -- a half-mapped
+    // run reads as a typo, so one unrepresentable letter sends the whole
+    // of it to parentheses, the same shape mapScript uses for TeX.
+
+    static func unicodeScript(_ s: String, superscript sup: Bool) -> String {
+        let map = sup ? superscriptMap : subscriptMap
+        let mapped = s.compactMap { c in map[c] }
+        var result = "(" + s + ")"
+        if s.isEmpty {
+            result = ""
+        } else if mapped.count == s.count {
+            result = String(mapped)
+        }
+        return result
+    }
+
+    // A body with no '<' in it is an INNERMOST pair, which is what makes
+    // one pass safe: "m<sub>DO<sub>2</sub></sub>" is real notation, and a
+    // pattern that let the body span a tag would pair the outer opener
+    // with the inner closer and strand the rest.
+    private static let scriptTagRE: NSRegularExpression? =
+        try? NSRegularExpression(pattern: #"<(sub|sup)>([^<]*)</\1>"#,
+                                 options: .caseInsensitive)
+
+    // Rewrites the tags in a RAW cell, for the table measurers and the
+    // monospaced serializer -- they see the markdown source, never the
+    // parsed runs, and would otherwise size a column to "m<sup>2</sup>".
+    // Repeated until it stops changing, so nesting unwinds inside out.
+
+    static func scriptsToUnicode(_ s: String) -> String {
+        var result = s
+        var unwinding = s.contains("<")
+        while unwinding {
+            let next = innermostScripts(result)
+            unwinding = next != result
+            result = next
+        }
+        return result
+    }
+
+    private static func innermostScripts(_ s: String) -> String {
+        var result = s
+        if let re = scriptTagRE {
+            let ns = s as NSString
+            let full = NSRange(location: 0, length: ns.length)
+            let m = NSMutableString(string: s)
+            for match in re.matches(in: s, range: full).reversed() {
+                let tag = ns.substring(with: match.range(at: 1))
+                let body = ns.substring(with: match.range(at: 2))
+                let sup = tag.lowercased() == "sup"
+                let plain = unicodeScript(body, superscript: sup)
+                m.replaceCharacters(in: match.range, with: plain)
+            }
+            result = m as String
+        }
+        return result
+    }
+
     private static func replaceTokens(_ s: String) -> String {
         var out = s
         let pairs = tokenMap.sorted { a, b in a.key.count > b.key.count }
@@ -248,7 +308,12 @@ enum TeX {
     private static let superscriptMap: [Character: Character] = [
         "0": "⁰", "1": "¹", "2": "²", "3": "³", "4": "⁴",
         "5": "⁵", "6": "⁶", "7": "⁷", "8": "⁸", "9": "⁹",
-        "+": "⁺", "-": "⁻", "=": "⁼", "(": "⁽", ")": "⁾",
+        // U+2212 alongside the hyphen: a document that spells its
+        // exponents with a real minus is the same document that spells
+        // them with <sup>, and one unmapped character sends the whole
+        // run to parentheses.
+        "+": "⁺", "-": "⁻", "\u{2212}": "⁻", "=": "⁼",
+        "(": "⁽", ")": "⁾",
         "a": "ᵃ", "b": "ᵇ", "c": "ᶜ", "d": "ᵈ", "e": "ᵉ", "f": "ᶠ",
         "g": "ᵍ", "h": "ʰ", "i": "ⁱ", "j": "ʲ", "k": "ᵏ", "l": "ˡ",
         "m": "ᵐ", "n": "ⁿ", "o": "ᵒ", "p": "ᵖ", "r": "ʳ", "s": "ˢ",
@@ -259,7 +324,8 @@ enum TeX {
     private static let subscriptMap: [Character: Character] = [
         "0": "₀", "1": "₁", "2": "₂", "3": "₃", "4": "₄",
         "5": "₅", "6": "₆", "7": "₇", "8": "₈", "9": "₉",
-        "+": "₊", "-": "₋", "=": "₌", "(": "₍", ")": "₎",
+        "+": "₊", "-": "₋", "\u{2212}": "₋", "=": "₌",
+        "(": "₍", ")": "₎",
         "a": "ₐ", "e": "ₑ", "h": "ₕ", "i": "ᵢ", "j": "ⱼ", "k": "ₖ",
         "l": "ₗ", "m": "ₘ", "n": "ₙ", "o": "ₒ", "p": "ₚ", "r": "ᵣ",
         "s": "ₛ", "t": "ₜ", "u": "ᵤ", "v": "ᵥ", "x": "ₓ",

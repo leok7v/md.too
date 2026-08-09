@@ -57,8 +57,21 @@ enum PlainExport {
         return out
     }
 
+    // Plain text has no baseline to offset, so a script run spends the
+    // Unicode the TeX renderer already keeps tables of: "m2" would lose
+    // the distinction the source went out of its way to make.
+
     private static func plain(_ a: AttributedString) -> String {
-        String(a.characters)
+        var out = ""
+        for run in a.runs {
+            let segment = String(a[run.range].characters)
+            if let level = run[ScriptAttribute.self] {
+                out += TeX.unicodeScript(segment, superscript: level > 0)
+            } else {
+                out += segment
+            }
+        }
+        return out
     }
 
 }

@@ -65,3 +65,48 @@ func styledRunFont(intent: InlinePresentationIntent,
     }
     return result
 }
+
+// A script run is set at roughly seven tenths of its base and shifted off
+// the baseline. The two directions are not symmetric: a superscript has
+// to clear the x-height of the text beside it, a subscript only has to
+// drop clear of the baseline, so raising travels further than lowering.
+// Derived from the base font's size rather than fixed, so it tracks zoom,
+// heading level and the PDF's own sizes without any of them knowing.
+
+func scriptRunFont(_ level: Int, base: PlatformFont)
+    -> (font: PlatformFont, offset: CGFloat) {
+    let size = base.pointSize
+    let font = platformResizedFont(base, to: (size * 0.72).rounded())
+    let offset = level > 0 ? size * 0.33 : -size * 0.14
+    return (font, offset)
+}
+
+// Stamp the script runs of `attr` onto an NSAttributedString already
+// built from it. The base font is read back out rather than recomputed,
+// because by this point it carries the role, the zoom and whatever bold
+// or italic the run inherited -- all of which the shrunken size must
+// keep. For the renderers that walk attr.runs themselves this is
+// unnecessary; it exists for the two that hand the whole string to
+// NSAttributedString(_:) and lose the custom key on the way.
+
+func applyScriptRuns(_ m: NSMutableAttributedString,
+                     from attr: AttributedString) {
+    for run in attr.runs {
+        let level = run[ScriptAttribute.self]
+        let r = NSRange(run.range, in: attr)
+        if let level, r.length > 0, NSMaxRange(r) <= m.length {
+            stampScript(m, level: level, range: r)
+        }
+    }
+}
+
+private func stampScript(_ m: NSMutableAttributedString,
+                         level: Int, range: NSRange) {
+    let base = m.attribute(.font, at: range.location,
+                           effectiveRange: nil) as? PlatformFont
+    if let base {
+        let script = scriptRunFont(level, base: base)
+        m.addAttribute(.font, value: script.font, range: range)
+        m.addAttribute(.baselineOffset, value: script.offset, range: range)
+    }
+}

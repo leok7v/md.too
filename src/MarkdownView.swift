@@ -1,5 +1,12 @@
 import SwiftUI
 
+private struct ViewportWidthKey: PreferenceKey {
+    static let defaultValue: CGFloat = 0
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+        value = max(value, nextValue())
+    }
+}
+
 struct MarkdownView: View {
 
     let displayText: String
@@ -13,6 +20,7 @@ struct MarkdownView: View {
     var zoom: Int = 0
 
     @State private var documentImages: [URL: DocumentText.DocumentImage] = [:]
+    @State private var viewport: CGFloat = 0
 
     var body: some View {
         ScrollViewReader { proxy in
@@ -21,6 +29,15 @@ struct MarkdownView: View {
                     .padding(20)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .id("md.doc")
+            }
+            .background(
+                GeometryReader { proxy in
+                    Color.clear.preference(key: ViewportWidthKey.self,
+                                           value: proxy.size.width)
+                }
+            )
+            .onPreferenceChange(ViewportWidthKey.self) { w in
+                if w > 0, w != viewport { viewport = w }
             }
             .background(systemBackground)
             .background(WindowAppearanceApplier(scheme: theme.colorScheme))
@@ -50,15 +67,29 @@ struct MarkdownView: View {
         }
     }
 
+    // One text view holds the document, so a table too wide for the
+    // window cannot scroll on its own the way a block-rendered one does.
+    // The whole surface is given the width the widest table needs and
+    // scrolls sideways to reach it -- paragraphs travel with it, which
+    // is the price of a single selectable surface. A document whose
+    // tables fit asks for nothing and stays aligned to the window.
+
     private var documentTextView: some View {
         let blocks = Markdown.parse(displayText)
-        return SelectableText(
-            nsAttributed: DocumentText.attributed(
-                from: blocks, images: documentImages),
-            role: .body, find: find)
-            .task(id: displayText) {
-                documentImages = await prefetchDocumentImages(in: blocks)
-            }
+        let fits = max(viewport - 40, 0)
+        let need = DocumentText.minimumWidth(of: blocks)
+        let width = max(fits, need)
+        return ScrollView(.horizontal, showsIndicators: need > fits) {
+            SelectableText(
+                nsAttributed: DocumentText.attributed(
+                    from: blocks, images: documentImages),
+                role: .body, find: find)
+                .frame(width: viewport > 0 ? width : nil,
+                       alignment: .leading)
+        }
+        .task(id: displayText) {
+            documentImages = await prefetchDocumentImages(in: blocks)
+        }
     }
 
     private var rendered: some View {

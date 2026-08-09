@@ -360,6 +360,16 @@ so this part starts on its own line, no paragraph gap, no fuss.
 
 You can also <u>underline through raw HTML</u> and ~~strike things out~~ when the situation calls for it. We try not to call for it.
 
+Markdown has no spelling for subscript or superscript, so the raw HTML tags carry those too: water is H<sub>2</sub>O, a hectare is 10<sup>4</sup> m<sup>2</sup>, and a rate constant is k<sub>obs</sub>. They nest, so m<sub>DO<sub>2</sub></sub> reads the way it was written. Both work inside table cells, where scientific notation usually lands:
+
+| Quantity                                  | Value  |
+| ---                                       | ---    |
+| A [m<sup>2</sup>]                         | 80     |
+| K<sub>a</sub> [m<sup>2</sup>/g]           | 0.1    |
+| C<sub>p</sub> [J kg<sup>-1</sup> K<sup>-1</sup>]  | 4184   |
+
+Copy that table as plain text and the scripts come back as Unicode, because a monospaced paste has no baseline to shift.
+
 ## A picture is worth a few hundred bytes
 
 Block level images load from any URL the document points at. If the load fails, we render a captioned placeholder so the layout never collapses around a missing image. A trailing `{width=NNN}` (GitLab style) caps the rendered width; `{height=NNN}` does the obvious thing.

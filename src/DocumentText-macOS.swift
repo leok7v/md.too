@@ -7,6 +7,38 @@ extension DocumentText {
     // can be subtracted from the column-share budget in the same unit.
     private static var cellPad: CGFloat { 0.6 }
 
+    // Solved against the SHARES the table will actually be built with,
+    // not against the bare sum of the minimums. A column's share is a
+    // fixed fraction of the table width, so the width at which column c
+    // finally holds its widest token is min[c] / share[c], and the table
+    // needs the largest of those. Summing the minimums instead answers a
+    // question nobody asked -- the shares are weighted by character
+    // count, so the sum can be reached with a column still starved.
+
+    static func tableMinimumWidth(headers: [String],
+                                  rows: [[String]]) -> CGFloat {
+        var result: CGFloat = 0
+        let cols = max(headers.count, rows.map(\.count).max() ?? 0)
+        if cols > 0 {
+            let mins = columnMinimums(headers: headers, rows: rows,
+                                      cols: cols)
+            let fractions = TableMetrics.pointWidths(
+                headers: headers, rows: rows,
+                available: contentBudget(cols: cols) / 100)
+            for c in 0..<cols where c < fractions.count
+                                    && fractions[c] > 0 {
+                let need = mins[c] / fractions[c]
+                if need > result { result = need }
+            }
+            result = ceil(result)
+        }
+        return result
+    }
+
+    private static func contentBudget(cols: Int) -> CGFloat {
+        max(100 - CGFloat(cols) * cellPad * 2, 50)
+    }
+
     static func table(headers: [String], rows: [[String]],
                       images: [URL: DocumentImage]) -> NSAttributedString {
         let m = NSMutableAttributedString()
@@ -27,7 +59,7 @@ extension DocumentText {
             // table demands 100% plus cellPad * 2 * cols and the last
             // columns are squeezed off the edge. Percentage padding
             // keeps that arithmetic in one unit.
-            let budget = max(100 - CGFloat(cols) * cellPad * 2, 50)
+            let budget = contentBudget(cols: cols)
             let shares = TableMetrics.pointWidths(headers: headers,
                                                   rows: rows,
                                                   available: budget)
@@ -103,6 +135,16 @@ extension DocumentText {
                            for: .padding, edge: .maxY)
             block.backgroundColor = tint
             let para = NSMutableParagraphStyle()
+            // Word wrapping is safe here only because the view refuses
+            // to be narrower than tableMinimumWidth: NSTextTable cannot
+            // lay out a row holding a token wider than its column -- it
+            // widens that column, gives up on the rest, and stacks every
+            // remaining cell at the widened column's origin, so the row
+            // reads as overlapping glyphs. No column-width spelling
+            // avoids it (percentage, absolute, none at all, fixed
+            // algorithm, minimumWidth -- all collapse alike); only never
+            // posing the question does.
+            para.lineBreakMode = .byWordWrapping
             para.textBlocks = [block]
             let cellAttr = NSMutableAttributedString(
                 attributedString: tableCell(cellText, base: base,

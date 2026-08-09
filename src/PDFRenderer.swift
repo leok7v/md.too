@@ -14,9 +14,13 @@ final class PDFRenderer {
     let blockGap: CGFloat = 10
     let bodySize: CGFloat = 11
     let monoSize: CGFloat = 10
+    let rowPad: CGFloat = 4
     var pageNumber = 0
     var y: CGFloat = 0
     var listIndent: CGFloat = 0
+    // 1 everywhere but inside a table too wide for the page, and only
+    // for the span of that one table.
+    var tableScale: CGFloat = 1
 
     init(ctx: CGContext,
          pageSize: CGSize,
@@ -59,8 +63,7 @@ final class PDFRenderer {
             case .heading(let level, let text):
                 drawHeading(level: level, text: text)
             case .paragraph(let attr):
-                drawText(NSAttributedString(attr),
-                         font: bodyFont(), color: textColor)
+                drawText(attr, font: bodyFont(), color: textColor)
             case .code(let language, let text):
                 drawCode(text, language: language)
             case .quote(let blocks): drawQuote(blocks)
@@ -127,14 +130,18 @@ final class PDFRenderer {
                                         size, nil)
         let bold = CTFontCreateCopyWithSymbolicTraits(
             font, size, nil, .traitBold, .traitBold) ?? font
-        let ns = NSAttributedString(text)
-        drawText(ns, font: bold, color: textColor)
+        drawText(text, font: bold, color: textColor)
     }
 
-    private func drawText(_ attr: NSAttributedString,
+    // Takes the AttributedString rather than a converted one because the
+    // script level rides a custom key that NSAttributedString(_:) drops;
+    // the runs have to still be reachable when the fonts are settled.
+
+    private func drawText(_ attr: AttributedString,
                           font: CTFont,
                           color: CGColor) {
-        let m = NSMutableAttributedString(attributedString: attr)
+        let m = NSMutableAttributedString(
+            attributedString: NSAttributedString(attr))
         let full = NSRange(location: 0, length: m.length)
         m.enumerateAttribute(.font, in: full, options: []) { v, range, _ in
             if v == nil {
@@ -151,6 +158,7 @@ final class PDFRenderer {
                                range: range)
             }
         }
+        applyScriptRuns(m, from: attr)
         flow(m)
     }
 
@@ -305,30 +313,135 @@ final class PDFRenderer {
     private func drawTable(headers: [String], rows: [[String]]) {
         let cols = max(headers.count, rows.map(\.count).max() ?? 0)
         if cols > 0 {
+            let saved = tableScale
+            tableScale = fittingScale(headers: headers, rows: rows,
+                                      cols: cols)
             drawTableImpl(headers: headers, rows: rows, cols: cols)
+            tableScale = saved
         }
+    }
+
+    // A page cannot grow, so a table too wide for it has to give
+    // something up; type size is the one concession that costs no
+    // information, where a squeezed column costs a broken number. Only
+    // as much as the overflow actually needs, and never past three
+    // quarters -- below that the table is legible in the sense that a
+    // magnifier would fix, which is not the sense that matters. Padding
+    // shrinks with it, and on a wide table that is most of the saving:
+    // eleven columns spend a quarter of the page on their own margins.
+
+    // Measured, not solved. Only half the padding is type -- the other
+    // half is a flat 4pt no font size reclaims -- and glyph widths do
+    // not scale linearly with point size, so a closed form lands the
+    // table a hair over the page and the tightest column pays for it in
+    // a broken number. Re-measuring at each candidate converges in two
+    // or three passes and ends BELOW the page by construction.
+
+    private func fittingScale(headers: [String], rows: [[String]],
+                              cols: Int) -> CGFloat {
+        let saved = tableScale
+        var scale: CGFloat = 1
+        var passes = 0
+        var settling = true
+        while settling {
+            tableScale = scale
+            let demand = columnFloors(headers: headers, rows: rows,
+                                      cols: cols).reduce(0, +)
+            passes += 1
+            if demand > contentWidth, contentWidth > 0,
+               scale > 0.75, passes < 6 {
+                scale = max(scale * contentWidth / demand, 0.75)
+            } else {
+                settling = false
+            }
+        }
+        tableScale = saved
+        return scale
+    }
+
+    // The width below which a column starts breaking text it had no way
+    // to break: the widest token it must hold, plus its own padding.
+    // Measured on tokens rather than whole cells because a heading wraps
+    // at its spaces and hyphens for free, and charging the table for the
+    // unwrapped width buys room nothing needs.
+
+    private func columnFloors(headers: [String], rows: [[String]],
+                              cols: Int) -> [CGFloat] {
+        let pad = cellPadding()
+        var floors: [CGFloat] = []
+        for c in 0..<cols {
+            var widest: CGFloat = 0
+            if c < headers.count {
+                let w = longestTokenWidth(headers[c], bold: true)
+                if w > widest { widest = w }
+            }
+            for row in rows where c < row.count {
+                let w = longestTokenWidth(row[c], bold: false)
+                if w > widest { widest = w }
+            }
+            // The point of slack is not decoration: CTLine reports a
+            // typographic width and the framesetter makes its own
+            // wrapping decision, and the two disagree by a fraction --
+            // enough for a column sized to the report to break the very
+            // token it was sized for.
+            floors.append(widest + 2 * pad + 1)
+        }
+        return floors
+    }
+
+    // Break opportunities per UAX #14: a space, and a hyphen BETWEEN
+    // WORDS. "Pre-training" is two tokens, "NEUCOM'24" is one, and
+    // "-0.614" is one -- a hyphen stays welded to the number after it,
+    // so a column sized as though a negative value could split renders
+    // it as "-0.61" over "4".
+
+    private func longestTokenWidth(_ text: String, bold: Bool) -> CGFloat {
+        var widest: CGFloat = 0
+        var token = ""
+        var tokens: [String] = []
+        // An image cell has no words to break. Its size is settled
+        // further down against the drawn bitmap; measuring the markdown
+        // would read the URL as one enormous unbreakable token and
+        // shrink the whole table to make room for text nobody sees.
+        let source = ImagePrefetch.imageInCell(text) == nil ? text : ""
+        let chars = Array(source)
+        for (i, ch) in chars.enumerated() {
+            if ch == " " {
+                if !token.isEmpty { tokens.append(token); token = "" }
+            } else {
+                token.append(ch)
+                if ch == "-", hyphenBreaks(after: i, in: chars) {
+                    tokens.append(token)
+                    token = ""
+                }
+            }
+        }
+        if !token.isEmpty { tokens.append(token) }
+        for t in tokens {
+            let w = cellRenderedWidth(t, bold: bold)
+            if w > widest { widest = w }
+        }
+        return widest
+    }
+
+    private func hyphenBreaks(after i: Int, in chars: [Character]) -> Bool {
+        var result = false
+        if i + 1 < chars.count {
+            let next = chars[i + 1]
+            result = !next.isNumber && next != " " && next != "-"
+        }
+        return result
     }
 
     private func drawTableImpl(headers: [String], rows: [[String]],
                                   cols: Int) {
-        let rowPad: CGFloat = 4
         // Horizontal inset only. The gutter between two columns is the
         // previous cell's right margin plus the next cell's left one, so
         // half an average character on each side buys a full character of
         // separation without the row band growing taller.
-        let cellPad = rowPad + averageCharWidth(bodyFont()) / 2
-        let minWidths: [CGFloat] = (0..<cols).map { c in
-            var widest: CGFloat = 0
-            if c < headers.count {
-                let w = cellRenderedWidth(headers[c], bold: true)
-                if w > widest { widest = w }
-            }
-            for row in rows where c < row.count {
-                let w = cellRenderedWidth(row[c], bold: false)
-                if w > widest { widest = w }
-            }
-            return widest + 2 * cellPad
-        }
+        let cellPad = cellPadding()
+        let minWidths = columnFloors(headers: headers, rows: rows,
+                                     cols: cols)
         var colWidths = TableMetrics.pointWidths(headers: headers,
                                                  rows: rows,
                                                  available: contentWidth,
@@ -355,7 +468,7 @@ final class PDFRenderer {
             colWidths = colWidths.map { v in v * scale }
         }
         func drawRow(_ cells: [String], bold: Bool, shade: CGColor?) {
-            var rowH: CGFloat = bodySize * 1.3
+            var rowH: CGFloat = scaledBodySize * 1.3
             for c in 0..<cols {
                 let txt = c < cells.count ? cells[c] : ""
                 let cellW = colWidths[c] - 2 * cellPad
@@ -497,13 +610,18 @@ final class PDFRenderer {
         let m = NSMutableAttributedString()
         for run in attr.runs {
             let intent = run.inlinePresentationIntent ?? []
-            let runFont = styledRunFont(intent: intent, base: base,
+            var runFont = styledRunFont(intent: intent, base: base,
                                         size: baseSize,
                                         additionalBold: bold)
             var attrs: [NSAttributedString.Key: Any] = [
-                .font: runFont,
                 .foregroundColor: textColor,
             ]
+            if let level = run[ScriptAttribute.self] {
+                let script = scriptRunFont(level, base: runFont)
+                runFont = script.font
+                attrs[.baselineOffset] = script.offset
+            }
+            attrs[.font] = runFont
             if intent.contains(.code) {
                 attrs[.backgroundColor] = codeBgColor
             }
@@ -626,21 +744,31 @@ final class PDFRenderer {
         CTLineDraw(line, ctx)
     }
 
+    private var scaledBodySize: CGFloat { bodySize * tableScale }
+
     private func bodyFont() -> CTFont {
-        return CTFontCreateUIFontForLanguage(.system, bodySize, nil) ??
-               CTFontCreateWithName("Helvetica" as CFString, bodySize, nil)
+        let size = scaledBodySize
+        return CTFontCreateUIFontForLanguage(.system, size, nil) ??
+               CTFontCreateWithName("Helvetica" as CFString, size, nil)
     }
 
     private func bodyFontBold() -> CTFont {
         let base = bodyFont()
-        return CTFontCreateCopyWithSymbolicTraits(base, bodySize, nil,
+        return CTFontCreateCopyWithSymbolicTraits(base, scaledBodySize, nil,
                        .traitBold, .traitBold) ?? base
     }
 
     private func bodyFontItalic() -> CTFont {
         let base = bodyFont()
         return CTFontCreateCopyWithSymbolicTraits(
-            base, bodySize, nil, .traitItalic, .traitItalic) ?? base
+            base, scaledBodySize, nil, .traitItalic, .traitItalic) ?? base
+    }
+
+    // Padding tracks the type, so shrinking the font on a wide table
+    // reclaims its margins too.
+
+    private func cellPadding() -> CGFloat {
+        rowPad + averageCharWidth(bodyFont()) / 2
     }
 
     private func smallFont() -> CTFont {

@@ -3,6 +3,21 @@ import UIKit
 
 extension DocumentText {
 
+    // What this builder actually lays out, not what the content would
+    // like: the tab stops below are pinned to tabStopExtent whatever the
+    // view is, and cells truncate rather than overflow, so asking the
+    // view to be wider than that would buy empty space and nothing else.
+    // Single surface is off by default on iOS; when that changes, the
+    // stops want deriving from columnMinimums and this with them.
+
+    private static var tabStopExtent: CGFloat { 320 }
+
+    static func tableMinimumWidth(headers: [String],
+                                  rows: [[String]]) -> CGFloat {
+        let cols = max(headers.count, rows.map(\.count).max() ?? 0)
+        return cols > 0 ? tabStopExtent : 0
+    }
+
     static func table(headers: [String], rows: [[String]],
                       images: [URL: DocumentImage]) -> NSAttributedString {
         let m = NSMutableAttributedString()
@@ -11,7 +26,7 @@ extension DocumentText {
             let atomicId = UUID().uuidString
             let widths = TableMetrics.pointWidths(headers: headers,
                                                   rows: rows,
-                                                  available: 320)
+                                                  available: tabStopExtent)
             var stops: [NSTextTab] = []
             var x: CGFloat = 0
             for w in widths {

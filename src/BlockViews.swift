@@ -226,14 +226,15 @@ private struct TableBlock: View {
         }
         let n = TableMetrics.columnCount(headers: h, rows: r)
         let layout = columnLayout(n, headers: h, rows: r)
-        let fitWidth: CGFloat? = layout.wrap
+        let fitWidth: CGFloat? = layout.constrained
             ? max(0, available - 16) : nil
-        ScrollView(.horizontal, showsIndicators: false) {
+        ScrollView(.horizontal, showsIndicators: !layout.constrained) {
             VStack(alignment: .leading, spacing: 0) {
                 if !h.isEmpty {
                     rowView(h, bold: true,
                             shade: Color.primary.opacity(0.07),
-                            n: n, widths: layout.widths, wrap: layout.wrap)
+                            n: n, widths: layout.widths, wrap: layout.wrap,
+                            constrained: layout.constrained)
                     Divider()
                 }
                 ForEach(Array(r.enumerated()), id: \.offset) { idx, row in
@@ -241,7 +242,8 @@ private struct TableBlock: View {
                             shade: idx % 2 == 1
                                 ? Color.primary.opacity(0.04)
                                 : Color.clear,
-                            n: n, widths: layout.widths, wrap: layout.wrap)
+                            n: n, widths: layout.widths, wrap: layout.wrap,
+                            constrained: layout.constrained)
                 }
             }
             .padding(8)
@@ -267,25 +269,34 @@ private struct TableBlock: View {
         }
     }
 
+    // Three outcomes, not two. A column narrower than its longest word
+    // cannot wrap down to fit, so the text spills over its neighbour --
+    // SwiftUI clips nothing by default and the row reads as a pile of
+    // overlapping glyphs. Past that floor the table stops being asked to
+    // fit at all: it takes its minimum and the surrounding horizontal
+    // ScrollView, which is already here for the natural-width case,
+    // carries what does not show.
+
     private func columnLayout(_ n: Int,
                               headers h: [String],
                               rows r: [[String]])
-        -> (widths: [CGFloat]?, wrap: Bool) {
-        var result: ([CGFloat]?, Bool) = (nil, false)
+        -> (widths: [CGFloat]?, wrap: Bool, constrained: Bool) {
+        var result: ([CGFloat]?, Bool, Bool) = (nil, false, false)
         let usable = available - CGFloat(max(n - 1, 0)) * 12 - 16
         if available > 0, n > 0 {
             let natural = naturalColumnWidths(n, headers: h, rows: r)
-            let naturalSum = natural.reduce(0, +)
-            if naturalSum <= usable {
-                result = (natural, false)
+            let mins = minimumColumnWidths(n, headers: h, rows: r)
+            if natural.reduce(0, +) <= usable {
+                result = (natural, false, false)
+            } else if mins.reduce(0, +) > usable {
+                result = (mins, true, false)
             } else {
-                let mins = minimumColumnWidths(n, headers: h, rows: r)
                 let widths = TableMetrics.pointWidths(headers: h,
                                                       rows: r,
                                                       available: usable,
                                                       minimums: mins)
                 if !widths.isEmpty {
-                    result = (widths, true)
+                    result = (widths, true, true)
                 }
             }
         }
@@ -319,12 +330,12 @@ private struct TableBlock: View {
         for c in 0..<n {
             var maxW: CGFloat = 0
             if c < h.count {
-                let s = (h[c] as NSString)
+                let s = (TeX.scriptsToUnicode(h[c]) as NSString)
                     .size(withAttributes: boldAttrs).width
                 if s > maxW { maxW = s }
             }
             for row in r where c < row.count {
-                let s = (row[c] as NSString)
+                let s = (TeX.scriptsToUnicode(row[c]) as NSString)
                     .size(withAttributes: bodyAttrs).width
                 if s > maxW { maxW = s }
             }
@@ -335,8 +346,8 @@ private struct TableBlock: View {
 
     private func rowView(_ cells: [String], bold: Bool, shade: Color,
                          n: Int, widths: [CGFloat]?,
-                         wrap: Bool) -> some View {
-        let fill: CGFloat? = wrap ? .infinity : nil
+                         wrap: Bool, constrained: Bool) -> some View {
+        let fill: CGFloat? = constrained ? .infinity : nil
         return HStack(alignment: .top, spacing: 12) {
             ForEach(Array(0..<n), id: \.self) { i in
                 let text = i < cells.count ? cells[i] : ""
@@ -348,6 +359,11 @@ private struct TableBlock: View {
         .background(shade)
     }
 
+    // clipped(), because a cell is only ever given a width the column
+    // agreed to: anything that still does not fit is the caller's
+    // arithmetic being wrong, and a truncated tail is recoverable where
+    // text drawn across the next column is not.
+
     @ViewBuilder
     private func cell(_ text: String, bold: Bool,
                       width: CGFloat?, wrap: Bool) -> some View {
@@ -356,10 +372,12 @@ private struct TableBlock: View {
            case .image(let alt, let url, let w, let h) = first {
             ImageBlockView(alt: alt, url: url, width: w, height: h)
                 .frame(width: width, alignment: .leading)
+                .clipped()
         } else if let width {
             SelectableText(attributed: cellAttributed(text, parsed: parsed),
                            role: .body, nowrap: !wrap, bold: bold)
                 .frame(width: width, alignment: .leading)
+                .clipped()
         } else {
             SelectableText(attributed: cellAttributed(text, parsed: parsed),
                            role: .body, nowrap: true, bold: bold)

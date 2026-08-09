@@ -1,5 +1,22 @@
 import Foundation
 
+// <sub> and <sup> survive Apple's inline markdown parser as literal
+// text, and there is no markdown spelling for either, so the tags are
+// consumed here and the level left on the run for each renderer to set
+// however its medium expresses a script: a baseline offset on screen and
+// in the PDF, a real tag in the HTML, a Unicode digit in plain text.
+// The value is the direction, +1 up and -1 down.
+//
+// A plain AttributedStringKey on purpose: it is read off attr.runs by
+// every renderer and never has to survive NSAttributedString(_:), which
+// drops custom keys outside a declared scope. applyScriptRuns bridges
+// the two paths that do need it on the NS side.
+
+enum ScriptAttribute: AttributedStringKey {
+    typealias Value = Int
+    static let name = "md.too.script"
+}
+
 enum Block {
     case heading(level: Int, text: AttributedString)
     case paragraph(AttributedString)
@@ -618,6 +635,8 @@ enum Markdown {
             }
         }
         applyUnderlineTags(&out)
+        applyScriptTags(&out, tag: "sup", level: 1)
+        applyScriptTags(&out, tag: "sub", level: -1)
         return out
     }
 
@@ -662,6 +681,26 @@ enum Markdown {
                 a.replaceSubrange(open.lowerBound..<close.upperBound, with: sub)
             } else {
                 a.removeSubrange(open)
+            }
+        }
+    }
+
+    // Same shape as applyUnderlineTags: an unclosed opener is dropped
+    // rather than left on screen, since a stray "<sup>" is markup the
+    // reader never wrote and never wants to see.
+
+    private static func applyScriptTags(_ a: inout AttributedString,
+                                        tag: String, level: Int) {
+        let open = "<\(tag)>"
+        let close = "</\(tag)>"
+        while let o = a.range(of: open, options: .caseInsensitive) {
+            if let c = a[o.upperBound...].range(of: close,
+                                                options: .caseInsensitive) {
+                var sub = a[o.upperBound..<c.lowerBound]
+                sub[ScriptAttribute.self] = level
+                a.replaceSubrange(o.lowerBound..<c.upperBound, with: sub)
+            } else {
+                a.removeSubrange(o)
             }
         }
     }

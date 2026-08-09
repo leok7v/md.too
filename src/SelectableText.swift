@@ -159,6 +159,9 @@ struct NativeText {
                                 range: range)
             }
         }
+        // Last, so it shrinks the font the passes above just settled on
+        // rather than being overwritten by them.
+        if let attributed { applyScriptRuns(ns, from: attributed) }
         return ns
     }
 
