@@ -1115,12 +1115,21 @@ final class Parser {
     /// dropped spaces,
     /// so re-read from the source token positions).
     private func textArgument() throws -> String {
+        let open = peek
         guard eat("{") else { throw MathError.syntax("expected '{'", at: pos) }
         var out = ""
         var depth = 0
-        var lastEnd = -1
+        // Gaps are measured from the brace, not from the first token, so
+        // a leading space survives: `\text{ is even}` is written with
+        // that space for a reason and reads as "isxeven" without it.
+        var lastEnd = open.map { t in t.pos + t.text.count } ?? -1
         while let t = peek {
-            if t.text == "}" && depth == 0 { break }
+            if t.text == "}" && depth == 0 {
+                // ... and the closing brace is a gap like any other, or
+                // `\text{if }` loses the space it ends with.
+                if lastEnd >= 0 && t.pos > lastEnd { out += " " }
+                break
+            }
             if t.text == "{" { depth += 1 }
             if t.text == "}" { depth -= 1 }
             if lastEnd >= 0 && t.pos > lastEnd { out += " " }

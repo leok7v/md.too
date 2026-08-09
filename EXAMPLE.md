@@ -69,7 +69,7 @@ Matrices, cases and aligned blocks, which it also used to punt on:
 
 $$\begin{pmatrix} a & b \\ c & d \end{pmatrix}^{-1} = \frac{1}{ad-bc}\begin{pmatrix} d & -b \\ -c & a \end{pmatrix}$$
 
-$$f(n) = \begin{cases} n/2 & \text{even} \\ 3n+1 & \text{odd} \end{cases}$$
+$$f(n) = \begin{cases} n/2 & \text{if } n \text{ is even} \\ 3n+1 & \text{otherwise} \end{cases}$$
 
 An `aligned` block lines its rows up on the relation between them, which is how anyone writing more than one equation expects them to sit:
 
