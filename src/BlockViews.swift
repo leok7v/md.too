@@ -29,6 +29,8 @@ struct BlockView: View {
                 ListBlock(items: items, tight: tight)
             case .table(let headers, let rows):
                 TableBlock(headers: headers, rows: rows)
+            case .math(let tex):
+                MathBlock(tex: tex)
             case .rule:
                 Rectangle().fill(Color.secondary.opacity(0.4))
                     .frame(height: 1)
@@ -202,6 +204,70 @@ private struct CodeBlock: View {
             CopyButton(string: text)
                 .padding(6)
         }
+    }
+
+}
+
+private struct MathBlock: View {
+
+    let tex: String
+    @Environment(\.textZoom) private var zoom
+    @Environment(\.colorScheme) private var scheme
+    @State private var available: CGFloat = 0
+
+    var body: some View {
+        let size = TeX.displaySize(
+            body: FontRole.body.platformFont(scale: zoom).pointSize)
+        if let layout = TeX.layout(tex, size: size) {
+            typeset(layout)
+        } else {
+            // KaTeX refused it. The substituter always has an answer,
+            // so the reader gets the formula spelled out rather than a
+            // gap where a formula should be.
+            SelectableText(attributed: TeX.render(tex, display: true))
+                .frame(maxWidth: .infinity, alignment: .center)
+        }
+    }
+
+    // Centred while it fits, pinned left once it does not. Centring a
+    // formula wider than the column pushes its LEFT edge off screen,
+    // and the left edge is the half you need; the scroller takes it
+    // from there.
+
+    @ViewBuilder
+    private func typeset(_ layout: MathLayout) -> some View {
+        ScrollView(.horizontal, showsIndicators: layout.width > available) {
+            Canvas { ctx, _ in
+                ctx.withCGContext { cg in
+                    layout.draw(in: cg, at: .zero, color: ink, flipped: true)
+                }
+            }
+            .frame(width: layout.width, height: layout.height)
+            .padding(.horizontal, 4)
+            .frame(maxWidth: available > 0 ? available : nil)
+            .accessibilityLabel(tex)
+        }
+        .background(
+            GeometryReader { proxy in
+                Color.clear.preference(key: TableWidthKey.self,
+                                       value: proxy.size.width)
+            }
+        )
+        .onPreferenceChange(TableWidthKey.self) { w in
+            if w > 0, w != available { available = w }
+        }
+        .overlay(alignment: .topTrailing) {
+            CopyButton(string: tex).padding(2)
+        }
+        .padding(.vertical, 4)
+    }
+
+    // Resolved from the scheme rather than asked of a dynamic system
+    // colour: the formula is drawn into a raw CGContext, which carries
+    // no appearance for a dynamic colour to resolve against.
+    private var ink: CGColor {
+        scheme == .dark ? CGColor(gray: 0.92, alpha: 1)
+                        : CGColor(gray: 0.10, alpha: 1)
     }
 
 }

@@ -138,6 +138,8 @@ enum DocumentText {
                               images: images)
             case .table(let headers, let rows):
                 result = table(headers: headers, rows: rows, images: images)
+            case .math(let tex):
+                result = math(tex)
             case .rule:
                 result = rule()
             case .image(let alt, let url, let w, let h):
@@ -185,6 +187,37 @@ enum DocumentText {
                         ]))
             }
         }
+        return m
+    }
+
+    // A display sits in its own centred paragraph, carrying the TeX it
+    // came from on atomicCopyKey so Copy yields the formula rather than
+    // the object-replacement character an attachment would otherwise
+    // hand over. Same contract as a code fence or a table, so the copy
+    // overlay needs nothing new.
+
+    private static func math(_ tex: String) -> NSAttributedString {
+        let base = FontRole.body.platformFont
+        let m = NSMutableAttributedString()
+        let size = TeX.displaySize(body: base.pointSize)
+        if let layout = TeX.layout(tex, size: size) {
+            m.append(NSAttributedString(attachment: mathAttachment(layout)))
+        } else {
+            translateInline(TeX.render(tex, display: true), base: base,
+                            into: m)
+        }
+        let content = NSRange(location: 0, length: m.length)
+        m.addAttribute(atomicKindKey,
+                       value: AtomicKind.math.rawValue, range: content)
+        m.addAttribute(atomicIdKey, value: UUID().uuidString, range: content)
+        m.addAttribute(atomicCopyKey, value: tex, range: content)
+        m.append(NSAttributedString(string: "\n\n"))
+        let para = NSMutableParagraphStyle()
+        para.alignment = .center
+        para.paragraphSpacing = 6
+        para.paragraphSpacingBefore = 6
+        m.addAttribute(.paragraphStyle, value: para,
+                       range: NSRange(location: 0, length: m.length))
         return m
     }
 

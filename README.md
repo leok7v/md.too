@@ -13,7 +13,7 @@ A minimalist Markdown viewer for macOS and iOS. Read-only, native, zero third-pa
 - Syntax highlighting for about 40 languages (Swift, C/C++/C#/Objective-C, Java, Kotlin, Scala, JS/TS, Python, Rust, Go, Ruby, PHP, Dart, Lua, Perl, R, Julia, Haskell, OCaml, F#, Elixir, Clojure, Groovy, SQL, GraphQL, Dockerfile, Makefile, TOML, INI, YAML, JSON, XML, HTML, CSS, Bash, PowerShell, Markdown).
 - Tables with zebra rows, a stronger header band, and inline formatting inside cells — `**bold**`, `*italic*`, `` `code` ``, `~~strike~~`, `[link](url)`.
 - GitHub-style task lists (`- [ ]` / `- [x]`).
-- Tiny LaTeX subset in `$…$` / `$$…$$`: Greek letters, super/subscripts, common operators, simple fractions.
+- Maths. A `$$…$$` display is typeset properly -- fractions, radicals, big operators with limits, stretchy fences, matrices -- by a TeX layout engine reading the OpenType MATH table. Inline `$…$` stays Unicode so it flows, selects and searches with the prose around it.
 
 See [EXAMPLE.md](EXAMPLE.md) for a single document that exercises every supported feature.
 
@@ -99,7 +99,8 @@ The layout is layered. A given file references only symbols from files in layers
 **Layer 0 — leaves, no in-module deps:**
 
 - [`Platform-macOS.swift`](src/Platform-macOS.swift), [`Platform-iOS.swift`](src/Platform-iOS.swift) — typealiases (`PlatformFont`, `PlatformColor`, `PlatformImage`), every `platform*` helper (font traits, colors, decoding, clipboard, light-appearance, PDF thumbnails). `@_exported import AppKit`/`UIKit` so consumers don't restate the framework dependency. Re-routes through a `pdfDataExporter` hook so `CopyPdfProvider` can sit here without dragging in apps-only code.
-- [`TeX.swift`](src/TeX.swift) — `$…$` / `$$…$$` LaTeX subset to Unicode/AttributedString.
+- [`TeX.swift`](src/TeX.swift) — splits `$…$` / `$$…$$` out of a line, renders inline maths as Unicode, and chooses between the two engines.
+- [`KaTeX.swift`](src/KaTeX.swift) — the display-maths layout engine: lexer, parser, TeXbook Appendix G box layout, drawn through CoreText.
 - [`FileWatcher.swift`](src/FileWatcher.swift) — `NSFilePresenter` wrapper for live file-on-disk reload.
 - [`Environment.swift`](src/Environment.swift) — pure SwiftUI primitives: `PrefetchedImagesKey`, `SecondaryTextKey`, `ThemeMode`, `ThemeButton`, `SourceButton`.
 

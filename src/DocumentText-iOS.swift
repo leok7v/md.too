@@ -3,6 +3,26 @@ import UIKit
 
 extension DocumentText {
 
+    // UIKit has no attachment cell to draw through, so the formula is
+    // rasterized with the ink current when the document was built. Single
+    // surface is off by default on iOS; when that changes, this wants a
+    // rebuild on trait change or an NSTextAttachmentViewProvider.
+
+    static func mathAttachment(_ layout: MathLayout) -> NSTextAttachment {
+        let attachment = NSTextAttachment()
+        let scale = UIScreen.main.scale
+        let ink = platformDefaultTextColor.cgColor
+        if let cg = layout.cgImage(scale: scale, padding: 4,
+                                   background: nil, color: ink) {
+            attachment.image = UIImage(cgImage: cg, scale: scale,
+                                       orientation: .up)
+        }
+        attachment.bounds = CGRect(x: 0, y: -layout.descent,
+                                   width: layout.width + 8,
+                                   height: layout.height)
+        return attachment
+    }
+
     // What this builder actually lays out, not what the content would
     // like: the tab stops below are pinned to tabStopExtent whatever the
     // view is, and cells truncate rather than overflow, so asking the

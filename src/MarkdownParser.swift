@@ -24,6 +24,11 @@ enum Block {
     case quote([Block])
     case list(items: [ListItem], tight: Bool)
     case table(headers: [String], rows: [[String]])
+    // A $$...$$ display, carried as its TeX source. Inline $...$ stays
+    // inside the paragraph's AttributedString: only a display gets a
+    // block of its own, because only a display is typeset rather than
+    // spelled out in Unicode.
+    case math(String)
     case rule
     case image(alt: String, url: URL, width: CGFloat?, height: CGFloat?)
 }
@@ -56,6 +61,8 @@ enum Markdown {
             let line = lines[i]
             if isFence(line) {
                 blocks.append(consumeFenced(lines, &i))
+            } else if isMathFence(line) {
+                blocks.append(consumeMath(lines, &i))
             } else if isHeading(line) {
                 blocks.append(consumeHeading(lines, &i))
             } else if isHR(line) {
@@ -242,6 +249,44 @@ enum Markdown {
         }
         let language = lang.isEmpty ? nil : String(lang)
         return .code(language: language, text: body.joined(separator: "\n"))
+    }
+
+    // Only a line that OPENS with $$ starts a display. A $$ met partway
+    // through a sentence belongs to that sentence and is left to the
+    // inline splitter, which is also what happens to every $...$.
+
+    private static func isMathFence(_ s: String) -> Bool {
+        s.trimmedOuter().hasPrefix("$$")
+    }
+
+    // Accepts both spellings authors use: the whole thing on one line,
+    // and an opening $$ with the formula on the lines below. An
+    // unterminated display runs to the end of the document rather than
+    // swallowing the rest as prose.
+
+    private static func consumeMath(_ lines: [String],
+                                    _ i: inout Int) -> Block {
+        var body: [String] = []
+        var rest = String(lines[i].trimmedOuter().dropFirst(2))
+        var closed = false
+        if let end = rest.range(of: "$$", options: .backwards) {
+            rest = String(rest[..<end.lowerBound])
+            closed = true
+        }
+        if !rest.trimmedOuter().isEmpty { body.append(rest) }
+        i += 1
+        while i < lines.count, !closed {
+            let t = lines[i].trimmedOuter()
+            if let end = t.range(of: "$$") {
+                let head = String(t[..<end.lowerBound])
+                if !head.trimmedOuter().isEmpty { body.append(head) }
+                closed = true
+            } else {
+                body.append(lines[i])
+            }
+            i += 1
+        }
+        return .math(body.joined(separator: "\n").trimmedOuter())
     }
 
     private static func isIndentedCode(_ s: String) -> Bool {
@@ -451,7 +496,7 @@ enum Markdown {
 
     private static func isLazyContinuation(_ line: String) -> Bool {
         !(isHeading(line) || isHR(line) || isFence(line) ||
-          isQuoteStart(line) || isListStart(line))
+          isMathFence(line) || isQuoteStart(line) || isListStart(line))
     }
 
     private static func leadingSpaces(_ s: String) -> Int {
@@ -609,6 +654,7 @@ enum Markdown {
             let line = lines[i]
             let blank = line.trimmedOuter().isEmpty
             let other = isHeading(line) || isHR(line) || isFence(line) ||
+                        isMathFence(line) ||
                         isTableStart(lines, i) || isQuoteStart(line) ||
                         isListStart(line) || isIndentedCode(line) ||
                         imageBlock(line) != nil

@@ -1,7 +1,7 @@
 import SwiftUI
 
 enum AtomicKind: String {
-    case code, table, image
+    case code, table, image, math
 }
 
 // A copyable block's Copy-button frame and source text, reported by

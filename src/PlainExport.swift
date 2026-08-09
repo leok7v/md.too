@@ -31,6 +31,12 @@ enum PlainExport {
             case .table(let h, let rows):
                 return TableMetrics.serializeMonospaced(
                     headers: h, rows: rows)
+            case .math(let tex):
+                // The source, not the rendering. Everything else this
+                // exporter emits is markdown -- # for headings, > for
+                // quotes, ![]() for images -- so a display belongs here
+                // in the spelling it was written in, ready to paste back.
+                return "$$\n\(tex)\n$$\n"
             case .rule:
                 return "---\n"
             case .image(let alt, let url, _, _):

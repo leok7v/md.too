@@ -1,6 +1,27 @@
 import Foundation
+import CoreGraphics
 
 enum TeX {
+
+    // The two engines meet here. KaTeX typesets a display wherever
+    // there is a graphics context to draw into; nil means it refused --
+    // a macro it does not know, a construct outside its grammar -- and
+    // the caller falls back to render(_:display:), which spells the
+    // formula out in Unicode rather than showing nothing. Every surface
+    // without a context (HTML, plain text, the clipboard) skips this
+    // and takes the Unicode form directly.
+
+    static func layout(_ tex: String, size: CGFloat) -> MathLayout? {
+        var settings = MathSettings()
+        settings.displayMode = true
+        settings.fontSize = size
+        return try? KaTeX.layout(tex, settings: settings)
+    }
+
+    // Display maths is set larger than the prose around it, the way a
+    // TeX document does: the ratio is the one the md2png CLI defaults
+    // to, 20pt of maths against 15pt of text.
+    static func displaySize(body: CGFloat) -> CGFloat { body * 4 / 3 }
 
     enum Segment {
         case text(String)
@@ -262,9 +283,35 @@ enum TeX {
         var out = s
         let pairs = tokenMap.sorted { a, b in a.key.count > b.key.count }
         for (k, v) in pairs {
-            out = out.replacingOccurrences(of: k, with: v)
+            out = replaceToken(out, k, v)
         }
         return out
+    }
+
+    // A control word ends where a non-letter begins. Without that,
+    // "\newcommand" becomes "(not equal)wcommand" the moment \ne is
+    // substituted inside it -- which is exactly what a reader sees when
+    // KaTeX refuses a formula and this is all that is left. Keys that do
+    // not end in a letter (\, \; \\) have no boundary to respect.
+
+    private static func replaceToken(_ s: String, _ key: String,
+                                     _ value: String) -> String {
+        var result = s
+        if let last = key.last, last.isLetter {
+            let pattern = NSRegularExpression.escapedPattern(for: key)
+                        + "(?![A-Za-z])"
+            if let re = try? NSRegularExpression(pattern: pattern) {
+                let ns = s as NSString
+                let full = NSRange(location: 0, length: ns.length)
+                result = re.stringByReplacingMatches(
+                    in: s, range: full,
+                    withTemplate:
+                        NSRegularExpression.escapedTemplate(for: value))
+            }
+        } else {
+            result = s.replacingOccurrences(of: key, with: value)
+        }
+        return result
     }
 
     private static let tokenMap: [String: String] = [

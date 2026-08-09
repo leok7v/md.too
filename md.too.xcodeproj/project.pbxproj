@@ -65,6 +65,8 @@
 		B31730832FD2283E00C6B7F0 /* TeX.swift in Sources */ = {isa = PBXBuildFile; fileRef = B31730822FD2283E00C6B7F0 /* TeX.swift */; };
 		B31730842FD2283E00C6B7F0 /* TeX.swift in Sources */ = {isa = PBXBuildFile; fileRef = B31730822FD2283E00C6B7F0 /* TeX.swift */; };
 		B31730852FD2283E00C6B7F0 /* TeX.swift in Sources */ = {isa = PBXBuildFile; fileRef = B31730822FD2283E00C6B7F0 /* TeX.swift */; };
+		B31730912FD2283E00C6B7F0 /* KaTeX.swift in Sources */ = {isa = PBXBuildFile; fileRef = B31730902FD2283E00C6B7F0 /* KaTeX.swift */; };
+		B31730922FD2283E00C6B7F0 /* KaTeX.swift in Sources */ = {isa = PBXBuildFile; fileRef = B31730902FD2283E00C6B7F0 /* KaTeX.swift */; };
 		B5000001AAAAAAAAAAAAAAAA /* ImagePrefetch.swift in Sources */ = {isa = PBXBuildFile; fileRef = B5000000AAAAAAAAAAAAAAAA /* ImagePrefetch.swift */; };
 		B5000002AAAAAAAAAAAAAAAA /* ImagePrefetch.swift in Sources */ = {isa = PBXBuildFile; fileRef = B5000000AAAAAAAAAAAAAAAA /* ImagePrefetch.swift */; };
 		B5000003AAAAAAAAAAAAAAAA /* ImagePrefetch.swift in Sources */ = {isa = PBXBuildFile; fileRef = B5000000AAAAAAAAAAAAAAAA /* ImagePrefetch.swift */; };
@@ -128,6 +130,7 @@
 		B317307A2FD226F500C6B7F0 /* PlainExport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlainExport.swift; sourceTree = "<group>"; };
 		B317307E2FD2273100C6B7F0 /* DocumentText.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DocumentText.swift; sourceTree = "<group>"; };
 		B31730822FD2283E00C6B7F0 /* TeX.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TeX.swift; sourceTree = "<group>"; };
+		B31730902FD2283E00C6B7F0 /* KaTeX.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KaTeX.swift; sourceTree = "<group>"; };
 		B5000000AAAAAAAAAAAAAAAA /* ImagePrefetch.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImagePrefetch.swift; sourceTree = "<group>"; };
 		B5000010AAAAAAAAAAAAAAAA /* TableMetrics.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TableMetrics.swift; sourceTree = "<group>"; };
 		B6000000AAAAAAAAAAAAAAAA /* MarkdownDocument.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarkdownDocument.swift; sourceTree = "<group>"; };
@@ -211,6 +214,7 @@
 				1A2B3C4D520000000000001C /* SelectableText.swift */,
 				B5000010AAAAAAAAAAAAAAAA /* TableMetrics.swift */,
 				B31730822FD2283E00C6B7F0 /* TeX.swift */,
+				B31730902FD2283E00C6B7F0 /* KaTeX.swift */,
 				1A2B3C4D5200000000000018 /* Toolbar.swift */,
 				1A2B3C4D5200000000000019 /* Toolbar-macOS.swift */,
 			);
@@ -242,6 +246,7 @@
 				1A2B3C4D5900000000000001 /* Resources */,
 				1A2B3C4D5E00000000000001 /* Stamp Version */,
 				1A2B3C4D5F00000000000001 /* Embed QuickLook (macOS only) */,
+				1A2B3C4D5F00000000000002 /* Bundle math font (iOS only) */,
 			);
 			buildRules = (
 			);
@@ -367,6 +372,25 @@
 			shellPath = /bin/sh;
 			shellScript = "\"$SRCROOT/Scripts/stamp-version.sh\"\n";
 		};
+		1A2B3C4D5F00000000000002 /* Bundle math font (iOS only) */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+			);
+			name = "Bundle math font (iOS only)";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "if [ \"${PLATFORM_NAME}\" != \"macosx\" ]; then\n  dest=\"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}\"\n  mkdir -p \"$dest\"\n  ditto \"${SRCROOT}/src/STIXTwoMath.otf\" \"$dest/STIXTwoMath.otf\"\nfi\n";
+		};
 		1A2B3C4D5F00000000000001 /* Embed QuickLook (macOS only) */ = {
 			isa = PBXShellScriptBuildPhase;
 			alwaysOutOfDate = 1;
@@ -414,6 +438,7 @@
 				1A2B3C4D5300000000000030 /* DocumentText-macOS.swift in Sources */,
 				B31730792FD226CE00C6B7F0 /* HtmlExport.swift in Sources */,
 				B31730852FD2283E00C6B7F0 /* TeX.swift in Sources */,
+				B31730912FD2283E00C6B7F0 /* KaTeX.swift in Sources */,
 				B5000001AAAAAAAAAAAAAAAA /* ImagePrefetch.swift in Sources */,
 				B5000011AAAAAAAAAAAAAAAA /* TableMetrics.swift in Sources */,
 				1A2B3C4D5300000000000011 /* Bridges-macOS.swift in Sources */,
@@ -441,6 +466,7 @@
 				1A2B3C4D5300000000000010 /* QuickLook.swift in Sources */,
 				1A2B3C4D5300000000000012 /* Bridges-macOS.swift in Sources */,
 				B31730842FD2283E00C6B7F0 /* TeX.swift in Sources */,
+				B31730922FD2283E00C6B7F0 /* KaTeX.swift in Sources */,
 				1A2B3C4D5300000000000009 /* Highlight.swift in Sources */,
 				B317307B2FD226F500C6B7F0 /* PlainExport.swift in Sources */,
 				B5000003AAAAAAAAAAAAAAAA /* ImagePrefetch.swift in Sources */,

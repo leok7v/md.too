@@ -1,7 +1,55 @@
 import Foundation
 import AppKit
 
+// A cell rather than an image, so the formula stays vector and picks up
+// NSColor.textColor at DRAW time. An attachment holding a rasterized
+// formula bakes one theme's ink into the document and has to be rebuilt
+// when the theme flips; this one just redraws.
+
+final class MathAttachmentCell: NSTextAttachmentCell {
+
+    private let layout: MathLayout
+    private let inset: CGFloat = 4
+
+    init(layout: MathLayout) {
+        self.layout = layout
+        super.init()
+    }
+
+    // Never archived: the attachment is built fresh from the markdown
+    // every time the document is laid out.
+    required init(coder: NSCoder) {
+        fatalError("MathAttachmentCell is not decodable")
+    }
+
+    override func cellSize() -> NSSize {
+        NSSize(width: layout.width + inset * 2, height: layout.height)
+    }
+
+    // The formula sits on the text baseline like a very tall glyph, so
+    // its descent is what hangs below.
+    override func cellBaselineOffset() -> NSPoint {
+        NSPoint(x: 0, y: -layout.descent)
+    }
+
+    override func draw(withFrame cellFrame: NSRect, in controlView: NSView?) {
+        if let ctx = NSGraphicsContext.current?.cgContext {
+            let origin = CGPoint(x: cellFrame.minX + inset, y: cellFrame.minY)
+            layout.draw(in: ctx, at: origin,
+                        color: NSColor.textColor.cgColor,
+                        flipped: controlView?.isFlipped ?? true)
+        }
+    }
+
+}
+
 extension DocumentText {
+
+    static func mathAttachment(_ layout: MathLayout) -> NSTextAttachment {
+        let attachment = NSTextAttachment()
+        attachment.attachmentCell = MathAttachmentCell(layout: layout)
+        return attachment
+    }
 
     // Horizontal cell padding, as a percentage of the table width so it
     // can be subtracted from the column-share budget in the same unit.

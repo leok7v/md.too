@@ -45,11 +45,27 @@ A numbered list is the same idea wearing shoes. A small recipe, say:
 
 ## Math, the small kind
 
-A guided tour of the LaTeX subset, with no pretense of being a full TeX engine.
+Two engines, split by which delimiter you used, and you never pick.
 
-Inline: $\alpha + \beta = \gamma$, the right triangle staple $x^2 + y^2 = z^2$, Gauss's schoolboy trick $\sum_{i=1}^{n} i = \frac{n(n+1)}{2}$ (he was nine, allegedly), and $x \in \mathbb{R}$. Display blocks get a little more room:
+Inline maths stays text: $\alpha + \beta = \gamma$, the right triangle staple $x^2 + y^2 = z^2$, Gauss's schoolboy trick $\sum_{i=1}^{n} i$ (he was nine, allegedly), and $x \in \mathbb{R}$. It is Unicode, so it flows with the sentence, selects with it, and Find searches it.
 
-$$E = mc^2$$
+A `$$` display is typeset properly, by a TeX layout engine reading the OpenType MATH table of a real maths font:
+
+$$\frac{-b \pm \sqrt{b^2 - 4ac}}{2a}$$
+
+Big operators take their limits above and below, and the fences grow to fit what is inside them:
+
+$$\left(\sum_{i=1}^{n} a_i b_i\right)^2 \le \left(\sum_{i=1}^{n} a_i^2\right)\left(\sum_{i=1}^{n} b_i^2\right)$$
+
+Integrals with bounds, which the old renderer used to punt on:
+
+$$\int_{0}^{\infty} e^{-x^2}\,dx = \frac{\sqrt{\pi}}{2}$$
+
+Matrices, cases and aligned blocks, which it also used to punt on:
+
+$$\begin{pmatrix} a & b \\ c & d \end{pmatrix}^{-1} = \frac{1}{ad-bc}\begin{pmatrix} d & -b \\ -c & a \end{pmatrix}$$
+
+$$f(n) = \begin{cases} n/2 & \text{even} \\ 3n+1 & \text{odd} \end{cases}$$
 
 Greek alphabet, lower and upper, in case you need both at once:
 
@@ -59,7 +75,7 @@ $$\Gamma \Delta \Theta \Lambda \Xi \Pi \Sigma \Phi \Psi \Omega$$
 
 Operators and a corner of set theory: $\le \ge \neq \approx \pm \times \cdot \div \to \Rightarrow$, $\forall x \in \mathbb{N}, \exists y \in \mathbb{Z}$, $A \cap B$, $A \cup B$, $\varnothing$.
 
-Past this (matrices, integrals with bounds, multi line equations) we punt to verbatim source. We are not above admitting our limits. If you need real LaTeX, render the document to PDF in a tool that ships with a real TeX install and paste the equation as an image.
+There are still limits. No `\def` or `\newcommand`, no `\color`, and no line breaking inside a formula. A display the engine will not accept falls back to the inline spelling rather than showing you nothing, and copying any display gives you back the TeX you wrote.
 
 ## Footprints
 

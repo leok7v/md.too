@@ -71,6 +71,7 @@ final class PDFRenderer {
                 drawList(items, tight: tight)
             case .table(let headers, let rows):
                 drawTable(headers: headers, rows: rows)
+            case .math(let tex): drawMath(tex)
             case .rule: drawRule()
             case .image(let alt, let url, let width, _):
                 if let cg = images[url] {
@@ -683,6 +684,35 @@ final class PDFRenderer {
                                     height: size.height))
         }
         return size.height
+    }
+
+    // Straight into the page context, so the formula is vector in the
+    // PDF rather than a picture of one. A page cannot scroll, so a
+    // display wider than the column is re-laid at a smaller size --
+    // the same concession wide tables make -- and centred once it fits.
+
+    private func drawMath(_ tex: String) {
+        let layout = fittedMath(tex)
+        if let layout {
+            ensureSpace(layout.height + bodySize)
+            let slack = contentWidth - layout.width
+            let x = contentLeft + max(slack / 2, 0)
+            layout.draw(in: ctx, at: CGPoint(x: x, y: y), color: textColor)
+            y -= layout.height
+        } else {
+            drawText(TeX.render(tex, display: true),
+                     font: bodyFontItalic(), color: textColor)
+        }
+    }
+
+    private func fittedMath(_ tex: String) -> MathLayout? {
+        let wanted = TeX.displaySize(body: bodySize)
+        var result = TeX.layout(tex, size: wanted)
+        if let first = result, first.width > contentWidth, first.width > 0 {
+            let fitted = wanted * contentWidth / first.width
+            result = TeX.layout(tex, size: max(fitted, wanted * 0.5))
+        }
+        return result
     }
 
     private func drawRule() {

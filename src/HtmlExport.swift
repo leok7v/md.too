@@ -42,6 +42,14 @@ enum HtmlExport {
                 return renderList(items, tight: tight, images: images)
             case .table(let headers, let rows):
                 return renderTable(headers: headers, rows: rows)
+            case .math(let tex):
+                // Unicode, not a picture. A rasterized formula would
+                // bake in one theme's ink, stop scaling with the page,
+                // and weigh more than the document around it; the
+                // substituter's text does none of that and still says
+                // what the formula says.
+                return "<p style=\"\(mathStyle)\">" +
+                       "\(renderInline(TeX.render(tex, display: true)))</p>\n"
             case .rule:
                 return "<hr style=\"\(ruleStyle)\">\n"
             case .image(let alt, let url, let w, let h):
@@ -263,6 +271,11 @@ enum HtmlExport {
         "padding-left:12px;" +
         "margin-left:0;" +
         "opacity:0.85;"
+
+    private static let mathStyle =
+        "text-align:center;" +
+        "font-style:italic;" +
+        "margin:0.8em 0;"
 
     private static let ruleStyle =
         "border:none;" +
