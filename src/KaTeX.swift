@@ -811,9 +811,45 @@ final class Parser {
 
     static func parse(_ input: String) throws -> [Node] {
         let p = Parser(input)
-        let nodes = try p.expression(stop: [])
-        if let t = p.peek { throw MathError.syntax("unexpected '\(t.text)'", at: t.pos) }
+        var nodes = try p.expression(stop: [])
+        if let t = p.peek, t.text == "\\\\" || t.text == "&" {
+            nodes = [try p.implicitRows(first: nodes)]
+        }
+        if let t = p.peek {
+            throw MathError.syntax("unexpected '\(t.text)'", at: t.pos)
+        }
         return nodes
+    }
+
+    // A display can hold several lines, and columns inside them, without
+    // ever naming an environment. `$$a \\ b$$` is a two-line display in
+    // LaTeX and in KaTeX; `&` outside one is an error in both, but a
+    // converter lifting equations out of a PDF drops the \begin{aligned}
+    // and leaves exactly that behind, and a stack of rows is unambiguous
+    // enough to draw rather than refuse. An `&` anywhere means the rows
+    // align on it; otherwise they are simply gathered.
+
+    private func implicitRows(first: [Node]) throws -> Node {
+        var rows: [[[Node]]] = []
+        var gaps: [CGFloat] = []
+        var row: [[Node]] = [first]
+        var aligned = false
+        var reading = true
+        while reading {
+            if eat("&") {
+                aligned = true
+                row.append(try expression(stop: []))
+            } else if eat("\\\\") {
+                gaps.append(optionalDimension() ?? 0)
+                rows.append(row)
+                row = [try expression(stop: [])]
+            } else {
+                reading = false
+            }
+        }
+        if !(row.count == 1 && row[0].isEmpty) { rows.append(row) }
+        return .array(rows: rows, gaps: gaps,
+                      style: aligned ? .aligned : .gathered)
     }
 
     private static let stoppers: Set<String> = ["}", "&", "\\\\", "\\right", "\\end", "]"]
