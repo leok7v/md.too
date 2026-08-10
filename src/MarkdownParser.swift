@@ -665,7 +665,74 @@ enum Markdown {
                 i += 1
             }
         }
-        return .paragraph(inline(body.joined(separator: "\n")))
+        let raw = body.joined(separator: "\n")
+        return bareMath(raw) ?? .paragraph(inline(raw))
+    }
+
+    // A converter lifting an equation out of a PDF writes the TeX with
+    // nothing around it, and the paragraph then reads as a wall of
+    // backslashes. Markdown has no opinion about this, so the test has
+    // to be strict enough that prose can never pass it: the paragraph
+    // must OPEN with a control word, and the whole of it must parse --
+    // every token recognised, no unknown command, nothing left over.
+    // A sentence that merely mentions \frac fails on its first ordinary
+    // word, and a Windows path fails because \\ is not a control word.
+
+    private static func bareMath(_ raw: String) -> Block? {
+        var result: Block? = nil
+        if opensWithControlWord(raw), !hasProseWord(raw), TeX.parses(raw) {
+            result = .math(raw)
+        }
+        return result
+    }
+
+    // Parsing cleanly is not enough on its own. In maths, neighbouring
+    // letters are separate variables multiplied together, so "\alpha is
+    // the first letter" parses perfectly -- as alpha times i times s and
+    // so on -- and would be typeset as a formula. A run of three or more
+    // letters is prose wearing a backslash.
+    //
+    // Letters inside braces are exempt: that is where \text{} keeps its
+    // words, and where the converters put them. Letters belonging to a
+    // control word are exempt for the obvious reason.
+
+    private static func hasProseWord(_ raw: String) -> Bool {
+        var depth = 0
+        var run = 0
+        var found = false
+        var inCommand = false
+        for ch in raw {
+            if ch == "\\" {
+                inCommand = true
+                run = 0
+            } else if inCommand, ch.isLetter {
+                continue
+            } else {
+                inCommand = false
+                if ch == "{" {
+                    depth += 1
+                    run = 0
+                } else if ch == "}" {
+                    depth = max(depth - 1, 0)
+                    run = 0
+                } else if ch.isLetter, ch.isASCII, depth == 0 {
+                    run += 1
+                    if run >= 3 { found = true }
+                } else {
+                    run = 0
+                }
+            }
+        }
+        return found
+    }
+
+    private static func opensWithControlWord(_ raw: String) -> Bool {
+        var result = false
+        let t = raw.trimmedLeading()
+        if t.hasPrefix("\\"), let after = t.dropFirst().first {
+            result = after.isLetter
+        }
+        return result
     }
 
     private static func inline(_ raw: String) -> AttributedString {

@@ -23,6 +23,15 @@ enum TeX {
     // to, 20pt of maths against 15pt of text.
     static func displaySize(body: CGFloat) -> CGFloat { body * 4 / 3 }
 
+    // Whether the WHOLE string is TeX the parser recognises: every
+    // token known, nothing left over. Parse only, no layout and no
+    // font, because this is asked speculatively about paragraphs that
+    // merely look like they might be formulas.
+
+    static func parses(_ tex: String) -> Bool {
+        (try? Parser.parse(tex)) != nil
+    }
+
     enum Segment {
         case text(String)
         case math(String, display: Bool)

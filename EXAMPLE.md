@@ -93,6 +93,12 @@ $$\Gamma \Delta \Theta \Lambda \Xi \Pi \Sigma \Phi \Psi \Omega$$
 
 Operators and a corner of set theory: $\le \ge \neq \approx \pm \times \cdot \div \to \Rightarrow$, $\forall x \in \mathbb{N}, \exists y \in \mathbb{Z}$, $A \cap B$, $A \cup B$, $\varnothing$.
 
+Tools that lift equations out of a PDF often forget the delimiters and leave the bare TeX sitting in a paragraph. A paragraph that opens with a control word and parses cleanly as TeX, with no ordinary words in it, is read as a display anyway:
+
+\frac { D x N } { \frac { ( \text {Truth} ) } { 1 6 0 0 \, x \, 1 4 } } \\ \frac { 4 2 8 \, x \, 1 0 } { ( 1 ) } \\ \frac { 2 9 \, x \, 9 5 } { ( 2 3 ) }
+
+That is three separate tests, and prose fails all but the first: `\alpha is the first letter` parses perfectly well as alpha times i times s and so on, and is caught by the run of ordinary letters. Rows separated by `\\`, and columns by `&`, work without naming an environment.
+
 There are still limits. No `\def` or `\newcommand`, no `\color`, and no line breaking inside a formula. A display the engine will not accept falls back to the inline spelling rather than showing you nothing, and copying any display gives you back the TeX you wrote.
 
 ## Footprints
