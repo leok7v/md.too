@@ -14,13 +14,13 @@ enum DocumentText {
         return m
     }
 
-    // The narrowest this document can be drawn before a table is asked
-    // for less room than its content can occupy. One text view holds the
-    // whole document, so there is no per-table escape here the way the
-    // block renderer has: the answer is a single width for everything,
-    // and the caller scrolls horizontally when the viewport is smaller.
-    // Zero for a document with no tables, which is the common case and
-    // leaves the text width-aligned to the window.
+    // The narrowest this document can be drawn before a table or a
+    // formula is asked for less room than its content can occupy. One
+    // text view holds the whole document, so there is no per-block
+    // escape here the way the block renderer has: the answer is a single
+    // width for everything, and the caller scrolls horizontally when the
+    // viewport is smaller. Zero for a document with neither, which is
+    // the common case and leaves the text width-aligned to the window.
 
     static func minimumWidth(of blocks: [Block]) -> CGFloat {
         var widest: CGFloat = 0
@@ -36,6 +36,8 @@ enum DocumentText {
         switch block {
             case .table(let headers, let rows):
                 result = tableMinimumWidth(headers: headers, rows: rows)
+            case .math(let tex):
+                result = mathMinimumWidth(tex)
             case .quote(let inner):
                 result = indented(minimumWidth(of: inner), by: 18)
             case .list(let items, _):
@@ -45,6 +47,25 @@ enum DocumentText {
                 }
             default:
                 result = 0
+        }
+        return result
+    }
+
+    // A formula has no line breaks to give and the single surface has
+    // no way to scroll one on its own, so the surface has to be wide
+    // enough to hold it whole -- the same bargain the tables strike.
+    //
+    // Wide enough for the copy button too. The paragraph is centred, so
+    // the slack is split between the two margins and a gutter on the
+    // right costs the same on the left; without it, a formula that
+    // exactly fills the surface leaves the button sitting on top of it.
+
+    private static func mathMinimumWidth(_ tex: String) -> CGFloat {
+        let base = FontRole.body.platformFont
+        let size = TeX.displaySize(body: base.pointSize)
+        var result: CGFloat = 0
+        if let layout = TeX.layout(tex, size: size) {
+            result = ceil(layout.width) + 8 + copyButtonGutter * 2
         }
         return result
     }

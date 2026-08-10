@@ -14,6 +14,12 @@ struct CopyBlockSpot: Equatable {
     let copy: String
 }
 
+// Where the copy overlay sets a button, measured in from the right edge
+// of the block it belongs to. A builder whose content is CENTRED has to
+// reserve this on both margins, or a block wide enough to fill its
+// surface leaves the button sitting on top of the content.
+let copyButtonGutter: CGFloat = 26
+
 let atomicKindKey = NSAttributedString.Key("AtomicKind.kind")
 let atomicIdKey = NSAttributedString.Key("AtomicKind.id")
 // The block's SOURCE text for the corner Copy button (raw code, or the
