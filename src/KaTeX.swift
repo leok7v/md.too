@@ -12,21 +12,11 @@
 //      MathLayout.draw(in:at:color:flipped:)       (draw)
 //      MathLayout.cgImage(...)                     (rasterize)
 //
-//  HOUSE RULES: this file is a whole layout engine carried in from
-//  another project, not code grown here, and it is deliberately NOT
-//  held to single-exit. Appendix G is a thicket of early returns by
-//  nature; converting ~1700 lines of it would trade real correctness
-//  for the appearance of discipline. `guard` stays for the same reason
-//  -- every one of them guards an early return that is staying anyway.
-//  What IS enforced: no marker comments, no $0, decomposition wherever
-//  a function was doing several jobs at once, and 79 columns in
-//  everything written here rather than carried in. Roughly 150 of the
-//  engine's own lines still run long; that is mechanical and unfinished
-//  rather than intentional.
-//
-//  Nothing here is safe to change by eye. tmp/katex/check.sh renders
-//  three documents and diffs them against golden images -- run it after
-//  touching anything in this file.
+//  Nothing here is safe to change by eye: the output is geometry, and a
+//  glyph moved by a point compiles clean and reads as no diff at all.
+//  MD/tests/KaTeXGoldenTests.swift fingerprints 36 formulas by their
+//  layout metrics and by a hash of their rasterized pixels -- run it
+//  after touching anything in this file.
 //
 
 import Foundation
@@ -55,7 +45,7 @@ public struct MathSettings {
     /// Base font size in points.
     public var fontSize: CGFloat = 20
     public var color: CGColor = CGColor(red: 0, green: 0, blue: 0, alpha: 1)
-    /// Where `\tag{…}` is placed. `.left` reproduces LaTeX's `leqno`.
+    /// Where `\tag{...}` is placed. `.left` reproduces LaTeX's `leqno`.
     public var tagSide: TagSide = .right
     /// Minimum gap between the body and a `\tag`.
     public var tagGap: CGFloat = 32
@@ -68,6 +58,9 @@ public struct MathSettings {
 
 /// Minimal OpenType reader: table directory, cmap, and the MATH table.
 public final class MathFontFile {
+    typealias Variant = (glyph: CGGlyph, adv: CGFloat)
+    typealias Metrics = (adv: CGFloat, h: CGFloat, d: CGFloat)
+
     let bytes: [UInt8]
     let cgFont: CGFont
     let upem: CGFloat
@@ -86,8 +79,8 @@ public final class MathFontFile {
     private(set) var minConnectorOverlap: CGFloat = 0
     /// Minimum height of a big operator in display style, in em.
     private(set) var displayOperatorMinHeight: CGFloat = 1.4
-    private var vertVariants: [CGGlyph: [(glyph: CGGlyph, adv: CGFloat)]] = [:]
-    private var horizVariants: [CGGlyph: [(glyph: CGGlyph, adv: CGFloat)]] = [:]
+    private var vertVariants: [CGGlyph: [Variant]] = [:]
+    private var horizVariants: [CGGlyph: [Variant]] = [:]
     private var vertAssembly: [CGGlyph: [AssemblyPart]] = [:]
     private(set) var scriptPercent: CGFloat = 0.7
     private(set) var scriptScriptPercent: CGFloat = 0.5
@@ -103,8 +96,11 @@ public final class MathFontFile {
 
     public init(data: Data) throws {
         self.bytes = [UInt8](data)
-        guard let provider = CGDataProvider(data: data as CFData),
-              let font = CGFont(provider) else {
+        let font: CGFont
+        if let provider = CGDataProvider(data: data as CFData),
+           let parsed = CGFont(provider) {
+            font = parsed
+        } else {
             throw MathError.fontUnavailable("not a usable font file")
         }
         self.cgFont = font
@@ -119,91 +115,139 @@ public final class MathFontFile {
     }
 
 
-    @inline(__always) func u8(_ o: Int) -> Int { o < bytes.count ? Int(bytes[o]) : 0 }
+    @inline(__always) func u8(_ o: Int) -> Int {
+        o < bytes.count ? Int(bytes[o]) : 0
+    }
     @inline(__always) func u16(_ o: Int) -> Int { (u8(o) << 8) | u8(o + 1) }
-    @inline(__always) func i16(_ o: Int) -> Int { let v = u16(o); return v >= 0x8000 ? v - 0x10000 : v }
+    @inline(__always) func i16(_ o: Int) -> Int {
+        let v = u16(o)
+        return v >= 0x8000 ? v - 0x10000 : v
+    }
     @inline(__always) func u32(_ o: Int) -> Int { (u16(o) << 16) | u16(o + 2) }
 
     private func readTableDirectory() throws {
-        guard bytes.count > 12 else { throw MathError.fontUnavailable("truncated") }
-        let n = u16(4)
-        guard n > 0, 12 + 16 * n <= bytes.count else { throw MathError.fontUnavailable("bad table count") }
-        for i in 0..<n {
-            let e = 12 + 16 * i
-            let tag = String(bytes: bytes[e..<(e + 4)], encoding: .isoLatin1) ?? ""
-            tables[tag] = (u32(e + 8), u32(e + 12))
+        var failure: MathError? = nil
+        if bytes.count > 12 {
+            let n = u16(4)
+            if n > 0, 12 + 16 * n <= bytes.count {
+                for i in 0..<n {
+                    let e = 12 + 16 * i
+                    let tag = String(bytes: bytes[e..<(e + 4)],
+                                     encoding: .isoLatin1) ?? ""
+                    tables[tag] = (u32(e + 8), u32(e + 12))
+                }
+            } else {
+                failure = .fontUnavailable("bad table count")
+            }
+        } else {
+            failure = .fontUnavailable("truncated")
         }
+        if let failure { throw failure }
     }
 
 
     private func readCmap() throws {
-        guard let t = tables["cmap"] else { throw MathError.fontUnavailable("no cmap") }
-        let n = u16(t.off + 2)
-        var best = 0, bestScore = -1
-        for i in 0..<n {
-            let p = t.off + 4 + 8 * i
-            let plat = u16(p), enc = u16(p + 2), off = u32(p + 4)
-            let score: Int
-            switch (plat, enc) {
-            case (3, 10): score = 4
-            case (0, 4), (0, 6): score = 3
-            case (3, 1): score = 2
-            case (0, _): score = 1
-            default: score = 0
+        var failure: MathError? = nil
+        if let t = tables["cmap"] {
+            let n = u16(t.off + 2)
+            var best = 0, bestScore = -1
+            for i in 0..<n {
+                let p = t.off + 4 + 8 * i
+                let plat = u16(p), enc = u16(p + 2), off = u32(p + 4)
+                let score: Int
+                switch (plat, enc) {
+                case (3, 10): score = 4
+                case (0, 4), (0, 6): score = 3
+                case (3, 1): score = 2
+                case (0, _): score = 1
+                default: score = 0
+                }
+                if score > bestScore { bestScore = score; best = t.off + off }
             }
-            if score > bestScore { bestScore = score; best = t.off + off }
+            if bestScore >= 0 {
+                cmapSub = best
+                cmapFmt = u16(best)
+            } else {
+                failure = .fontUnavailable("no usable cmap subtable")
+            }
+        } else {
+            failure = .fontUnavailable("no cmap")
         }
-        guard bestScore >= 0 else { throw MathError.fontUnavailable("no usable cmap subtable") }
-        cmapSub = best
-        cmapFmt = u16(best)
+        if let failure { throw failure }
     }
 
     /// Glyph id for a Unicode scalar, 0 when the font has no such glyph.
     public func glyph(_ cp: UInt32) -> CGGlyph {
-        if let g = glyphCache[cp] { return g }
         var result: CGGlyph = 0
-        switch cmapFmt {
-        case 12:
-            let n = u32(cmapSub + 12)
-            var lo = 0, hi = n - 1
-            while lo <= hi {
-                let mid = (lo + hi) / 2
-                let p = cmapSub + 16 + 12 * mid
-                let s = UInt32(u32(p)), e = UInt32(u32(p + 4))
-                if cp < s { hi = mid - 1 }
-                else if cp > e { lo = mid + 1 }
-                else { result = CGGlyph(UInt32(u32(p + 8)) &+ (cp - s)); break }
+        if let cached = glyphCache[cp] {
+            result = cached
+        } else {
+            switch cmapFmt {
+            case 12: result = segmentedCoverage(cp)
+            case 4: result = segmentMapping(cp)
+            case 6: result = trimmedMapping(cp)
+            default: break
             }
-        case 4:
-            if cp <= 0xFFFF {
-                let segX2 = u16(cmapSub + 6)
-                let ends = cmapSub + 14
-                let starts = ends + segX2 + 2
-                let deltas = starts + segX2
-                let ranges = deltas + segX2
-                var seg = -1
-                for i in stride(from: 0, to: segX2, by: 2) where UInt32(u16(ends + i)) >= cp {
-                    seg = i; break
-                }
-                if seg >= 0, UInt32(u16(starts + seg)) <= cp {
-                    let ro = u16(ranges + seg)
-                    if ro == 0 {
-                        result = CGGlyph((Int(cp) + i16(deltas + seg)) & 0xFFFF)
-                    } else {
-                        let gi = ranges + seg + ro + 2 * (Int(cp) - u16(starts + seg))
-                        let g = u16(gi)
-                        if g != 0 { result = CGGlyph((g + i16(deltas + seg)) & 0xFFFF) }
+            glyphCache[cp] = result
+        }
+        return result
+    }
+
+    private func segmentedCoverage(_ cp: UInt32) -> CGGlyph {
+        var found: CGGlyph? = nil
+        var lo = 0
+        var hi = u32(cmapSub + 12) - 1
+        while lo <= hi && found == nil {
+            let mid = (lo + hi) / 2
+            let p = cmapSub + 16 + 12 * mid
+            let s = UInt32(u32(p)), e = UInt32(u32(p + 4))
+            if cp < s {
+                hi = mid - 1
+            } else if cp > e {
+                lo = mid + 1
+            } else {
+                found = CGGlyph(UInt32(u32(p + 8)) &+ (cp - s))
+            }
+        }
+        return found ?? 0
+    }
+
+    private func segmentMapping(_ cp: UInt32) -> CGGlyph {
+        var result: CGGlyph = 0
+        if cp <= 0xFFFF {
+            let segX2 = u16(cmapSub + 6)
+            let ends = cmapSub + 14
+            let starts = ends + segX2 + 2
+            let deltas = starts + segX2
+            let ranges = deltas + segX2
+            var seg: Int? = nil
+            var i = 0
+            while i < segX2 && seg == nil {
+                if UInt32(u16(ends + i)) >= cp { seg = i }
+                i += 2
+            }
+            if let seg, UInt32(u16(starts + seg)) <= cp {
+                let ro = u16(ranges + seg)
+                if ro == 0 {
+                    result = CGGlyph((Int(cp) + i16(deltas + seg)) & 0xFFFF)
+                } else {
+                    let idx = Int(cp) - u16(starts + seg)
+                    let g = u16(ranges + seg + ro + 2 * idx)
+                    if g != 0 {
+                        result = CGGlyph((g + i16(deltas + seg)) & 0xFFFF)
                     }
                 }
             }
-        case 6:
-            let first = u16(cmapSub + 6), count = u16(cmapSub + 8)
-            if cp >= UInt32(first) && cp < UInt32(first + count) {
-                result = CGGlyph(u16(cmapSub + 10 + 2 * (Int(cp) - first)))
-            }
-        default: break
         }
-        glyphCache[cp] = result
+        return result
+    }
+
+    private func trimmedMapping(_ cp: UInt32) -> CGGlyph {
+        var result: CGGlyph = 0
+        let first = u16(cmapSub + 6), count = u16(cmapSub + 8)
+        if cp >= UInt32(first) && cp < UInt32(first + count) {
+            result = CGGlyph(u16(cmapSub + 10 + 2 * (Int(cp) - first)))
+        }
         return result
     }
 
@@ -231,8 +275,10 @@ public final class MathFontFile {
     }
 
     private func readMath() {
-        guard let t = tables["MATH"] else { return }
-        let base = t.off
+        if let t = tables["MATH"] { readMath(at: t.off) }
+    }
+
+    private func readMath(at base: Int) {
         mathConstants = base + u16(base + 4)
         let glyphInfo = base + u16(base + 6)
         let variants = base + u16(base + 8)
@@ -251,25 +297,31 @@ public final class MathFontFile {
             let ic = glyphInfo + icOff
             let cov = coverage(ic + u16(ic))
             let n = u16(ic + 2)
-            for (g, i) in cov where i < n { italicCorr[g] = CGFloat(i16(ic + 4 + 4 * i)) / upem }
+            for (g, i) in cov where i < n {
+                italicCorr[g] = CGFloat(i16(ic + 4 + 4 * i)) / upem
+            }
         }
         let taOff = u16(glyphInfo + 2)
         if taOff != 0 {
             let ta = glyphInfo + taOff
             let cov = coverage(ta + u16(ta))
             let n = u16(ta + 2)
-            for (g, i) in cov where i < n { topAccent[g] = CGFloat(i16(ta + 4 + 4 * i)) / upem }
+            for (g, i) in cov where i < n {
+                topAccent[g] = CGFloat(i16(ta + 4 + 4 * i)) / upem
+            }
         }
 
         // MathVariants
         minConnectorOverlap = CGFloat(u16(variants)) / upem
-        let vertCov = u16(variants + 2) != 0 ? coverage(variants + u16(variants + 2)) : [:]
-        let horizCov = u16(variants + 4) != 0 ? coverage(variants + u16(variants + 4)) : [:]
+        let vertOff = u16(variants + 2)
+        let horizOff = u16(variants + 4)
+        let vertCov = vertOff != 0 ? coverage(variants + vertOff) : [:]
+        let horizCov = horizOff != 0 ? coverage(variants + horizOff) : [:]
         let vertCount = u16(variants + 6)
         let horizCount = u16(variants + 8)
 
-        func readConstruction(_ off: Int) -> ([(glyph: CGGlyph, adv: CGFloat)], [AssemblyPart]) {
-            var vars: [(glyph: CGGlyph, adv: CGFloat)] = []
+        func readConstruction(_ off: Int) -> ([Variant], [AssemblyPart]) {
+            var vars: [Variant] = []
             let n = u16(off + 2)
             for i in 0..<n {
                 let p = off + 4 + 4 * i
@@ -282,11 +334,12 @@ public final class MathFontFile {
                 let pn = u16(a + 4)
                 for i in 0..<pn {
                     let p = a + 6 + 10 * i
-                    parts.append(AssemblyPart(glyph: CGGlyph(u16(p)),
-                                              startConnector: CGFloat(u16(p + 2)) / upem,
-                                              endConnector: CGFloat(u16(p + 4)) / upem,
-                                              fullAdvance: CGFloat(u16(p + 6)) / upem,
-                                              isExtender: (u16(p + 8) & 1) != 0))
+                    parts.append(AssemblyPart(
+                        glyph: CGGlyph(u16(p)),
+                        startConnector: CGFloat(u16(p + 2)) / upem,
+                        endConnector: CGFloat(u16(p + 4)) / upem,
+                        fullAdvance: CGFloat(u16(p + 6)) / upem,
+                        isExtender: (u16(p + 8) & 1) != 0))
                 }
             }
             return (vars, parts)
@@ -306,43 +359,53 @@ public final class MathFontFile {
     }
 
     /// MATH table constants, in em.
-    public enum Constant: Int {
-        case mathLeading = 0, axisHeight, accentBaseHeight, flattenedAccentBaseHeight,
-             subscriptShiftDown, subscriptTopMax, subscriptBaselineDropMin,
-             superscriptShiftUp, superscriptShiftUpCramped, superscriptBottomMin,
+    public enum Constant: Int, Sendable {
+        case mathLeading = 0, axisHeight, accentBaseHeight,
+             flattenedAccentBaseHeight, subscriptShiftDown, subscriptTopMax,
+             subscriptBaselineDropMin, superscriptShiftUp,
+             superscriptShiftUpCramped, superscriptBottomMin,
              superscriptBaselineDropMax, subSuperscriptGapMin,
              superscriptBottomMaxWithSubscript, spaceAfterScript,
              upperLimitGapMin, upperLimitBaselineRiseMin, lowerLimitGapMin,
-             lowerLimitBaselineDropMin, stackTopShiftUp, stackTopDisplayStyleShiftUp,
-             stackBottomShiftDown, stackBottomDisplayStyleShiftDown, stackGapMin,
-             stackDisplayStyleGapMin, stretchStackTopShiftUp, stretchStackBottomShiftDown,
-             stretchStackGapAboveMin, stretchStackGapBelowMin,
-             fractionNumeratorShiftUp, fractionNumeratorDisplayStyleShiftUp,
-             fractionDenominatorShiftDown, fractionDenominatorDisplayStyleShiftDown,
-             fractionNumeratorGapMin, fractionNumDisplayStyleGapMin,
-             fractionRuleThickness, fractionDenominatorGapMin,
-             fractionDenomDisplayStyleGapMin, skewedFractionHorizontalGap,
-             skewedFractionVerticalGap, overbarVerticalGap, overbarRuleThickness,
-             overbarExtraAscender, underbarVerticalGap, underbarRuleThickness,
-             underbarExtraDescender, radicalVerticalGap, radicalDisplayStyleVerticalGap,
-             radicalRuleThickness, radicalExtraAscender, radicalKernBeforeDegree,
+             lowerLimitBaselineDropMin, stackTopShiftUp,
+             stackTopDisplayStyleShiftUp, stackBottomShiftDown,
+             stackBottomDisplayStyleShiftDown, stackGapMin,
+             stackDisplayStyleGapMin, stretchStackTopShiftUp,
+             stretchStackBottomShiftDown, stretchStackGapAboveMin,
+             stretchStackGapBelowMin, fractionNumeratorShiftUp,
+             fractionNumeratorDisplayStyleShiftUp,
+             fractionDenominatorShiftDown,
+             fractionDenominatorDisplayStyleShiftDown, fractionNumeratorGapMin,
+             fractionNumDisplayStyleGapMin, fractionRuleThickness,
+             fractionDenominatorGapMin, fractionDenomDisplayStyleGapMin,
+             skewedFractionHorizontalGap, skewedFractionVerticalGap,
+             overbarVerticalGap, overbarRuleThickness, overbarExtraAscender,
+             underbarVerticalGap, underbarRuleThickness,
+             underbarExtraDescender, radicalVerticalGap,
+             radicalDisplayStyleVerticalGap, radicalRuleThickness,
+             radicalExtraAscender, radicalKernBeforeDegree,
              radicalKernAfterDegree
     }
 
     private static let fallback: [Constant: CGFloat] = [
         .axisHeight: 0.25, .accentBaseHeight: 0.45,
-        .subscriptShiftDown: 0.25, .subscriptTopMax: 0.4, .subscriptBaselineDropMin: 0.05,
+        .subscriptShiftDown: 0.25, .subscriptTopMax: 0.4,
+        .subscriptBaselineDropMin: 0.05,
         .superscriptShiftUp: 0.41, .superscriptShiftUpCramped: 0.29,
         .superscriptBottomMin: 0.13, .superscriptBaselineDropMax: 0.38,
         .subSuperscriptGapMin: 0.2, .superscriptBottomMaxWithSubscript: 0.4,
-        .spaceAfterScript: 0.04, .upperLimitGapMin: 0.135, .upperLimitBaselineRiseMin: 0.3,
+        .spaceAfterScript: 0.04, .upperLimitGapMin: 0.135,
+        .upperLimitBaselineRiseMin: 0.3,
         .lowerLimitGapMin: 0.135, .lowerLimitBaselineDropMin: 0.6,
-        .fractionNumeratorShiftUp: 0.4, .fractionNumeratorDisplayStyleShiftUp: 0.68,
-        .fractionDenominatorShiftDown: 0.35, .fractionDenominatorDisplayStyleShiftDown: 0.68,
+        .fractionNumeratorShiftUp: 0.4,
+        .fractionNumeratorDisplayStyleShiftUp: 0.68,
+        .fractionDenominatorShiftDown: 0.35,
+        .fractionDenominatorDisplayStyleShiftDown: 0.68,
         .fractionNumeratorGapMin: 0.05, .fractionNumDisplayStyleGapMin: 0.15,
         .fractionRuleThickness: 0.05, .fractionDenominatorGapMin: 0.05,
         .fractionDenomDisplayStyleGapMin: 0.15,
-        .overbarVerticalGap: 0.15, .overbarRuleThickness: 0.05, .overbarExtraAscender: 0.05,
+        .overbarVerticalGap: 0.15, .overbarRuleThickness: 0.05,
+        .overbarExtraAscender: 0.05,
         .radicalVerticalGap: 0.06, .radicalDisplayStyleVerticalGap: 0.17,
         .radicalRuleThickness: 0.05, .radicalExtraAscender: 0.05,
         .radicalKernBeforeDegree: 0.28, .radicalKernAfterDegree: -0.36,
@@ -350,54 +413,82 @@ public final class MathFontFile {
 
     /// Constant in em units.
     public func constant(_ c: Constant) -> CGFloat {
-        guard mathConstants > 0 else { return MathFontFile.fallback[c] ?? 0 }
-        return CGFloat(i16(mathConstants + 8 + 4 * c.rawValue)) / upem
+        let result: CGFloat
+        if mathConstants > 0 {
+            result = CGFloat(i16(mathConstants + 8 + 4 * c.rawValue)) / upem
+        } else {
+            result = MathFontFile.fallback[c] ?? 0
+        }
+        return result
     }
 
 
     func ctFont(_ size: CGFloat) -> CTFont {
-        if let f = ctCache[size] { return f }
-        let f = CTFontCreateWithGraphicsFont(cgFont, size, nil, nil)
-        ctCache[size] = f
-        return f
+        let result: CTFont
+        if let cached = ctCache[size] {
+            result = cached
+        } else {
+            result = CTFontCreateWithGraphicsFont(cgFont, size, nil, nil)
+            ctCache[size] = result
+        }
+        return result
     }
 
     private struct MetricKey: Hashable { let g: CGGlyph; let s: CGFloat }
-    private var metricCache: [MetricKey: (adv: CGFloat, h: CGFloat, d: CGFloat)] = [:]
+    private var metricCache: [MetricKey: Metrics] = [:]
 
     func rect(_ g: CGGlyph, _ size: CGFloat) -> CGRect {
         var glyphs = [g]
         var rects = [CGRect.zero]
-        CTFontGetBoundingRectsForGlyphs(ctFont(size), .horizontal, &glyphs, &rects, 1)
+        CTFontGetBoundingRectsForGlyphs(ctFont(size), .horizontal,
+                                        &glyphs, &rects, 1)
         return rects[0].isNull ? .zero : rects[0]
     }
 
-    func metrics(_ g: CGGlyph, _ size: CGFloat) -> (adv: CGFloat, h: CGFloat, d: CGFloat) {
+    func metrics(_ g: CGGlyph, _ size: CGFloat) -> Metrics {
         let key = MetricKey(g: g, s: size)
-        if let m = metricCache[key] { return m }
-        var glyphs = [g]
-        var advances = [CGSize.zero]
-        var rects = [CGRect.zero]
-        let font = ctFont(size)
-        CTFontGetAdvancesForGlyphs(font, .horizontal, &glyphs, &advances, 1)
-        CTFontGetBoundingRectsForGlyphs(font, .horizontal, &glyphs, &rects, 1)
-        let r = rects[0]
-        let m = (advances[0].width,
-                 r.isNull || r.isEmpty ? 0 : r.maxY,
-                 r.isNull || r.isEmpty ? 0 : -r.minY)
-        metricCache[key] = m
-        return m
+        let result: Metrics
+        if let cached = metricCache[key] {
+            result = cached
+        } else {
+            var glyphs = [g]
+            var advances = [CGSize.zero]
+            var rects = [CGRect.zero]
+            let font = ctFont(size)
+            CTFontGetAdvancesForGlyphs(font, .horizontal, &glyphs,
+                                       &advances, 1)
+            CTFontGetBoundingRectsForGlyphs(font, .horizontal, &glyphs,
+                                            &rects, 1)
+            let r = rects[0]
+            result = (advances[0].width,
+                      r.isNull || r.isEmpty ? 0 : r.maxY,
+                      r.isNull || r.isEmpty ? 0 : -r.minY)
+            metricCache[key] = result
+        }
+        return result
     }
 
-    func italicCorrection(_ g: CGGlyph, _ size: CGFloat) -> CGFloat { (italicCorr[g] ?? 0) * size }
+    func italicCorrection(_ g: CGGlyph, _ size: CGFloat) -> CGFloat {
+        (italicCorr[g] ?? 0) * size
+    }
     func topAccentAttachment(_ g: CGGlyph, _ size: CGFloat) -> CGFloat? {
         topAccent[g].map { v in v * size }
     }
-    func verticalVariants(_ g: CGGlyph) -> [(glyph: CGGlyph, adv: CGFloat)] { vertVariants[g] ?? [] }
-    func horizontalVariants(_ g: CGGlyph) -> [(glyph: CGGlyph, adv: CGFloat)] { horizVariants[g] ?? [] }
-    func verticalAssembly(_ g: CGGlyph) -> [AssemblyPart] { vertAssembly[g] ?? [] }
+    func verticalVariants(_ g: CGGlyph) -> [Variant] { vertVariants[g] ?? [] }
+    func horizontalVariants(_ g: CGGlyph) -> [Variant] {
+        horizVariants[g] ?? []
+    }
+    func verticalAssembly(_ g: CGGlyph) -> [AssemblyPart] {
+        vertAssembly[g] ?? []
+    }
 
-    private static var cached: MathFontFile?
+    // One parsed font serves every formula, and its glyph and CTFont
+    // caches fill lazily as they are used, so the instance is mutable
+    // for its whole life. `KaTeX.layout` holds this lock across a whole
+    // layout, which is what makes sharing it safe; nothing else may
+    // touch a MathFontFile.
+    static let lock = NSLock()
+    nonisolated(unsafe) private static var cached: MathFontFile?
 
     /// Override to point at a different MATH-table font. The md2png CLI
     /// sets it from --font; the app never does.
@@ -452,18 +543,17 @@ struct Lexer {
             let c = s[i]
             if c == "%" {
                 while i < s.count && s[i] != "\n" { i += 1 }
-                continue
-            }
-            if c == " " || c == "\t" || c == "\n" || c == "\r" {
+            } else if c == " " || c == "\t" || c == "\n" || c == "\r" {
                 i += 1
-                continue
-            }
-            if c == "\\" {
+            } else if c == "\\" {
                 let start = i
                 i += 1
-                if i < s.count && (s[i].isLetter) {
+                if i < s.count && s[i].isLetter {
                     var name = "\\"
-                    while i < s.count && s[i].isLetter { name.append(s[i]); i += 1 }
+                    while i < s.count && s[i].isLetter {
+                        name.append(s[i])
+                        i += 1
+                    }
                     out.append(Tok(text: name, pos: start))
                 } else if i < s.count {
                     out.append(Tok(text: "\\" + String(s[i]), pos: start))
@@ -471,23 +561,23 @@ struct Lexer {
                 } else {
                     out.append(Tok(text: "\\", pos: start))
                 }
-                continue
+            } else {
+                out.append(Tok(text: String(c), pos: i))
+                i += 1
             }
-            out.append(Tok(text: String(c), pos: i))
-            i += 1
         }
         return out
     }
 }
 
 
-public enum Atom {
+public enum Atom: Sendable {
     case ord, op, bin, rel, open, close, punct, inner
 }
 
 /// A math "font" in the TeX sense: selects a Unicode math
 /// alphanumeric block.
-public enum MathVariant {
+public enum MathVariant: Sendable {
     case italic, upright, bold, boldItalic, script, boldScript, fraktur
     case doubleStruck, sansSerif, sansBold, sansItalic, mono, text
 }
@@ -497,7 +587,9 @@ enum Alphanumerics {
         "B": 0x212C, "E": 0x2130, "F": 0x2131, "H": 0x210B,
         "I": 0x2110, "L": 0x2112, "M": 0x2133, "R": 0x211B,
     ]
-    private static let scriptLower: [Character: UInt32] = ["e": 0x212F, "g": 0x210A, "o": 0x2134]
+    private static let scriptLower: [Character: UInt32] = [
+        "e": 0x212F, "g": 0x210A, "o": 0x2134,
+    ]
     private static let frakturUpper: [Character: UInt32] = [
         "C": 0x212D, "H": 0x210C, "I": 0x2111, "R": 0x211C, "Z": 0x2128,
     ]
@@ -517,7 +609,7 @@ enum Alphanumerics {
     // character is left as it was: script has no digits, italic has no
     // digits, upright is not in the table at all.
 
-    private struct Alphabet {
+    private struct Alphabet: Sendable {
         let upper: UInt32
         let lower: UInt32
         let digit: UInt32
@@ -576,13 +668,17 @@ enum Alphanumerics {
 }
 
 
-struct SymbolDef {
+struct SymbolDef: Sendable {
     let scalar: UInt32
     let atom: Atom
     /// If true the codepoint is already final and must not be
     /// re-mapped by \mathXX.
     let literal: Bool
-    init(_ s: UInt32, _ a: Atom, literal: Bool = true) { scalar = s; atom = a; self.literal = literal }
+    init(_ s: UInt32, _ a: Atom, literal: Bool = true) {
+        scalar = s
+        atom = a
+        self.literal = literal
+    }
 }
 
 enum Symbols {
@@ -591,57 +687,68 @@ enum Symbols {
     static let table: [String: SymbolDef] = {
         var t: [String: SymbolDef] = [:]
         let lower: [(String, UInt32)] = [
-            ("alpha", 0x1D6FC), ("beta", 0x1D6FD), ("gamma", 0x1D6FE), ("delta", 0x1D6FF),
-            ("varepsilon", 0x1D700), ("zeta", 0x1D701), ("eta", 0x1D702), ("theta", 0x1D703),
-            ("iota", 0x1D704), ("kappa", 0x1D705), ("lambda", 0x1D706), ("mu", 0x1D707),
-            ("nu", 0x1D708), ("xi", 0x1D709), ("omicron", 0x1D70A), ("pi", 0x1D70B),
-            ("rho", 0x1D70C), ("varsigma", 0x1D70D), ("sigma", 0x1D70E), ("tau", 0x1D70F),
-            ("upsilon", 0x1D710), ("varphi", 0x1D711), ("chi", 0x1D712), ("psi", 0x1D713),
+            ("alpha", 0x1D6FC), ("beta", 0x1D6FD), ("gamma", 0x1D6FE),
+            ("delta", 0x1D6FF), ("varepsilon", 0x1D700), ("zeta", 0x1D701),
+            ("eta", 0x1D702), ("theta", 0x1D703), ("iota", 0x1D704),
+            ("kappa", 0x1D705), ("lambda", 0x1D706), ("mu", 0x1D707),
+            ("nu", 0x1D708), ("xi", 0x1D709), ("omicron", 0x1D70A),
+            ("pi", 0x1D70B), ("rho", 0x1D70C), ("varsigma", 0x1D70D),
+            ("sigma", 0x1D70E), ("tau", 0x1D70F), ("upsilon", 0x1D710),
+            ("varphi", 0x1D711), ("chi", 0x1D712), ("psi", 0x1D713),
             ("omega", 0x1D714), ("epsilon", 0x1D716), ("vartheta", 0x1D717),
-            ("varkappa", 0x1D718), ("phi", 0x1D719), ("varrho", 0x1D71A), ("varpi", 0x1D71B),
+            ("varkappa", 0x1D718), ("phi", 0x1D719), ("varrho", 0x1D71A),
+            ("varpi", 0x1D71B),
         ]
         for (n, c) in lower { t["\\" + n] = SymbolDef(c, .ord) }
         let upper: [(String, UInt32)] = [
-            ("Gamma", 0x393), ("Delta", 0x394), ("Theta", 0x398), ("Lambda", 0x39B),
-            ("Xi", 0x39E), ("Pi", 0x3A0), ("Sigma", 0x3A3), ("Upsilon", 0x3A5),
-            ("Phi", 0x3A6), ("Psi", 0x3A8), ("Omega", 0x3A9),
+            ("Gamma", 0x393), ("Delta", 0x394), ("Theta", 0x398),
+            ("Lambda", 0x39B), ("Xi", 0x39E), ("Pi", 0x3A0), ("Sigma", 0x3A3),
+            ("Upsilon", 0x3A5), ("Phi", 0x3A6), ("Psi", 0x3A8),
+            ("Omega", 0x3A9),
         ]
         for (n, c) in upper { t["\\" + n] = SymbolDef(c, .ord) }
 
         let rels: [(String, UInt32)] = [
             ("leq", 0x2264), ("le", 0x2264), ("geq", 0x2265), ("ge", 0x2265),
-            ("neq", 0x2260), ("ne", 0x2260), ("approx", 0x2248), ("equiv", 0x2261),
-            ("sim", 0x223C), ("simeq", 0x2243), ("cong", 0x2245), ("propto", 0x221D),
-            ("in", 0x2208), ("notin", 0x2209), ("ni", 0x220B), ("subset", 0x2282),
+            ("neq", 0x2260), ("ne", 0x2260), ("approx", 0x2248),
+            ("equiv", 0x2261), ("sim", 0x223C), ("simeq", 0x2243),
+            ("cong", 0x2245), ("propto", 0x221D), ("in", 0x2208),
+            ("notin", 0x2209), ("ni", 0x220B), ("subset", 0x2282),
             ("supset", 0x2283), ("subseteq", 0x2286), ("supseteq", 0x2287),
             ("ll", 0x226A), ("gg", 0x226B), ("prec", 0x227A), ("succ", 0x227B),
             ("mid", 0x2223), ("parallel", 0x2225), ("perp", 0x22A5),
             ("to", 0x2192), ("rightarrow", 0x2192), ("leftarrow", 0x2190),
-            ("Rightarrow", 0x21D2), ("Leftarrow", 0x21D0), ("leftrightarrow", 0x2194),
-            ("Leftrightarrow", 0x21D4), ("mapsto", 0x21A6), ("hookrightarrow", 0x21AA),
-            ("longrightarrow", 0x27F6), ("longleftarrow", 0x27F5), ("implies", 0x27F9),
-            ("lesssim", 0x2272), ("gtrsim", 0x2273), ("asymp", 0x224D),
+            ("Rightarrow", 0x21D2), ("Leftarrow", 0x21D0),
+            ("leftrightarrow", 0x2194), ("Leftrightarrow", 0x21D4),
+            ("mapsto", 0x21A6), ("hookrightarrow", 0x21AA),
+            ("longrightarrow", 0x27F6), ("longleftarrow", 0x27F5),
+            ("implies", 0x27F9), ("lesssim", 0x2272), ("gtrsim", 0x2273),
+            ("asymp", 0x224D),
         ]
         for (n, c) in rels { t["\\" + n] = SymbolDef(c, .rel) }
 
         let bins: [(String, UInt32)] = [
             ("pm", 0x00B1), ("mp", 0x2213), ("times", 0x00D7), ("div", 0x00F7),
-            ("cdot", 0x22C5), ("ast", 0x2217), ("star", 0x22C6), ("circ", 0x2218),
-            ("bullet", 0x2219), ("cap", 0x2229), ("cup", 0x222A), ("uplus", 0x228E),
-            ("sqcap", 0x2293), ("sqcup", 0x2294), ("vee", 0x2228), ("wedge", 0x2227),
-            ("setminus", 0x2216), ("wr", 0x2240), ("oplus", 0x2295), ("ominus", 0x2296),
-            ("otimes", 0x2297), ("oslash", 0x2298), ("odot", 0x2299),
+            ("cdot", 0x22C5), ("ast", 0x2217), ("star", 0x22C6),
+            ("circ", 0x2218), ("bullet", 0x2219), ("cap", 0x2229),
+            ("cup", 0x222A), ("uplus", 0x228E), ("sqcap", 0x2293),
+            ("sqcup", 0x2294), ("vee", 0x2228), ("wedge", 0x2227),
+            ("setminus", 0x2216), ("wr", 0x2240), ("oplus", 0x2295),
+            ("ominus", 0x2296), ("otimes", 0x2297), ("oslash", 0x2298),
+            ("odot", 0x2299),
         ]
         for (n, c) in bins { t["\\" + n] = SymbolDef(c, .bin) }
 
         let ords: [(String, UInt32)] = [
-            ("infty", 0x221E), ("partial", 0x2202), ("nabla", 0x2207), ("forall", 0x2200),
-            ("exists", 0x2203), ("nexists", 0x2204), ("emptyset", 0x2205), ("varnothing", 0x2205),
-            ("neg", 0x00AC), ("lnot", 0x00AC), ("top", 0x22A4), ("bot", 0x22A5),
-            ("angle", 0x2220), ("triangle", 0x25B3), ("square", 0x25A1), ("Box", 0x25A1),
-            ("hbar", 0x210F), ("ell", 0x2113), ("Re", 0x211C), ("Im", 0x2111),
-            ("aleph", 0x2135), ("wp", 0x2118), ("prime", 0x2032), ("degree", 0x00B0),
-            ("dagger", 0x2020), ("ddagger", 0x2021), ("flat", 0x266D), ("sharp", 0x266F),
+            ("infty", 0x221E), ("partial", 0x2202), ("nabla", 0x2207),
+            ("forall", 0x2200), ("exists", 0x2203), ("nexists", 0x2204),
+            ("emptyset", 0x2205), ("varnothing", 0x2205), ("neg", 0x00AC),
+            ("lnot", 0x00AC), ("top", 0x22A4), ("bot", 0x22A5),
+            ("angle", 0x2220), ("triangle", 0x25B3), ("square", 0x25A1),
+            ("Box", 0x25A1), ("hbar", 0x210F), ("ell", 0x2113), ("Re", 0x211C),
+            ("Im", 0x2111), ("aleph", 0x2135), ("wp", 0x2118),
+            ("prime", 0x2032), ("degree", 0x00B0), ("dagger", 0x2020),
+            ("ddagger", 0x2021), ("flat", 0x266D), ("sharp", 0x266F),
             ("checkmark", 0x2713), ("surd", 0x221A),
         ]
         for (n, c) in ords { t["\\" + n] = SymbolDef(c, .ord) }
@@ -654,12 +761,14 @@ enum Symbols {
 
         let opens: [(String, UInt32)] = [
             ("langle", 0x27E8), ("lbrace", 0x007B), ("lbrack", 0x005B),
-            ("lceil", 0x2308), ("lfloor", 0x230A), ("lvert", 0x007C), ("lVert", 0x2016),
+            ("lceil", 0x2308), ("lfloor", 0x230A), ("lvert", 0x007C),
+            ("lVert", 0x2016),
         ]
         for (n, c) in opens { t["\\" + n] = SymbolDef(c, .open) }
         let closes: [(String, UInt32)] = [
             ("rangle", 0x27E9), ("rbrace", 0x007D), ("rbrack", 0x005D),
-            ("rceil", 0x2309), ("rfloor", 0x230B), ("rvert", 0x007C), ("rVert", 0x2016),
+            ("rceil", 0x2309), ("rfloor", 0x230B), ("rvert", 0x007C),
+            ("rVert", 0x2016),
         ]
         for (n, c) in closes { t["\\" + n] = SymbolDef(c, .close) }
 
@@ -678,39 +787,43 @@ enum Symbols {
     /// Big operators: name -> (codepoint, default \limits behaviour
     /// in display)
     static let bigOps: [String: (UInt32, Bool)] = [
-        "\\sum": (0x2211, true), "\\prod": (0x220F, true), "\\coprod": (0x2210, true),
-        "\\int": (0x222B, false), "\\iint": (0x222C, false), "\\iiint": (0x222D, false),
-        "\\oint": (0x222E, false), "\\bigcup": (0x22C3, true), "\\bigcap": (0x22C2, true),
-        "\\bigvee": (0x22C1, true), "\\bigwedge": (0x22C0, true),
-        "\\bigoplus": (0x2A01, true), "\\bigotimes": (0x2A02, true), "\\bigodot": (0x2A00, true),
+        "\\sum": (0x2211, true), "\\prod": (0x220F, true),
+        "\\coprod": (0x2210, true), "\\int": (0x222B, false),
+        "\\iint": (0x222C, false), "\\iiint": (0x222D, false),
+        "\\oint": (0x222E, false), "\\bigcup": (0x22C3, true),
+        "\\bigcap": (0x22C2, true), "\\bigvee": (0x22C1, true),
+        "\\bigwedge": (0x22C0, true), "\\bigoplus": (0x2A01, true),
+        "\\bigotimes": (0x2A02, true), "\\bigodot": (0x2A00, true),
         "\\bigsqcup": (0x2A06, true), "\\biguplus": (0x2A04, true),
     ]
 
     /// Upright multi-letter operators (\lim, \sin, ...).
     /// Bool = limits above/below.
     static let namedOps: [String: Bool] = [
-        "\\lim": true, "\\limsup": true, "\\liminf": true, "\\max": true, "\\min": true,
-        "\\sup": true, "\\inf": true, "\\det": true, "\\gcd": true, "\\Pr": true,
-        "\\sin": false, "\\cos": false, "\\tan": false, "\\cot": false, "\\sec": false,
-        "\\csc": false, "\\arcsin": false, "\\arccos": false, "\\arctan": false,
-        "\\sinh": false, "\\cosh": false, "\\tanh": false, "\\log": false, "\\ln": false,
-        "\\exp": false, "\\deg": false, "\\dim": false, "\\ker": false, "\\hom": false,
-        "\\arg": false, "\\Bbb": false,
+        "\\lim": true, "\\limsup": true, "\\liminf": true, "\\max": true,
+        "\\min": true, "\\sup": true, "\\inf": true, "\\det": true,
+        "\\gcd": true, "\\Pr": true, "\\sin": false, "\\cos": false,
+        "\\tan": false, "\\cot": false, "\\sec": false, "\\csc": false,
+        "\\arcsin": false, "\\arccos": false, "\\arctan": false,
+        "\\sinh": false, "\\cosh": false, "\\tanh": false, "\\log": false,
+        "\\ln": false, "\\exp": false, "\\deg": false, "\\dim": false,
+        "\\ker": false, "\\hom": false, "\\arg": false, "\\Bbb": false,
     ]
 
     static let accents: [String: UInt32] = [
-        "\\hat": 0x0302, "\\widehat": 0x0302, "\\bar": 0x0304, "\\overline": 0x0304,
-        "\\tilde": 0x0303, "\\widetilde": 0x0303, "\\vec": 0x20D7, "\\dot": 0x0307,
-        "\\ddot": 0x0308, "\\breve": 0x0306, "\\check": 0x030C, "\\acute": 0x0301,
-        "\\grave": 0x0300, "\\mathring": 0x030A,
+        "\\hat": 0x0302, "\\widehat": 0x0302, "\\bar": 0x0304,
+        "\\overline": 0x0304, "\\tilde": 0x0303, "\\widetilde": 0x0303,
+        "\\vec": 0x20D7, "\\dot": 0x0307, "\\ddot": 0x0308, "\\breve": 0x0306,
+        "\\check": 0x030C, "\\acute": 0x0301, "\\grave": 0x0300,
+        "\\mathring": 0x030A,
     ]
 
     static let fontCommands: [String: MathVariant] = [
         "\\mathrm": .upright, "\\mathit": .italic, "\\mathbf": .bold,
-        "\\mathbb": .doubleStruck, "\\Bbb": .doubleStruck, "\\mathcal": .script,
-        "\\mathscr": .script, "\\mathfrak": .fraktur, "\\mathsf": .sansSerif,
-        "\\mathtt": .mono, "\\boldsymbol": .boldItalic, "\\bm": .boldItalic,
-        "\\operatorname": .upright,
+        "\\mathbb": .doubleStruck, "\\Bbb": .doubleStruck,
+        "\\mathcal": .script, "\\mathscr": .script, "\\mathfrak": .fraktur,
+        "\\mathsf": .sansSerif, "\\mathtt": .mono, "\\boldsymbol": .boldItalic,
+        "\\bm": .boldItalic, "\\operatorname": .upright,
     ]
 
     /// Spacing commands, in mu (1/18 em).
@@ -723,10 +836,11 @@ enum Symbols {
     static let delimiters: [String: UInt32] = [
         "(": 0x28, ")": 0x29, "[": 0x5B, "]": 0x5D, "|": 0x7C, "/": 0x2F,
         "\\{": 0x7B, "\\}": 0x7D, "\\lbrace": 0x7B, "\\rbrace": 0x7D,
-        "\\langle": 0x27E8, "\\rangle": 0x27E9, "\\lceil": 0x2308, "\\rceil": 0x2309,
-        "\\lfloor": 0x230A, "\\rfloor": 0x230B, "\\vert": 0x7C, "\\|": 0x2016,
-        "\\Vert": 0x2016, "\\lvert": 0x7C, "\\rvert": 0x7C, "\\lVert": 0x2016,
-        "\\rVert": 0x2016, "\\backslash": 0x5C, "\\uparrow": 0x2191, "\\downarrow": 0x2193,
+        "\\langle": 0x27E8, "\\rangle": 0x27E9, "\\lceil": 0x2308,
+        "\\rceil": 0x2309, "\\lfloor": 0x230A, "\\rfloor": 0x230B,
+        "\\vert": 0x7C, "\\|": 0x2016, "\\Vert": 0x2016, "\\lvert": 0x7C,
+        "\\rvert": 0x7C, "\\lVert": 0x2016, "\\rVert": 0x2016,
+        "\\backslash": 0x5C, "\\uparrow": 0x2191, "\\downarrow": 0x2193,
         ".": 0,
     ]
 
@@ -760,7 +874,8 @@ indirect enum Node {
     case group([Node])
     case styled(MathVariant, [Node])
     case supsub(base: Node?, sup: [Node]?, sub: [Node]?)
-    case frac(num: [Node], den: [Node], rule: Bool, left: UInt32?, right: UInt32?)
+    case frac(num: [Node], den: [Node], rule: Bool,
+              left: UInt32?, right: UInt32?)
     case sqrt(body: [Node], index: [Node]?)
     case accent(UInt32, [Node], stretchy: Bool)
     case bigOp(UInt32, limits: Bool?)
@@ -774,14 +889,34 @@ indirect enum Node {
     case tag([Node])
     case styleSwitch(TeXStyle, [Node])
 
-    enum ArrayStyle { case aligned, substack, gathered, matrix(left: UInt32?, right: UInt32?) }
+    enum ArrayStyle {
+        case aligned, substack, gathered
+        case matrix(left: UInt32?, right: UInt32?)
+
+        var isAligned: Bool {
+            var result = false
+            if case .aligned = self { result = true }
+            return result
+        }
+        var isSubstack: Bool {
+            var result = false
+            if case .substack = self { result = true }
+            return result
+        }
+        // Everything but `aligned` centres its columns. `aligned` is the
+        // amsmath template, where odd columns hug the relation between
+        // them.
+        var centresColumns: Bool { !isAligned }
+    }
 }
 
 public enum TeXStyle: Int {
     case display = 0, text = 1, script = 2, scriptScript = 3
 
     var isCramped: Bool { false }
-    func sup() -> TeXStyle { self == .display || self == .text ? .script : .scriptScript }
+    func sup() -> TeXStyle {
+        self == .display || self == .text ? .script : .scriptScript
+    }
     func sub() -> TeXStyle { sup() }
     func fracNum() -> TeXStyle {
         switch self {
@@ -802,7 +937,11 @@ final class Parser {
     init(_ input: String) { toks = Lexer.tokens(input) }
 
     private var peek: Tok? { i < toks.count ? toks[i] : nil }
-    private func next() -> Tok? { let t = peek; if t != nil { i += 1 }; return t }
+    private func next() -> Tok? {
+        let t = peek
+        if t != nil { i += 1 }
+        return t
+    }
     private func eat(_ s: String) -> Bool {
         if peek?.text == s { i += 1; return true }
         return false
@@ -852,12 +991,17 @@ final class Parser {
                       style: aligned ? .aligned : .gathered)
     }
 
-    private static let stoppers: Set<String> = ["}", "&", "\\\\", "\\right", "\\end", "]"]
+    private static let stoppers: Set<String> = [
+        "}", "&", "\\\\", "\\right", "\\end", "]",
+    ]
 
     private func atStop(_ stop: Set<String>) -> Bool {
-        guard let t = peek else { return true }
-        if stop.contains(t.text) { return true }
-        return ["}", "&", "\\\\", "\\right", "\\end"].contains(t.text)
+        var result = true
+        if let t = peek {
+            result = stop.contains(t.text) ||
+                     ["}", "&", "\\\\", "\\right", "\\end"].contains(t.text)
+        }
+        return result
     }
 
     func expression(stop: Set<String>) throws -> [Node] {
@@ -879,85 +1023,121 @@ final class Parser {
         var sup: [Node]? = nil
         var sub: [Node]? = nil
         if primes > 0 {
-            sup = (0..<primes).map { _ in Node.symbol(0x2032, .ord, literal: true) }
+            sup = (0..<primes).map { _ in
+                Node.symbol(0x2032, .ord, literal: true)
+            }
         }
 
-        while let t = peek, t.text == "^" || t.text == "_" {
+        var failure: MathError? = nil
+        while failure == nil, let t = peek, t.text == "^" || t.text == "_" {
             i += 1
             let arg = try argument()
             if t.text == "^" {
                 if sup == nil { sup = arg } else { sup! += arg }
+            } else if sub != nil {
+                failure = .syntax("double subscript", at: t.pos)
             } else {
-                if sub != nil { throw MathError.syntax("double subscript", at: t.pos) }
                 sub = arg
             }
         }
-        if sup == nil && sub == nil { return base ?? .group([]) }
+        if let failure { throw failure }
         // \limits / \nolimits already consumed in nucleus()
-        return .supsub(base: base, sup: sup, sub: sub)
+        let result: Node
+        if sup == nil && sub == nil {
+            result = base ?? .group([])
+        } else {
+            result = .supsub(base: base, sup: sup, sub: sub)
+        }
+        return result
     }
 
     /// One argument: a braced group, or a single atom.
     private func argument() throws -> [Node] {
-        guard let t = peek else { throw MathError.syntax("missing argument", at: pos) }
-        if t.text == "{" {
-            i += 1
-            let body = try expression(stop: ["}"])
-            guard eat("}") else { throw MathError.syntax("missing '}'", at: pos) }
-            return body
+        var result: [Node] = []
+        var failure: MathError? = nil
+        if let t = peek {
+            if t.text == "{" {
+                i += 1
+                result = try expression(stop: ["}"])
+                if !eat("}") { failure = .syntax("missing '}'", at: pos) }
+            } else {
+                result = [try nucleus()]
+            }
+        } else {
+            failure = .syntax("missing argument", at: pos)
         }
-        return [try nucleus()]
+        if let failure { throw failure }
+        return result
     }
 
-    /// Optional `[…]` argument.
+    /// Optional `[...]` argument.
     private func optionalArgument() throws -> [Node]? {
-        guard peek?.text == "[" else { return nil }
-        i += 1
-        var depth = 0
-        var out: [Node] = []
-        while let t = peek {
-            if t.text == "]" && depth == 0 { break }
-            if t.text == "{" { depth += 1 }
-            if t.text == "}" { depth -= 1 }
-            out.append(try atom())
+        var result: [Node]? = nil
+        var failure: MathError? = nil
+        if peek?.text == "[" {
+            i += 1
+            var depth = 0
+            var out: [Node] = []
+            while let t = peek, !(t.text == "]" && depth == 0) {
+                if t.text == "{" { depth += 1 }
+                if t.text == "}" { depth -= 1 }
+                out.append(try atom())
+            }
+            if eat("]") {
+                result = out
+            } else {
+                failure = .syntax("missing ']'", at: pos)
+            }
         }
-        guard eat("]") else { throw MathError.syntax("missing ']'", at: pos) }
-        return out
+        if let failure { throw failure }
+        return result
     }
 
     /// Raw `[4pt]`-style dimension after `\\`.
     private func optionalDimension() -> CGFloat? {
-        guard peek?.text == "[" else { return nil }
-        let save = i
-        i += 1
-        var s = ""
-        while let t = peek, t.text != "]" { s += t.text; i += 1 }
-        guard eat("]") else { i = save; return nil }
-        return Parser.dimension(s)
+        var result: CGFloat? = nil
+        if peek?.text == "[" {
+            let save = i
+            i += 1
+            var s = ""
+            while let t = peek, t.text != "]" { s += t.text; i += 1 }
+            if eat("]") {
+                result = Parser.dimension(s)
+            } else {
+                i = save
+            }
+        }
+        return result
     }
 
     static func dimension(_ s: String) -> CGFloat? {
         var num = ""
         var unit = ""
         for ch in s {
-            if ch.isNumber || ch == "." || ch == "-" || ch == "+" { num.append(ch) }
-            else if !ch.isWhitespace { unit.append(ch) }
+            if ch.isNumber || ch == "." || ch == "-" || ch == "+" {
+                num.append(ch)
+            } else if !ch.isWhitespace {
+                unit.append(ch)
+            }
         }
-        guard let v = Double(num) else { return nil }
-        let f: CGFloat
-        switch unit.lowercased() {
-        case "pt": f = 1
-        case "bp": f = 1.00375
-        case "mm": f = 2.845
-        case "cm": f = 28.45
-        case "in": f = 72.27
-        case "pc": f = 12
-        case "ex": f = 4.3       // resolved against the font later would be nicer
-        case "em": f = 10        // ditto; callers scale by size/10
-        case "mu": f = 10.0 / 18
-        default: f = 1
+        var result: CGFloat? = nil
+        if let v = Double(num) {
+            let f: CGFloat
+            switch unit.lowercased() {
+            case "pt": f = 1
+            case "bp": f = 1.00375
+            case "mm": f = 2.845
+            case "cm": f = 28.45
+            case "in": f = 72.27
+            case "pc": f = 12
+            case "ex": f = 4.3
+            case "em": f = 10        // callers scale by size / 10
+            case "mu": f = 10.0 / 18
+            default: f = 1
+            }
+            result = CGFloat(v) * f
         }
-        return CGFloat(v) * f
+        return result
     }
 
 
@@ -966,58 +1146,71 @@ final class Parser {
     // command with a grammar of its own.
 
     private func nucleus() throws -> Node {
-        guard let t = next() else {
+        let result: Node
+        if let t = next() {
+            let s = t.text
+            if s == "{" {
+                result = try groupNode()
+            } else if !t.isCommand {
+                result = characterNode(s)
+            } else if let node = try tableNode(s) {
+                result = node
+            } else {
+                result = try commandNode(s, t)
+            }
+        } else {
             throw MathError.syntax("unexpected end of input", at: pos)
         }
-        let s = t.text
-        if s == "{" { return try groupNode() }
-        if !t.isCommand { return characterNode(s) }
-        if let node = try tableNode(s) { return node }
-        return try commandNode(s, t)
+        return result
     }
 
     private func groupNode() throws -> Node {
         let body = try expression(stop: ["}"])
-        guard eat("}") else {
+        if !eat("}") {
             throw MathError.syntax("missing '}'", at: pos)
         }
         return .group(body)
     }
 
     private func characterNode(_ s: String) -> Node {
-        if s == "~" { return .space(mu: 6) }
-        let ch = Character(s)
-        if let sub = Symbols.substitute(ch) {
-            return .symbol(sub, Symbols.atom(for: ch), literal: true)
+        let result: Node
+        if s == "~" {
+            result = .space(mu: 6)
+        } else {
+            let ch = Character(s)
+            if let sub = Symbols.substitute(ch) {
+                result = .symbol(sub, Symbols.atom(for: ch), literal: true)
+            } else {
+                let scalar = ch.unicodeScalars.first?.value ?? 0
+                let isAlnum = (ch.isLetter || ch.isNumber) && scalar < 128
+                result = .symbol(scalar, Symbols.atom(for: ch),
+                                 literal: !isAlnum)
+            }
         }
-        let scalar = ch.unicodeScalars.first?.value ?? 0
-        let isAlnum = (ch.isLetter || ch.isNumber) && scalar < 128
-        return .symbol(scalar, Symbols.atom(for: ch), literal: !isAlnum)
+        return result
     }
 
     // The commands that are pure lookups. nil means the name belongs to
     // the switch in commandNode instead.
 
     private func tableNode(_ s: String) throws -> Node? {
-        if let sp = Symbols.spaces[s] { return .space(mu: sp) }
-        if let d = Symbols.table[s] {
-            return .symbol(d.scalar, d.atom, literal: d.literal)
-        }
-        if let v = Symbols.fontCommands[s] {
-            return .styled(v, try argument())
-        }
-        if let acc = Symbols.accents[s] {
+        var result: Node? = nil
+        if let sp = Symbols.spaces[s] {
+            result = .space(mu: sp)
+        } else if let d = Symbols.table[s] {
+            result = .symbol(d.scalar, d.atom, literal: d.literal)
+        } else if let v = Symbols.fontCommands[s] {
+            result = .styled(v, try argument())
+        } else if let acc = Symbols.accents[s] {
             let stretchy = s.hasPrefix("\\wide") || s == "\\overline"
-            return .accent(acc, try argument(), stretchy: stretchy)
+            result = .accent(acc, try argument(), stretchy: stretchy)
+        } else if let (cp, limits) = Symbols.bigOps[s] {
+            result = .bigOp(cp, limits: limitsOverride() ?? limits)
+        } else if let limits = Symbols.namedOps[s] {
+            result = .namedOp(String(s.dropFirst()),
+                              limits: limitsOverride() ?? limits)
         }
-        if let (cp, limits) = Symbols.bigOps[s] {
-            return .bigOp(cp, limits: limitsOverride() ?? limits)
-        }
-        if let limits = Symbols.namedOps[s] {
-            return .namedOp(String(s.dropFirst()),
-                            limits: limitsOverride() ?? limits)
-        }
-        return nil
+        return result
     }
 
     // \limits and \nolimits following an operator override where its
@@ -1086,33 +1279,47 @@ final class Parser {
         let n = try argument(), d = try argument()
         let node = Node.frac(num: n, den: d, rule: true,
                              left: nil, right: nil)
-        if s == "\\dfrac" { return .styleSwitch(.display, [node]) }
-        if s == "\\tfrac" { return .styleSwitch(.text, [node]) }
-        return node
+        let result: Node
+        if s == "\\dfrac" {
+            result = .styleSwitch(.display, [node])
+        } else if s == "\\tfrac" {
+            result = .styleSwitch(.text, [node])
+        } else {
+            result = node
+        }
+        return result
     }
 
     private func leftRightNode() throws -> Node {
-        guard let d = next() else {
-            throw MathError.syntax("missing delimiter", at: pos)
+        var left: UInt32 = 0
+        var right: UInt32 = 0
+        var body: [Node] = []
+        var failure: MathError? = nil
+        if let d = next() {
+            left = Symbols.delimiters[d.text] ?? 0
+            body = try expression(stop: ["\\right"])
+            if eat("\\right"), let r = next() {
+                right = Symbols.delimiters[r.text] ?? 0
+            } else {
+                failure = .syntax("missing \\right", at: pos)
+            }
+        } else {
+            failure = .syntax("missing delimiter", at: pos)
         }
-        let left = Symbols.delimiters[d.text] ?? 0
-        let body = try expression(stop: ["\\right"])
-        guard eat("\\right"), let r = next() else {
-            throw MathError.syntax("missing \\right", at: pos)
-        }
-        return .leftRight(left: left,
-                          right: Symbols.delimiters[r.text] ?? 0,
-                          body: body)
+        if let failure { throw failure }
+        return .leftRight(left: left, right: right, body: body)
     }
 
     private func substackNode() throws -> Node {
-        guard eat("{") else {
-            throw MathError.syntax("\\substack needs {", at: pos)
+        var rows: [[[Node]]] = []
+        var failure: MathError? = nil
+        if eat("{") {
+            rows = try rowsAndCells(stop: "}", cells: false).0
+            if !eat("}") { failure = .syntax("missing '}'", at: pos) }
+        } else {
+            failure = .syntax("\\substack needs {", at: pos)
         }
-        let (rows, _) = try rowsAndCells(stop: "}", cells: false)
-        guard eat("}") else {
-            throw MathError.syntax("missing '}'", at: pos)
-        }
+        if let failure { throw failure }
         return .array(rows: rows, gaps: [], style: .substack)
     }
 
@@ -1120,10 +1327,14 @@ final class Parser {
     // capital B moves it up one more.
 
     private func sizedDelimNode(_ s: String) throws -> Node {
-        guard let d = next() else {
-            throw MathError.syntax("missing delimiter", at: pos)
+        var cp: UInt32 = 0
+        var failure: MathError? = nil
+        if let d = next() {
+            cp = Symbols.delimiters[d.text] ?? 0
+        } else {
+            failure = .syntax("missing delimiter", at: pos)
         }
-        let cp = Symbols.delimiters[d.text] ?? 0
+        if let failure { throw failure }
         var n = s.dropFirst().hasPrefix("B") ? 2 : 1
         if s.contains("bigg") || s.contains("Bigg") { n = 3 }
         return .sizedDelim(cp, n)
@@ -1147,107 +1358,135 @@ final class Parser {
         return result
     }
 
-    /// `\text{...}`: reassemble the raw characters (the lexer has
-    /// dropped spaces,
-    /// so re-read from the source token positions).
+    /// `\text{...}`: reassemble the raw characters. The lexer has
+    /// dropped spaces, so re-read them from the source token positions.
     private func textArgument() throws -> String {
         let open = peek
-        guard eat("{") else { throw MathError.syntax("expected '{'", at: pos) }
         var out = ""
-        var depth = 0
-        // Gaps are measured from the brace, not from the first token, so
-        // a leading space survives: `\text{ is even}` is written with
-        // that space for a reason and reads as "isxeven" without it.
-        var lastEnd = open.map { t in t.pos + t.text.count } ?? -1
-        while let t = peek {
-            if t.text == "}" && depth == 0 {
-                // ... and the closing brace is a gap like any other, or
-                // `\text{if }` loses the space it ends with.
+        var failure: MathError? = nil
+        if eat("{") {
+            var depth = 0
+            // Gaps are measured from the brace, not from the first token,
+            // so a leading space survives: `\text{ is even}` is written
+            // with that space for a reason and reads as "isxeven" without
+            // it. The closing brace is a gap like any other, or
+            // `\text{if }` loses the space it ends with.
+            var lastEnd = open.map { t in t.pos + t.text.count } ?? -1
+            while let t = peek, !(t.text == "}" && depth == 0) {
                 if lastEnd >= 0 && t.pos > lastEnd { out += " " }
-                break
-            }
-            if t.text == "{" { depth += 1 }
-            if t.text == "}" { depth -= 1 }
-            if lastEnd >= 0 && t.pos > lastEnd { out += " " }
-            if t.isCommand {
-                switch t.text {
-                case "\\ ": out += " "
-                case "\\&": out += "&"
-                case "\\%": out += "%"
-                case "\\_": out += "_"
-                case "\\#": out += "#"
-                default: out += String(t.text.dropFirst())
+                if t.text == "{" { depth += 1 }
+                if t.text == "}" { depth -= 1 }
+                if t.isCommand {
+                    switch t.text {
+                    case "\\ ": out += " "
+                    case "\\&": out += "&"
+                    case "\\%": out += "%"
+                    case "\\_": out += "_"
+                    case "\\#": out += "#"
+                    default: out += String(t.text.dropFirst())
+                    }
+                } else if t.text != "{" && t.text != "}" {
+                    out += t.text
                 }
-            } else if t.text != "{" && t.text != "}" {
-                out += t.text
+                lastEnd = t.pos + t.text.count
+                i += 1
             }
-            lastEnd = t.pos + t.text.count
-            i += 1
+            if let t = peek, lastEnd >= 0, t.pos > lastEnd { out += " " }
+            if !eat("}") { failure = .syntax("missing '}'", at: pos) }
+        } else {
+            failure = .syntax("expected '{'", at: pos)
         }
-        guard eat("}") else { throw MathError.syntax("missing '}'", at: pos) }
+        if let failure { throw failure }
         return out
     }
 
 
     private func environmentName() throws -> String {
-        guard eat("{") else { throw MathError.syntax("expected '{'", at: pos) }
         var name = ""
-        while let t = peek, t.text != "}" { name += t.text; i += 1 }
-        guard eat("}") else { throw MathError.syntax("missing '}'", at: pos) }
+        var failure: MathError? = nil
+        if eat("{") {
+            while let t = peek, t.text != "}" { name += t.text; i += 1 }
+            if !eat("}") { failure = .syntax("missing '}'", at: pos) }
+        } else {
+            failure = .syntax("expected '{'", at: pos)
+        }
+        if let failure { throw failure }
         return name
+    }
+
+    private static func arrayStyle(_ name: String) -> Node.ArrayStyle? {
+        let result: Node.ArrayStyle?
+        switch name {
+        case "aligned", "align", "align*", "alignedat", "split", "eqnarray":
+            result = .aligned
+        case "gathered", "gather", "gather*":
+            result = .gathered
+        case "matrix", "array":
+            result = .matrix(left: nil, right: nil)
+        case "pmatrix":
+            result = .matrix(left: 0x28, right: 0x29)
+        case "bmatrix":
+            result = .matrix(left: 0x5B, right: 0x5D)
+        case "vmatrix":
+            result = .matrix(left: 0x7C, right: 0x7C)
+        case "Bmatrix":
+            result = .matrix(left: 0x7B, right: 0x7D)
+        case "cases":
+            result = .matrix(left: 0x7B, right: 0)
+        case "substack":
+            result = .substack
+        default:
+            result = nil
+        }
+        return result
     }
 
     private func environment() throws -> Node {
         let name = try environmentName()
         let (rows, gaps) = try rowsAndCells(stop: "\\end", cells: true)
-        guard eat("\\end") else { throw MathError.syntax("missing \\end", at: pos) }
-        let close = try environmentName()
-        guard close == name else {
-            throw MathError.syntax("\\begin{\(name)} closed by \\end{\(close)}", at: pos)
+        var style = Node.ArrayStyle.gathered
+        var failure: MathError? = nil
+        if eat("\\end") {
+            let close = try environmentName()
+            if close != name {
+                failure = .syntax(
+                    "\\begin{\(name)} closed by \\end{\(close)}", at: pos)
+            } else if let known = Parser.arrayStyle(name) {
+                style = known
+            } else {
+                failure = .syntax("unknown environment '\(name)'", at: pos)
+            }
+        } else {
+            failure = .syntax("missing \\end", at: pos)
         }
-        switch name {
-        case "aligned", "align", "align*", "alignedat", "split", "eqnarray":
-            return .array(rows: rows, gaps: gaps, style: .aligned)
-        case "gathered", "gather", "gather*":
-            return .array(rows: rows, gaps: gaps, style: .gathered)
-        case "matrix", "array":
-            return .array(rows: rows, gaps: gaps, style: .matrix(left: nil, right: nil))
-        case "pmatrix":
-            return .array(rows: rows, gaps: gaps, style: .matrix(left: 0x28, right: 0x29))
-        case "bmatrix":
-            return .array(rows: rows, gaps: gaps, style: .matrix(left: 0x5B, right: 0x5D))
-        case "vmatrix":
-            return .array(rows: rows, gaps: gaps, style: .matrix(left: 0x7C, right: 0x7C))
-        case "Bmatrix":
-            return .array(rows: rows, gaps: gaps, style: .matrix(left: 0x7B, right: 0x7D))
-        case "cases":
-            return .array(rows: rows, gaps: gaps, style: .matrix(left: 0x7B, right: 0))
-        case "substack":
-            return .array(rows: rows, gaps: gaps, style: .substack)
-        default:
-            throw MathError.syntax("unknown environment '\(name)'", at: pos)
-        }
+        if let failure { throw failure }
+        return .array(rows: rows, gaps: gaps, style: style)
     }
 
     /// Parse `a & b \\[gap] c & d` until `stop`.
-    private func rowsAndCells(stop: String, cells: Bool) throws -> ([[[Node]]], [CGFloat]) {
+    private func rowsAndCells(stop: String,
+                              cells: Bool) throws -> ([[[Node]]], [CGFloat]) {
         var rows: [[[Node]]] = []
         var gaps: [CGFloat] = []
         var row: [[Node]] = []
-        while true {
+        var reading = true
+        while reading {
             let cell = try expression(stop: [stop])
             row.append(cell)
-            if cells && eat("&") { continue }
-            if eat("\\\\") {
-                gaps.append(optionalDimension() ?? 0)
-                rows.append(row)
-                row = []
-                if peek == nil || peek?.text == stop { break }
-                continue
+            if !(cells && eat("&")) {
+                if eat("\\\\") {
+                    gaps.append(optionalDimension() ?? 0)
+                    rows.append(row)
+                    row = []
+                    reading = peek != nil && peek?.text != stop
+                } else {
+                    reading = false
+                }
             }
-            break
         }
-        if !(row.count == 1 && row[0].isEmpty) || rows.isEmpty { rows.append(row) }
+        if !(row.count == 1 && row[0].isEmpty) || rows.isEmpty {
+            rows.append(row)
+        }
         return (rows, gaps)
     }
 }
@@ -1275,7 +1514,8 @@ final class Box {
         let b = Box(); b.width = w; return b
     }
 
-    static func rule(width: CGFloat, height: CGFloat, depth: CGFloat = 0) -> Box {
+    static func rule(width: CGFloat, height: CGFloat,
+                     depth: CGFloat = 0) -> Box {
         let b = Box(kind: .rule)
         b.width = width; b.height = height; b.depth = depth
         return b
@@ -1320,6 +1560,24 @@ final class Box {
             depth = max(depth, c.depth - dy)
         }
     }
+
+    func render(in ctx: CGContext, x: CGFloat, y: CGFloat,
+                font: MathFontFile) {
+        switch kind {
+        case .glyph(let g, let size):
+            var glyphs = [g]
+            var points = [CGPoint(x: x, y: y)]
+            CTFontDrawGlyphs(font.ctFont(size), &glyphs, &points, 1, ctx)
+        case .rule:
+            ctx.fill(CGRect(x: x, y: y - depth, width: width,
+                            height: height + depth))
+        case .list:
+            break
+        }
+        for (child, dx, dy) in children {
+            child.render(in: ctx, x: x + dx, y: y + dy, font: font)
+        }
+    }
 }
 
 
@@ -1342,7 +1600,8 @@ struct Opts {
     var axis: CGFloat { k(.axisHeight) }
     var mu: CGFloat { size / 18 }
 
-    func with(style: TeXStyle? = nil, cramped: Bool? = nil, variant: MathVariant? = nil) -> Opts {
+    func with(style: TeXStyle? = nil, cramped: Bool? = nil,
+              variant: MathVariant? = nil) -> Opts {
         var o = self
         if let s = style { o.style = s }
         if let c = cramped { o.cramped = c }
@@ -1381,8 +1640,13 @@ enum Spacing {
 
     static func amount(_ l: Atom, _ r: Atom, tight: Bool) -> Int {
         let v = table[index(l)][index(r)]
-        if v < 0 { return tight ? 0 : -v }
-        return v
+        let result: Int
+        if v < 0 {
+            result = tight ? 0 : -v
+        } else {
+            result = v
+        }
+        return result
     }
 }
 
@@ -1425,66 +1689,92 @@ final class Layouter {
             (0x1D5D4, 0x1D5ED, 65), (0x1D5EE, 0x1D607, 97),
             (0x1D670, 0x1D689, 65), (0x1D68A, 0x1D6A3, 97),
             (0x1D7CE, 0x1D7D7, 48), (0x1D7D8, 0x1D7E1, 48),
-            (0x1D7E2, 0x1D7EB, 48), (0x1D7EC, 0x1D7F5, 48), (0x1D7F6, 0x1D7FF, 48),
+            (0x1D7E2, 0x1D7EB, 48), (0x1D7EC, 0x1D7F5, 48),
+            (0x1D7F6, 0x1D7FF, 48),
         ]
-        for (lo, hi, base) in ranges where cp >= lo && cp <= hi { return base + (cp - lo) }
-        if cp >= 0x1D6FC && cp <= 0x1D71B { return 0x3B1 + (cp - 0x1D6FC) }
-        if cp >= 0x1D6E2 && cp <= 0x1D6FA { return 0x391 + (cp - 0x1D6E2) }
-        return nil
+        var result: UInt32? = nil
+        for (lo, hi, base) in ranges where cp >= lo && cp <= hi {
+            if result == nil { result = base + (cp - lo) }
+        }
+        if result == nil, cp >= 0x1D6FC, cp <= 0x1D71B {
+            result = 0x3B1 + (cp - 0x1D6FC)
+        }
+        if result == nil, cp >= 0x1D6E2, cp <= 0x1D6FA {
+            result = 0x391 + (cp - 0x1D6E2)
+        }
+        return result
     }
 
+
+    private func variantBox(_ g: CGGlyph, _ size: CGFloat) -> Box {
+        let m = font.metrics(g, size)
+        let b = Box(kind: .glyph(g, size))
+        b.width = m.adv; b.height = m.h; b.depth = m.d
+        b.italic = font.italicCorrection(g, size)
+        b.isCharLike = true
+        return b
+    }
 
     func stretchVertical(_ scalar: UInt32, target: CGFloat, _ o: Opts) -> Box {
         let size = o.size
         let base = font.glyph(scalar)
-        if base == 0 { return Box.kern(0) }
-
-        let m = font.metrics(base, size)
-        if m.h + m.d >= target - 0.01 { return glyphBox(scalar, size) }
-
-        for v in font.verticalVariants(base) where v.adv * size >= target - 0.01 {
-            let mm = font.metrics(v.glyph, size)
-            let b = Box(kind: .glyph(v.glyph, size))
-            b.width = mm.adv; b.height = mm.h; b.depth = mm.d
-            b.italic = font.italicCorrection(v.glyph, size)
-            b.isCharLike = true
-            return b
+        let result: Box
+        if base == 0 {
+            result = Box.kern(0)
+        } else {
+            let m = font.metrics(base, size)
+            let variants = font.verticalVariants(base)
+            let fitting = variants.first(where: { v in
+                v.adv * size >= target - 0.01
+            })
+            let parts = font.verticalAssembly(base)
+            if m.h + m.d >= target - 0.01 {
+                result = glyphBox(scalar, size)
+            } else if let fitting {
+                result = variantBox(fitting.glyph, size)
+            } else if !parts.isEmpty {
+                result = assemble(parts, target: target, size: size)
+            } else if let last = variants.last {
+                // No recipe: the largest variant available.
+                result = variantBox(last.glyph, size)
+            } else {
+                result = glyphBox(scalar, size)
+            }
         }
-
-        let parts = font.verticalAssembly(base)
-        if !parts.isEmpty { return assemble(parts, target: target, size: size) }
-
-        // No recipe: use the largest variant available.
-        if let last = font.verticalVariants(base).last {
-            let mm = font.metrics(last.glyph, size)
-            let b = Box(kind: .glyph(last.glyph, size))
-            b.width = mm.adv; b.height = mm.h; b.depth = mm.d
-            b.italic = font.italicCorrection(last.glyph, size)
-            b.isCharLike = true
-            return b
-        }
-        return glyphBox(scalar, size)
+        return result
     }
 
-    private func assemble(_ parts: [MathFontFile.AssemblyPart], target: CGFloat, size: CGFloat) -> Box {
+    private func assemble(_ parts: [MathFontFile.AssemblyPart],
+                          target: CGFloat, size: CGFloat) -> Box {
         let overlap = font.minConnectorOverlap * size
         let ext = parts.filter { p in p.isExtender }
         let fixed = parts.filter { p in !p.isExtender }
-        let fixedLen = fixed.reduce(CGFloat(0)) { sum, p in sum + p.fullAdvance * size }
-        let extLen = ext.reduce(CGFloat(0)) { sum, p in sum + p.fullAdvance * size }
+        let fixedLen = fixed.reduce(CGFloat(0)) { sum, p in
+            sum + p.fullAdvance * size
+        }
+        let extLen = ext.reduce(CGFloat(0)) { sum, p in
+            sum + p.fullAdvance * size
+        }
 
         var reps = 1
         func total(_ r: Int) -> CGFloat {
             let count = fixed.count + ext.count * r
-            guard count > 0 else { return 0 }
-            return fixedLen + extLen * CGFloat(r) - overlap * CGFloat(count - 1)
+            var result: CGFloat = 0
+            if count > 0 {
+                let span = fixedLen + extLen * CGFloat(r)
+                result = span - overlap * CGFloat(count - 1)
+            }
+            return result
         }
         while total(reps) < target && reps < 200 { reps += 1 }
 
         var sequence: [MathFontFile.AssemblyPart] = []
         for p in parts {
-            if p.isExtender { for _ in 0..<reps { sequence.append(p) } }
-            else { sequence.append(p) }
+            if p.isExtender {
+                for _ in 0..<reps { sequence.append(p) }
+            } else {
+                sequence.append(p)
+            }
         }
 
         // Parts run bottom to top in the font's order.
@@ -1510,15 +1800,20 @@ final class Layouter {
     }
 
     /// Delimiter sized to enclose `height`/`depth` around the maths axis.
-    func delimiter(_ scalar: UInt32, height: CGFloat, depth: CGFloat, _ o: Opts) -> Box {
-        guard scalar != 0 else { return Box.kern(0) }
-        let axis = o.axis
-        let delta = max(height - axis, depth + axis)
-        let target = max(2 * delta * 1.0, o.size * 1.0)
-        let b = stretchVertical(scalar, target: target, o)
-        // centre on the axis
-        let mid = (b.height - b.depth) / 2
-        return b.shifted(dy: axis - mid)
+    func delimiter(_ scalar: UInt32, height: CGFloat, depth: CGFloat,
+                   _ o: Opts) -> Box {
+        let result: Box
+        if scalar == 0 {
+            result = Box.kern(0)
+        } else {
+            let axis = o.axis
+            let delta = max(height - axis, depth + axis)
+            let target = max(2 * delta * 1.0, o.size * 1.0)
+            let b = stretchVertical(scalar, target: target, o)
+            let mid = (b.height - b.depth) / 2
+            result = b.shifted(dy: axis - mid)
+        }
+        return result
     }
 
     func sizedDelimiter(_ scalar: UInt32, _ n: Int, _ o: Opts) -> Box {
@@ -1528,10 +1823,6 @@ final class Layouter {
         let mid = (b.height - b.depth) / 2
         return b.shifted(dy: o.axis - mid)
     }
-}
-
-
-extension Layouter {
 
     /// Build a list of nodes into a single box, applying inter-atom spacing.
     func build(_ nodes: [Node], _ o: Opts) -> Box {
@@ -1560,7 +1851,8 @@ extension Layouter {
         var boxes: [Box] = []
         for (idx, it) in items.enumerated() {
             if idx > 0 {
-                let mu = Spacing.amount(items[idx - 1].atom, it.atom, tight: o.style.isTight)
+                let mu = Spacing.amount(items[idx - 1].atom, it.atom,
+                                        tight: o.style.isTight)
                 if mu != 0 { boxes.append(Box.kern(CGFloat(mu) * o.mu)) }
             }
             boxes.append(it.box)
@@ -1572,10 +1864,13 @@ extension Layouter {
         switch n {
         case .symbol(let cp, let atom, let literal):
             let scalar: UInt32
-            if literal { scalar = cp }
-            else if let ch = Unicode.Scalar(cp).map({ u in Character(u) }) {
+            if literal {
+                scalar = cp
+            } else if let ch = Unicode.Scalar(cp).map({ u in Character(u) }) {
                 scalar = Alphanumerics.map(ch, o.variant)
-            } else { scalar = cp }
+            } else {
+                scalar = cp
+            }
             return (glyphBox(scalar, o.size), atom)
 
         case .group(let body):
@@ -1619,7 +1914,8 @@ extension Layouter {
             return (sqrtBox(body, index, o), .ord)
 
         case .frac(let num, let den, let rule, let left, let right):
-            return (fracBox(num, den, rule: rule, left: left, right: right, o), .ord)
+            return (fracBox(num, den, rule: rule, left: left,
+                            right: right, o), .ord)
 
         case .leftRight(let l, let r, let body):
             return (leftRightBox(l, r, body, o), .inner)
@@ -1637,11 +1933,14 @@ extension Layouter {
         var boxes: [Box] = []
         let spaceWidth = font.metrics(font.glyph(UInt32(32)), o.size).adv
         for ch in s {
-            if ch == " " { boxes.append(Box.kern(spaceWidth)); continue }
-            let cp = ch.unicodeScalars.first!.value
-            let mapped = (o.variant == .bold || o.variant == .italic)
-                ? Alphanumerics.map(ch, o.variant) : cp
-            boxes.append(glyphBox(mapped, o.size))
+            if ch == " " {
+                boxes.append(Box.kern(spaceWidth))
+            } else {
+                let cp = ch.unicodeScalars.first!.value
+                let mapped = (o.variant == .bold || o.variant == .italic)
+                    ? Alphanumerics.map(ch, o.variant) : cp
+                boxes.append(glyphBox(mapped, o.size))
+            }
         }
         return Box.hbox(boxes)
     }
@@ -1667,45 +1966,71 @@ extension Layouter {
     }
 
 
-    func supsubBox(_ base: Node?, _ sup: [Node]?, _ sub: [Node]?, _ o: Opts) -> (Box, Atom) {
-        // Limits above/below rather than beside?
+    func supsubBox(_ base: Node?, _ sup: [Node]?, _ sub: [Node]?,
+                   _ o: Opts) -> (Box, Atom) {
+        let result: (Box, Atom)
+        if let stacked = limitsForm(base, sup, sub, o) {
+            result = (stacked, .op)
+        } else {
+            result = scriptsBox(base, sup, sub, o)
+        }
+        return result
+    }
+
+    /// Limits above/below rather than beside, when the base asks for it.
+
+    private func limitsForm(_ base: Node?, _ sup: [Node]?, _ sub: [Node]?,
+                            _ o: Opts) -> Box? {
+        var result: Box? = nil
         if let b = base, o.style == .display {
             switch b {
             case .bigOp(let cp, let limits) where limits ?? true:
-                return (limitsBox(bigOpBox(cp, o), sup, sub, o), .op)
+                result = limitsBox(bigOpBox(cp, o), sup, sub, o)
             case .namedOp(let name, let limits) where limits:
-                return (limitsBox(textBox(name, o.with(variant: .upright)), sup, sub, o), .op)
+                let opBox = textBox(name, o.with(variant: .upright))
+                result = limitsBox(opBox, sup, sub, o)
             default: break
             }
         }
+        return result
+    }
 
+    private func scriptsBox(_ base: Node?, _ sup: [Node]?, _ sub: [Node]?,
+                            _ o: Opts) -> (Box, Atom) {
         let baseResult = base.map { n in node(n, o) }
         let baseBox = baseResult?.box ?? Box.kern(0)
         let atom = baseResult?.atom ?? .ord
 
         let scriptOpts = o.with(style: o.style.sup(), cramped: o.cramped)
         let supBox = sup.map { n in build(n, scriptOpts) }
-        let subBox = sub.map { n in build(n, o.with(style: o.style.sub(), cramped: true)) }
+        let subBox = sub.map { n in
+            build(n, o.with(style: o.style.sub(), cramped: true))
+        }
 
         // Rule 18a: a lone glyph nucleus starts its script shifts at zero.
         let isChar = baseBox.isCharLike
 
-        var u: CGFloat = isChar ? 0 : baseBox.height - o.k(.superscriptBaselineDropMax)
-        var v: CGFloat = isChar ? 0 : baseBox.depth + o.k(.subscriptBaselineDropMin)
+        let supDrop = o.k(.superscriptBaselineDropMax)
+        let subDrop = o.k(.subscriptBaselineDropMin)
+        let shiftUp = o.cramped ? o.k(.superscriptShiftUpCramped)
+                                : o.k(.superscriptShiftUp)
+        var u: CGFloat = isChar ? 0 : baseBox.height - supDrop
+        var v: CGFloat = isChar ? 0 : baseBox.depth + subDrop
 
         let italic = baseBox.italic
 
         var result: Box
         if let sp = supBox, subBox == nil {
-            u = max(u, o.cramped ? o.k(.superscriptShiftUpCramped) : o.k(.superscriptShiftUp))
+            u = max(u, shiftUp)
             u = max(u, sp.depth + o.k(.superscriptBottomMin))
-            result = Box.place([(baseBox, 0, 0), (sp, baseBox.width + italic, u)])
+            result = Box.place([(baseBox, 0, 0),
+                                (sp, baseBox.width + italic, u)])
         } else if let sb = subBox, supBox == nil {
             v = max(v, o.k(.subscriptShiftDown))
             v = max(v, sb.height - o.k(.subscriptTopMax))
             result = Box.place([(baseBox, 0, 0), (sb, baseBox.width, -v)])
         } else if let sp = supBox, let sb = subBox {
-            u = max(u, o.cramped ? o.k(.superscriptShiftUpCramped) : o.k(.superscriptShiftUp))
+            u = max(u, shiftUp)
             u = max(u, sp.depth + o.k(.superscriptBottomMin))
             v = max(v, o.k(.subscriptShiftDown))
             v = max(v, sb.height - o.k(.subscriptTopMax))
@@ -1714,7 +2039,8 @@ extension Layouter {
             let gap = (u - sp.depth) - (sb.height - v)
             if gap < gapMin {
                 v += gapMin - gap
-                let psi = o.k(.superscriptBottomMaxWithSubscript) - (u - sp.depth)
+                let bottomMax = o.k(.superscriptBottomMaxWithSubscript)
+                let psi = bottomMax - (u - sp.depth)
                 if psi > 0 { u += psi; v -= psi }
             }
             result = Box.place([
@@ -1727,16 +2053,18 @@ extension Layouter {
         }
 
         if supBox != nil || subBox != nil {
-            let pad = Box.hbox([result, Box.kern(o.k(.spaceAfterScript))])
-            return (pad, atom)
+            result = Box.hbox([result, Box.kern(o.k(.spaceAfterScript))])
         }
         return (result, atom)
     }
 
     /// Limits set above and below an operator.
-    func limitsBox(_ opBox: Box, _ sup: [Node]?, _ sub: [Node]?, _ o: Opts) -> Box {
+    func limitsBox(_ opBox: Box, _ sup: [Node]?, _ sub: [Node]?,
+                   _ o: Opts) -> Box {
         let upper = sup.map { n in build(n, o.with(style: o.style.sup())) }
-        let lower = sub.map { n in build(n, o.with(style: o.style.sub(), cramped: true)) }
+        let lower = sub.map { n in
+            build(n, o.with(style: o.style.sub(), cramped: true))
+        }
         let width = max(opBox.width, max(upper?.width ?? 0, lower?.width ?? 0))
 
         var items: [(box: Box, dx: CGFloat, dy: CGFloat)] = []
@@ -1760,31 +2088,52 @@ extension Layouter {
     }
 
 
-    func accentBox(_ cp: UInt32, _ body: [Node], stretchy: Bool, _ o: Opts) -> Box {
+    func accentBox(_ cp: UInt32, _ body: [Node], stretchy: Bool,
+                   _ o: Opts) -> Box {
         let base = build(body, o.with(cramped: true))
-        var accGlyph = font.glyph(cp)
-        if accGlyph == 0 { return base }
-
-        if stretchy {
-            for v in font.horizontalVariants(accGlyph) where v.adv * o.size >= base.width {
-                accGlyph = v.glyph; break
-            }
-            if font.horizontalVariants(accGlyph).isEmpty == false,
-               font.metrics(accGlyph, o.size).adv < base.width,
-               let last = font.horizontalVariants(accGlyph).last {
-                accGlyph = last.glyph
-            }
+        let glyph = font.glyph(cp)
+        let result: Box
+        if glyph == 0 {
+            result = base
+        } else {
+            let chosen = stretchy
+                ? stretchedAccent(glyph, over: base.width, o) : glyph
+            result = placeAccent(chosen, over: base, o)
         }
+        return result
+    }
 
-        let m = font.metrics(accGlyph, o.size)
-        let accRect = font.rect(accGlyph, o.size)
-        let acc = Box(kind: .glyph(accGlyph, o.size))
+    // The narrowest variant wide enough for the base, else the widest
+    // one the font offers.
+
+    private func stretchedAccent(_ g: CGGlyph, over width: CGFloat,
+                                 _ o: Opts) -> CGGlyph {
+        var result = g
+        let fitting = font.horizontalVariants(g).first(where: { v in
+            v.adv * o.size >= width
+        })
+        if let fitting { result = fitting.glyph }
+        let variants = font.horizontalVariants(result)
+        if !variants.isEmpty,
+           font.metrics(result, o.size).adv < width,
+           let last = variants.last {
+            result = last.glyph
+        }
+        return result
+    }
+
+    private func placeAccent(_ g: CGGlyph, over base: Box,
+                             _ o: Opts) -> Box {
+        let m = font.metrics(g, o.size)
+        let accRect = font.rect(g, o.size)
+        let acc = Box(kind: .glyph(g, o.size))
         acc.width = m.adv; acc.height = m.h; acc.depth = m.d
 
         // Horizontal: line the accent's centre up with the base's
         // attachment point.
         var attach = base.width / 2 + base.italic / 2
-        if case .glyph(let g, let sz) = base.kind, let a = font.topAccentAttachment(g, sz) {
+        if case .glyph(let bg, let sz) = base.kind,
+           let a = font.topAccentAttachment(bg, sz) {
             attach = a
         }
         let accCentre = accRect.isEmpty ? m.adv / 2 : accRect.midX
@@ -1829,7 +2178,8 @@ extension Layouter {
             items.append((iBox, kernBefore, raise + radDy))
         }
         let box = Box.place(items)
-        box.height = max(box.height, inner.height + gap + rule + o.k(.radicalExtraAscender))
+        let ascender = o.k(.radicalExtraAscender)
+        box.height = max(box.height, inner.height + gap + rule + ascender)
         box.width = xShift + radical.width + bar.width
         return box
     }
@@ -1839,8 +2189,10 @@ extension Layouter {
                  left: UInt32?, right: UInt32?, _ o: Opts) -> Box {
         let display = o.style == .display
         let numBox = build(num, o.with(style: o.style.fracNum()))
-        let denBox = build(den, o.with(style: o.style.fracDen(), cramped: true))
-        let thickness = rule ? max(o.k(.fractionRuleThickness), o.size * 0.04) : 0
+        let denBox = build(den, o.with(style: o.style.fracDen(),
+                                       cramped: true))
+        let ruleMin = max(o.k(.fractionRuleThickness), o.size * 0.04)
+        let thickness = rule ? ruleMin : 0
         let axis = o.axis
 
         var up = display ? o.k(.fractionNumeratorDisplayStyleShiftUp)
@@ -1849,12 +2201,15 @@ extension Layouter {
                            : o.k(.fractionDenominatorShiftDown)
 
         if rule {
-            let gapNum = display ? o.k(.fractionNumDisplayStyleGapMin) : o.k(.fractionNumeratorGapMin)
-            let gapDen = display ? o.k(.fractionDenomDisplayStyleGapMin) : o.k(.fractionDenominatorGapMin)
+            let gapNum = display ? o.k(.fractionNumDisplayStyleGapMin)
+                                 : o.k(.fractionNumeratorGapMin)
+            let gapDen = display ? o.k(.fractionDenomDisplayStyleGapMin)
+                                 : o.k(.fractionDenominatorGapMin)
             up = max(up, axis + thickness / 2 + gapNum + numBox.depth)
             down = max(down, -axis + thickness / 2 + gapDen + denBox.height)
         } else {
-            let gap = display ? o.k(.stackDisplayStyleGapMin) : o.k(.stackGapMin)
+            let gap = display ? o.k(.stackDisplayStyleGapMin)
+                              : o.k(.stackGapMin)
             let clearance = (up - numBox.depth) - (denBox.height - down)
             if clearance < gap {
                 let extra = (gap - clearance) / 2
@@ -1868,15 +2223,18 @@ extension Layouter {
             (denBox, (width - denBox.width) / 2, -down),
         ]
         if rule {
-            items.append((Box.rule(width: width, height: thickness / 2, depth: thickness / 2),
-                          0, axis))
+            let bar = Box.rule(width: width, height: thickness / 2,
+                               depth: thickness / 2)
+            items.append((bar, 0, axis))
         }
         var body = Box.place(items)
         body.width = width
 
         if left != nil || right != nil {
-            let l = delimiter(left ?? 0, height: body.height, depth: body.depth, o)
-            let r = delimiter(right ?? 0, height: body.height, depth: body.depth, o)
+            let l = delimiter(left ?? 0, height: body.height,
+                              depth: body.depth, o)
+            let r = delimiter(right ?? 0, height: body.height,
+                              depth: body.depth, o)
             body = Box.hbox([l, body, r])
         } else {
             body = Box.hbox([Box.kern(o.mu * 3), body, Box.kern(o.mu * 3)])
@@ -1885,7 +2243,8 @@ extension Layouter {
     }
 
 
-    func leftRightBox(_ l: UInt32, _ r: UInt32, _ body: [Node], _ o: Opts) -> Box {
+    func leftRightBox(_ l: UInt32, _ r: UInt32, _ body: [Node],
+                      _ o: Opts) -> Box {
         let inner = build(body, o)
         let lb = delimiter(l, height: inner.height, depth: inner.depth, o)
         let rb = delimiter(r, height: inner.height, depth: inner.depth, o)
@@ -2018,40 +2377,6 @@ extension Layouter {
     }
 }
 
-extension Node.ArrayStyle {
-    var isAligned: Bool {
-        if case .aligned = self { return true }
-        return false
-    }
-    var isSubstack: Bool {
-        if case .substack = self { return true }
-        return false
-    }
-    // Everything but `aligned` centres its columns. `aligned` is the
-    // amsmath template, where odd columns hug the relation between them.
-    var centresColumns: Bool { !isAligned }
-}
-
-
-extension Box {
-    func render(in ctx: CGContext, x: CGFloat, y: CGFloat, font: MathFontFile) {
-        switch kind {
-        case .glyph(let g, let size):
-            var glyphs = [g]
-            var points = [CGPoint(x: x, y: y)]
-            CTFontDrawGlyphs(font.ctFont(size), &glyphs, &points, 1, ctx)
-        case .rule:
-            ctx.fill(CGRect(x: x, y: y - depth, width: width, height: height + depth))
-        case .list:
-            break
-        }
-        for (child, dx, dy) in children {
-            child.render(in: ctx, x: x + dx, y: y + dy, font: font)
-        }
-    }
-}
-
-
 public struct MathLayout {
     public let width: CGFloat
     public let ascent: CGFloat
@@ -2104,21 +2429,25 @@ public struct MathLayout {
     public func cgImage(scale: CGFloat = 2, padding: CGFloat = 8,
                         background: CGColor? = nil,
                         color ink: CGColor? = nil) -> CGImage? {
+        var result: CGImage? = nil
         let w = Int(((width + padding * 2) * scale).rounded(.up))
         let h = Int(((height + padding * 2) * scale).rounded(.up))
-        guard w > 0, h > 0,
-              let ctx = CGContext(data: nil, width: w, height: h, bitsPerComponent: 8,
-                                  bytesPerRow: 0, space: CGColorSpaceCreateDeviceRGB(),
-                                  bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)
-        else { return nil }
-        if let bg = background {
-            ctx.setFillColor(bg)
-            ctx.fill(CGRect(x: 0, y: 0, width: CGFloat(w), height: CGFloat(h)))
+        if w > 0, h > 0,
+           let ctx = CGContext(
+               data: nil, width: w, height: h, bitsPerComponent: 8,
+               bytesPerRow: 0, space: CGColorSpaceCreateDeviceRGB(),
+               bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) {
+            if let bg = background {
+                ctx.setFillColor(bg)
+                ctx.fill(CGRect(x: 0, y: 0, width: CGFloat(w),
+                                height: CGFloat(h)))
+            }
+            ctx.scaleBy(x: scale, y: scale)
+            draw(in: ctx, at: CGPoint(x: padding, y: height + padding),
+                 color: ink)
+            result = ctx.makeImage()
         }
-        ctx.scaleBy(x: scale, y: scale)
-        draw(in: ctx, at: CGPoint(x: padding, y: height + padding),
-             color: ink)
-        return ctx.makeImage()
+        return result
     }
 }
 
@@ -2126,7 +2455,11 @@ public struct MathLayout {
 public enum KaTeX {
 
     /// Parse and lay out a TeX fragment.
-    public static func layout(_ tex: String, settings: MathSettings = MathSettings()) throws -> MathLayout {
+    public static func layout(
+        _ tex: String, settings: MathSettings = MathSettings()
+    ) throws -> MathLayout {
+        MathFontFile.lock.lock()
+        defer { MathFontFile.lock.unlock() }
         let font = try MathFontFile.shared()
         let nodes = try Parser.parse(tex)
         let layouter = Layouter(font: font)
@@ -2143,7 +2476,8 @@ public enum KaTeX {
             let gap = settings.tagGap
             switch settings.tagSide {
             case .right:
-                let total = settings.tagColumnWidth ?? (body.width + gap + tag.width)
+                let natural = body.width + gap + tag.width
+                let total = settings.tagColumnWidth ?? natural
                 let pad = max(gap, total - body.width - tag.width)
                 final = Box.hbox([body, Box.kern(pad), tag])
             case .left:
@@ -2162,16 +2496,20 @@ public enum KaTeX {
     }
 
     /// Convenience: lay out and rasterize in one call.
-    public static func cgImage(_ tex: String, settings: MathSettings = MathSettings(),
-                               scale: CGFloat = 2, padding: CGFloat = 8,
-                               background: CGColor? = nil) throws -> CGImage? {
-        try layout(tex, settings: settings).cgImage(scale: scale, padding: padding,
+    public static func cgImage(
+        _ tex: String, settings: MathSettings = MathSettings(),
+        scale: CGFloat = 2, padding: CGFloat = 8,
+        background: CGColor? = nil
+    ) throws -> CGImage? {
+        try layout(tex, settings: settings).cgImage(scale: scale,
+                                                    padding: padding,
                                                     background: background)
     }
 
     /// Measure only.
-    public static func measure(_ tex: String,
-                               settings: MathSettings = MathSettings()) throws -> CGSize {
+    public static func measure(
+        _ tex: String, settings: MathSettings = MathSettings()
+    ) throws -> CGSize {
         try layout(tex, settings: settings).size
     }
 }
