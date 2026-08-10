@@ -482,11 +482,19 @@ public final class MathFontFile {
         vertAssembly[g] ?? []
     }
 
-    // One parsed font serves every formula, and its glyph and CTFont
-    // caches fill lazily as they are used, so the instance is mutable
-    // for its whole life. `KaTeX.layout` holds this lock across a whole
-    // layout, which is what makes sharing it safe; nothing else may
-    // touch a MathFontFile.
+    // One parsed font serves every formula. Everything the OpenType
+    // reader fills is written once in init and never again, but the
+    // glyph, CTFont and metric caches fill lazily for the instance's
+    // whole life -- so LAYING OUT a formula mutates shared state, and so
+    // does DRAWING one, which reaches ctFont for whatever size it is
+    // being drawn at.
+    //
+    // `KaTeX.layout` and `MathLayout.draw` each hold this lock for their
+    // duration, which is what makes one font safe to share. Both are
+    // needed: md.too exports PDF from a nonisolated async function, so
+    // formulas are laid out and drawn off the main thread while the
+    // screen draws its own, and a lock on layout alone leaves ctFont
+    // racing -- ThreadSanitizer reports it, and it segfaults.
     static let lock = NSLock()
     nonisolated(unsafe) private static var cached: MathFontFile?
 
@@ -2398,6 +2406,12 @@ public struct MathLayout {
     /// boxes do not depend on the ink.
     public func draw(in ctx: CGContext, at point: CGPoint,
                      color ink: CGColor? = nil, flipped: Bool = false) {
+        // Drawing fills the font's CTFont cache, so it takes the same
+        // lock the layout does. Not recursive, and it does not need to
+        // be: cgImage and the baseline overload both reach the font
+        // through this one method, and no caller holds the lock.
+        MathFontFile.lock.lock()
+        defer { MathFontFile.lock.unlock() }
         ctx.saveGState()
         let savedText = ctx.textMatrix
         ctx.setFillColor(ink ?? color)
