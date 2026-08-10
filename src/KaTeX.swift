@@ -498,9 +498,26 @@ public final class MathFontFile {
     static let lock = NSLock()
     nonisolated(unsafe) private static var cached: MathFontFile?
 
+    nonisolated(unsafe) private static var overrideStorage: URL?
+
     /// Override to point at a different MATH-table font. The md2png CLI
-    /// sets it from --font; the app never does.
-    public static var overrideURL: URL?
+    /// sets it from --font; the app never does. Guarded by the same lock
+    /// as the caches, because "only ever set once, before anything reads
+    /// it" is a promise the type cannot keep on a caller's behalf --
+    /// under -swift-version 6 the compiler refuses the bare `static var`
+    /// for exactly that reason.
+    public static var overrideURL: URL? {
+        get {
+            lock.lock()
+            defer { lock.unlock() }
+            return overrideStorage
+        }
+        set {
+            lock.lock()
+            defer { lock.unlock() }
+            overrideStorage = newValue
+        }
+    }
 
     // Two places, in this order: the app bundle, which is where the iOS
     // build carries its copy, then the system font macOS ships. No
@@ -508,9 +525,19 @@ public final class MathFontFile {
     // sandboxed app reaches neither, and a resource an app cannot
     // account for is a resource it should not look for.
 
+    /// Takes the lock itself. `KaTeX.layout` already holds it and calls
+    /// `sharedLocked` instead; NSLock is not recursive.
     public static func shared() throws -> MathFontFile {
+        lock.lock()
+        defer { lock.unlock() }
+        return try sharedLocked()
+    }
+
+    /// The caller must hold `lock`: this reads the override and fills
+    /// the shared `cached` slot.
+    static func sharedLocked() throws -> MathFontFile {
         var candidates: [URL] = []
-        if let o = overrideURL { candidates.append(o) }
+        if let o = overrideStorage { candidates.append(o) }
         if let u = Bundle.main.url(forResource: "STIXTwoMath",
                                    withExtension: "otf") {
             candidates.append(u)
@@ -2474,7 +2501,7 @@ public enum KaTeX {
     ) throws -> MathLayout {
         MathFontFile.lock.lock()
         defer { MathFontFile.lock.unlock() }
-        let font = try MathFontFile.shared()
+        let font = try MathFontFile.sharedLocked()
         let nodes = try Parser.parse(tex)
         let layouter = Layouter(font: font)
         let opts = Opts(font: font,
