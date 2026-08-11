@@ -267,6 +267,128 @@ extension NativeText: NSViewRepresentable {
             return result
         }
 
+        // What a COPY carries. A display is a layout, not a run of
+        // characters -- the fraction bar is a drawn rule and the radical a
+        // stretched glyph assembly -- so no font and no rich text can spell
+        // it, and the object-replacement character alone pastes as a gap.
+        //
+        // NSTextView does NOT route copy: through writeSelection(to:type:),
+        // so the flavours are written here, where the command lands.
+        // MEASURED with only that override in place: `clipboard info` showed
+        // AppKit's defaults, 4 bytes of utf8 for the replacement character
+        // and an RTFD with no picture in it.
+        //
+        // RTFD carries the picture and RTF carries the TeX, because plain
+        // RTF CANNOT hold it: AppKit's RTF writer embeds nothing for an
+        // image attachment (324 bytes, no \pict) while RTFD of the same
+        // string is orders larger.
+
+        override func copy(_ sender: Any?) {
+            let picked = selectedRange()
+            let store = picked.length > 0 ? textStorage : nil
+            if let store {
+                let slice = store.attributedSubstring(from: picked)
+                let board = NSPasteboard.general
+                board.clearContents()
+                board.declareTypes([.rtfd, .rtf, .string], owner: nil)
+                let rich = Self.illustrated(slice, dark: self.isDark)
+                if let data = rich.rtfd(
+                    from: NSRange(location: 0, length: rich.length),
+                    documentAttributes: [:]) {
+                    board.setData(data, forType: .rtfd)
+                }
+                let spelled = Self.spelled(slice)
+                board.setString(spelled.string, forType: .string)
+                if let data = spelled.rtf(
+                    from: NSRange(location: 0, length: spelled.length),
+                    documentAttributes: [:]) {
+                    board.setData(data, forType: .rtf)
+                }
+            } else {
+                super.copy(sender)
+            }
+        }
+
+        // The VIEW's appearance, never the process: a theme forced in the
+        // app is invisible to NSAppearance.currentDrawing().
+        private var isDark: Bool {
+            effectiveAppearance
+                .bestMatch(from: [.aqua, .darkAqua]) == .darkAqua
+        }
+
+        // The selection with each display spelled out as the TeX it was
+        // written from, in place of the object replacement character
+        // that stands for it. The styling of the surrounding text is
+        // kept, and the substituted TeX inherits the run it replaces
+        // minus the attachment itself.
+        //
+        // Attributed rather than a bare String because RTF is written
+        // from this too: RTF cannot carry the picture, but it can carry
+        // bold and italic, and AppKit's own copy did. Flattening to a
+        // plain String here dropped them from that flavour.
+        private static func spelled(
+            _ slice: NSAttributedString
+        ) -> NSAttributedString {
+            let m = NSMutableAttributedString(attributedString: slice)
+            let full = NSRange(location: 0, length: m.length)
+            for range in Self.attachments(in: m, full).reversed() {
+                let tex = m.attribute(atomicCopyKey, at: range.location,
+                                      effectiveRange: nil) as? String
+                var attrs = m.attributes(at: range.location,
+                                         effectiveRange: nil)
+                attrs.removeValue(forKey: .attachment)
+                m.replaceCharacters(
+                    in: range,
+                    with: NSAttributedString(string: tex ?? "",
+                                             attributes: attrs))
+            }
+            return m
+        }
+
+        // The same selection with every formula swapped for a picture of
+        // itself, which is the only form a foreign document can render.
+        private static func illustrated(_ slice: NSAttributedString,
+                                        dark: Bool) -> NSAttributedString {
+            let m = NSMutableAttributedString(attributedString: slice)
+            let full = NSRange(location: 0, length: m.length)
+            for range in Self.attachments(in: m, full).reversed() {
+                let cell = (m.attribute(.attachment, at: range.location,
+                                        effectiveRange: nil)
+                            as? NSTextAttachment)?.attachmentCell
+                if let math = cell as? PasteboardIllustration,
+                   let pdf = math.pdf(dark: dark) {
+                    m.replaceCharacters(
+                        in: range,
+                        with: NSAttributedString(
+                            attachment: Self.illustration(pdf)))
+                }
+            }
+            return m
+        }
+
+        // A FILE WRAPPER holding the PDF, not an NSImage made from it.
+        // Both display the same, but AppKit serializes an image-backed
+        // attachment by rasterizing it: the RTFD came out holding
+        // Attachment.tiff, 570KB of bitmap for one small formula, and
+        // logged a failed PNG encode on the way. A wrapper is stored
+        // verbatim, so the bytes that arrive are the vector page that
+        // was drawn -- 155KB instead of 717KB, same ink on screen.
+        private static func illustration(_ pdf: Data) -> NSTextAttachment {
+            let wrapper = FileWrapper(regularFileWithContents: pdf)
+            wrapper.preferredFilename = "formula.pdf"
+            return NSTextAttachment(fileWrapper: wrapper)
+        }
+
+        private static func attachments(in m: NSAttributedString,
+                                        _ full: NSRange) -> [NSRange] {
+            var found: [NSRange] = []
+            m.enumerateAttribute(.attachment, in: full,
+                                 options: []) { value, range, _ in
+                if value != nil { found.append(range) }
+            }
+            return found
+        }
+
         override func layout() {
             super.layout()
             if bounds.size != lastBounds {

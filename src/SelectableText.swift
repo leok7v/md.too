@@ -20,6 +20,16 @@ struct CopyBlockSpot: Equatable {
 // surface leaves the button sitting on top of the content.
 let copyButtonGutter: CGFloat = 26
 
+// What a text view needs of an attachment in order to put a picture of
+// it on the pasteboard. Declared here, in the file both targets build,
+// rather than naming the cell itself: the cell is part of the macOS
+// single-surface document builder, which the Quick Look extension does
+// not compile -- it renders blocks, so it never makes one. The bridge
+// asks for this and gets nil there, which is the right answer.
+protocol PasteboardIllustration {
+    func pdf(dark: Bool) -> Data?
+}
+
 let atomicKindKey = NSAttributedString.Key("AtomicKind.kind")
 let atomicIdKey = NSAttributedString.Key("AtomicKind.id")
 // The block's SOURCE text for the corner Copy button (raw code, or the
