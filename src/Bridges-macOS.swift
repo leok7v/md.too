@@ -290,7 +290,12 @@ extension NativeText: NSViewRepresentable {
                 let slice = store.attributedSubstring(from: picked)
                 let board = NSPasteboard.general
                 board.clearContents()
-                board.declareTypes([.rtfd, .rtf, .string], owner: nil)
+                let lone = Self.lonePDF(slice, dark: self.isDark)
+                var types: [NSPasteboard.PasteboardType] =
+                    [.rtfd, .rtf, .string]
+                if lone != nil { types.insert(.pdf, at: 1) }
+                board.declareTypes(types, owner: nil)
+                if let lone { board.setData(lone, forType: .pdf) }
                 let rich = Self.illustrated(slice, dark: self.isDark)
                 if let data = rich.rtfd(
                     from: NSRange(location: 0, length: rich.length),
@@ -366,6 +371,33 @@ extension NativeText: NSViewRepresentable {
             return m
         }
 
+        // A selection that is ONE formula and nothing else also goes on
+        // the board as a plain PDF, for the apps that take a picture but
+        // not RTFD -- Pages, Keynote, the drawing tools. A flavour
+        // covers the whole copy, so this is only honest when the copy IS
+        // the formula; a paragraph with a display in it would owe a PDF
+        // of the paragraph, which is a different feature.
+        private static func lonePDF(_ slice: NSAttributedString,
+                                    dark: Bool) -> Data? {
+            var result: Data? = nil
+            let full = NSRange(location: 0, length: slice.length)
+            let found = Self.attachments(in: slice, full)
+            if found.count == 1 {
+                let rest = (slice.string as NSString)
+                    .replacingCharacters(in: found[0], with: "")
+                    .trimmingCharacters(in: .whitespacesAndNewlines)
+                let cell = (slice.attribute(.attachment,
+                                            at: found[0].location,
+                                            effectiveRange: nil)
+                            as? NSTextAttachment)?.attachmentCell
+                if rest.isEmpty,
+                   let math = cell as? PasteboardIllustration {
+                    result = math.pdf(dark: dark)
+                }
+            }
+            return result
+        }
+
         // A FILE WRAPPER holding the PDF, not an NSImage made from it.
         // Both display the same, but AppKit serializes an image-backed
         // attachment by rasterizing it: the RTFD came out holding
@@ -423,6 +455,10 @@ extension NativeText: NSViewRepresentable {
                     let kind = id == nil ? nil
                         : ts.attribute(atomicKindKey, at: run.location,
                                        effectiveRange: nil) as? String
+                    let cell = (ts.attribute(.attachment,
+                                            at: run.location,
+                                            effectiveRange: nil)
+                                as? NSTextAttachment)?.attachmentCell
                     if let id, let copy {
                         let gr = lm.glyphRange(forCharacterRange: run,
                                                actualCharacterRange: nil)
@@ -454,7 +490,9 @@ extension NativeText: NSViewRepresentable {
                             id: id,
                             rect: CGRect(x: x, y: y,
                                          width: 22, height: 22),
-                            copy: copy))
+                            copy: copy,
+                            illustration:
+                                cell as? PasteboardIllustration))
                     }
                     pos = max(NSMaxRange(run), pos + 1)
                 }

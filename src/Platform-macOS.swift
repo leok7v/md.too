@@ -83,8 +83,20 @@ func platformDecodeCGImage(_ data: Data) -> CGImage? {
 }
 
 func platformSetClipboardString(_ s: String) {
-    NSPasteboard.general.clearContents()
-    NSPasteboard.general.setString(s, forType: .string)
+    platformSetClipboard(string: s, pdf: nil)
+}
+
+// The text always, and a PDF alongside it when the block has one. Both
+// flavours on one board, so a plain editor takes the string and anything
+// that draws takes the picture.
+func platformSetClipboard(string: String, pdf: Data?) {
+    let board = NSPasteboard.general
+    board.clearContents()
+    var types: [NSPasteboard.PasteboardType] = [.string]
+    if pdf != nil { types.insert(.pdf, at: 0) }
+    board.declareTypes(types, owner: nil)
+    if let pdf { board.setData(pdf, forType: .pdf) }
+    board.setString(string, forType: .string)
 }
 
 func platformPerformLightAppearance(_ body: () -> Void) {

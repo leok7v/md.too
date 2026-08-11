@@ -12,6 +12,19 @@ struct CopyBlockSpot: Equatable {
     let id: String
     let rect: CGRect
     let copy: String
+    // The block itself, when it has a picture worth putting on the
+    // board. Held rather than rendered: this struct is rebuilt and
+    // compared on every layout pass, and a formula's PDF is 130KB that
+    // most copies never ask for.
+    var illustration: PasteboardIllustration? = nil
+
+    // Identity, position and text decide whether the overlay changed.
+    // The illustration is the same object for the same id, so comparing
+    // it would only cost a pointer -- but leaving it out keeps the
+    // struct comparable without constraining the protocol further.
+    static func == (a: CopyBlockSpot, b: CopyBlockSpot) -> Bool {
+        a.id == b.id && a.rect == b.rect && a.copy == b.copy
+    }
 }
 
 // Where the copy overlay sets a button, measured in from the right edge
@@ -26,7 +39,10 @@ let copyButtonGutter: CGFloat = 26
 // single-surface document builder, which the Quick Look extension does
 // not compile -- it renders blocks, so it never makes one. The bridge
 // asks for this and gets nil there, which is the right answer.
-protocol PasteboardIllustration {
+// AnyObject-constrained so a CopyBlockSpot can hold one without
+// carrying its bytes: the button asks for the PDF when it is pressed,
+// not when the document is laid out.
+protocol PasteboardIllustration: AnyObject {
     func pdf(dark: Bool) -> Data?
 }
 
@@ -91,7 +107,7 @@ struct SelectableText: View {
     @ViewBuilder
     private var copyOverlays: some View {
         ForEach(copySpots, id: \.id) { spot in
-            BlockCopyButton(copy: spot.copy)
+            BlockCopyButton(spot: spot)
                 .frame(width: spot.rect.width,
                        height: spot.rect.height)
                 .offset(x: spot.rect.minX, y: spot.rect.minY)
@@ -102,7 +118,8 @@ struct SelectableText: View {
 
 private struct BlockCopyButton: View {
 
-    let copy: String
+    let spot: CopyBlockSpot
+    @Environment(\.colorScheme) private var scheme
     @State private var copied = false
 
     var body: some View {
@@ -117,8 +134,13 @@ private struct BlockCopyButton: View {
         .help("Copy")
     }
 
+    // The source text always, and a picture as well when the block has
+    // one -- a formula is a layout no plain string can spell, so the TeX
+    // serves anything simple and the PDF serves anything that draws.
     private func doCopy() {
-        platformSetClipboardString(copy)
+        platformSetClipboard(string: spot.copy,
+                             pdf: spot.illustration?
+                                 .pdf(dark: scheme == .dark))
         copied = true
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
             copied = false

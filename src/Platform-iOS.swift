@@ -80,7 +80,14 @@ func platformDecodeCGImage(_ data: Data) -> CGImage? {
 }
 
 func platformSetClipboardString(_ s: String) {
-    UIPasteboard.general.string = s
+    platformSetClipboard(string: s, pdf: nil)
+}
+
+// iOS never has the picture: the block renderer draws maths into a
+// Canvas rather than an attachment, so nothing here makes a PDF. The
+// parameter exists to keep one call site for both platforms.
+func platformSetClipboard(string: String, pdf: Data?) {
+    UIPasteboard.general.string = string
 }
 
 func platformPerformLightAppearance(_ body: () -> Void) {

@@ -59,94 +59,56 @@ final class MathAttachmentCell: NSTextAttachmentCell,
 
 }
 
-// An alpha mask that is opaque in the middle and fades to nothing within
-// `feather` of every edge.
+// A formula as a PDF page, for the pasteboard. Vector rather than a raster,
+// so it stays crisp wherever it lands and prints properly.
 //
-// Written pixel by pixel rather than drawn. A ramp of inset rectangles is
-// the obvious way and it bands: each rectangle is one flat tone, so a
-// 14-point margin built from two dozen fills shows two dozen stripes. Here
-// every pixel gets its own value from its distance to the nearest edge, so
-// the fade is as smooth as 8 bits allow.
+// It carries NO background. The ink is the ink of the document it was copied
+// from, and the same glyphs are stroked underneath in that document's PAPER
+// colour. Pasted onto a page of the same theme the outline is the colour of
+// that page and disappears, leaving clean solid ink; pasted onto the opposite
+// theme the ink sinks into the ground and the outline, now the only thing
+// contrasting with it, traces the glyphs instead.
 //
-// A radial gradient cannot do this either. Its fade is a circle, so on a box
-// wider than it is tall the top and bottom edges stay fully opaque and only
-// the corners soften, which reads as a hard-edged card.
-private func featherMask(_ size: CGSize, feather: CGFloat) -> CGImage? {
-    let w = Int(size.width.rounded(.up))
-    let h = Int(size.height.rounded(.up))
-    // Rows aligned, because CGContext wants a stride it likes and the
-    // buffer has to be sized to the one it is given.
-    let stride = (w + 15) / 16 * 16
-    var result: CGImage? = nil
-    if w > 0, h > 0, feather > 0 {
-        var pixels = [UInt8](repeating: 0, count: stride * h)
-        for y in 0..<h {
-            let dy = CGFloat(min(y, h - 1 - y))
-            for x in 0..<w {
-                let dx = CGFloat(min(x, w - 1 - x))
-                let t = min(min(dx, dy) / feather, 1)
-                // Smoothstep, not the bare ratio: a linear ramp meets the
-                // page at an angle and leaves a visible seam where the
-                // fade starts and stops. This one arrives flat at both.
-                let eased = t * t * (3 - 2 * t)
-                pixels[y * stride + x] = UInt8((eased * 255).rounded())
-            }
-        }
-        result = pixels.withUnsafeMutableBytes { raw -> CGImage? in
-            var image: CGImage? = nil
-            if let ctx = CGContext(
-                data: raw.baseAddress, width: w, height: h,
-                bitsPerComponent: 8, bytesPerRow: stride,
-                space: CGColorSpaceCreateDeviceGray(),
-                bitmapInfo: CGImageAlphaInfo.none.rawValue) {
-                image = ctx.makeImage()
-            }
-            return image
-        }
-    }
-    return result
-}
-
-// A formula as a PDF page, for the pasteboard. Vector rather than a raster so
-// it stays crisp wherever it lands and prints properly.
+// This replaced a feathered patch of paper. The patch worked, but it is a
+// rectangle on someone else's page and it has to be blended away at every
+// rim; an outline is only visible where it is needed and needs no blending.
+//
+// What cannot work, tested rather than assumed: white ink in a Difference
+// blend, which would invert against anything behind it. The blend mode does
+// reach the file -- /BM /Difference is in the PDF -- but a PDF page composites
+// as an ISOLATED transparency group, so its backdrop is its own emptiness and
+// never the host's page. White stayed white: perfect on dark, invisible on
+// light.
 //
 // `dark` comes from the VIEW being copied from, never from the process:
 // NSAppearance.currentDrawing() outside a drawing cycle answers for the
 // process, so on a dark Mac every copy came out dark however the app was set.
 func mathPDF(_ layout: MathLayout, dark: Bool,
-             padding: CGFloat = 14) -> Data? {
+             padding: CGFloat = 8) -> Data? {
     let data = NSMutableData()
     var box = CGRect(x: 0, y: 0, width: layout.width + padding * 2,
                      height: layout.height + padding * 2)
     var result: Data? = nil
-    // 0.07 rather than a lighter grey: a dark document is nearer black than
-    // an app's own transcript, and a patch lighter than the page reads as a
-    // card where a slightly darker one disappears.
-    let paper: CGFloat = dark ? 0.07 : 0.98
-    let ink: CGFloat = dark ? 0.95 : 0.05
+    let ink = CGColor(gray: dark ? 0.95 : 0.05, alpha: 1)
+    let ground = CGColor(gray: dark ? 0.07 : 0.98, alpha: 1)
     if let consumer = CGDataConsumer(data: data),
        let ctx = CGContext(consumer: consumer, mediaBox: &box, nil) {
         ctx.beginPDFPage(nil)
-        // Paper under the ink, fading to nothing at every rim. Pasted into a
-        // document of the SAME theme the patch disappears and the formula
-        // reads as native text; pasted into the opposite one it is a soft
-        // patch that keeps the formula legible instead of black on black.
-        //
-        // The fade occupies the PADDING band exactly, so the formula sits on
-        // paper at full opacity and only the margin dissolves.
-        if let mask = featherMask(box.size, feather: padding) {
-            ctx.saveGState()
-            ctx.clip(to: box, mask: mask)
-            ctx.setFillColor(CGColor(gray: paper, alpha: 1))
-            ctx.fill(box)
-            ctx.restoreGState()
-        }
         // `at` is the TOP-LEFT of the bounding box and draw subtracts the
         // ascent, so the top edge is padding + height in this y-up page.
         // Passing the descent instead puts the baseline below the media box
         // and cuts every formula off.
         let top = CGPoint(x: padding, y: padding + layout.height)
-        layout.draw(in: ctx, at: top, color: CGColor(gray: ink, alpha: 1))
+        // The outline goes down first so the ink sits on top of it and the
+        // glyph keeps its own weight; a stroke drawn after the fill would
+        // eat into the letterforms from both sides.
+        ctx.setLineWidth(2.2)
+        ctx.setLineJoin(.round)
+        ctx.setStrokeColor(ground)
+        ctx.setTextDrawingMode(.stroke)
+        layout.draw(in: ctx, at: top, color: ground)
+        ctx.setTextDrawingMode(.fill)
+        layout.draw(in: ctx, at: top, color: ink)
         ctx.endPDFPage()
         ctx.closePDF()
         result = data as Data
