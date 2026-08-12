@@ -15,6 +15,7 @@ struct ContentView: View {
     @State private var showSource = false
     @State private var liveText: String? = nil
     @State private var expanded = false
+    @State private var pinned = false
     @State private var interaction = 0
     // The stop the pinch began at, since a magnification is reported
     // relative to its own start rather than absolutely, and the stop the
@@ -107,18 +108,31 @@ struct ContentView: View {
             }
             Spacer(minLength: 8)
             if expanded {
-                Button(action: { expanded = false }) {
-                    Image(systemName: "chevron.right.2")
+                // A modifier on a Group lands on each member, so every
+                // action carries the pin -- including Share, whose sheet
+                // is anchored to its button: collapsing the row out from
+                // under an open sheet takes the sheet with it.
+                Group {
+                    Button(action: { expanded = false }) {
+                        Image(systemName: "chevron.right.2")
+                    }
+                    .accessibilityLabel("Hide actions")
+                    SourceButton(showingSource: showSource) {
+                        showSource.toggle()
+                    }
+                    CopyDocButton(text: displayText)
+                    ShareButton(text: displayText, fileURL: fileURL)
+                    ThemeButton(theme: theme) {
+                        themeRaw = theme.next.rawValue
+                    }
                 }
-                .accessibilityLabel("Hide actions")
-                SourceButton(showingSource: showSource) {
-                    showSource.toggle()
-                }
-                CopyDocButton(text: displayText)
-                ShareButton(text: displayText, fileURL: fileURL)
-                ThemeButton(theme: theme) { themeRaw = theme.next.rawValue }
+                .simultaneousGesture(TapGesture().onEnded { pinned = true })
             } else {
-                Button(action: { expanded = true; interaction += 1 }) {
+                Button(action: {
+                    expanded = true
+                    pinned = false
+                    interaction += 1
+                }) {
                     Image(systemName: "chevron.left.2")
                 }
                 .accessibilityLabel("More actions")
@@ -133,10 +147,17 @@ struct ContentView: View {
         .animation(.easeInOut(duration: 0.2), value: expanded)
     }
 
+    // Only a row that was opened and never touched tidies itself away.
+    // Once a finger has landed on any action the row is the reader's, and
+    // it stays until they close it: an action can open a sheet or start a
+    // flow that outlives any countdown, and there is no moment at which
+    // pulling the row out from under them is right. Long enough, too,
+    // that the untouched case is a real chance to aim rather than a race.
+
     private func collapseAfterIdle() async {
-        if expanded {
-            try? await Task.sleep(nanoseconds: 4_000_000_000)
-            if !Task.isCancelled { expanded = false }
+        if expanded, !pinned {
+            try? await Task.sleep(nanoseconds: 8_000_000_000)
+            if !Task.isCancelled, !pinned { expanded = false }
         }
     }
 

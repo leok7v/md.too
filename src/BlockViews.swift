@@ -233,17 +233,25 @@ private struct MathBlock: View {
     // formula wider than the column pushes its LEFT edge off screen,
     // and the left edge is the half you need; the scroller takes it
     // from there.
+    //
+    // A gutter on BOTH margins, because a centred paragraph splits its
+    // slack between them: reserving it only on the right would shift
+    // the formula off centre, and reserving nothing puts the corner
+    // Copy button on top of the last glyphs of every display wide
+    // enough to fill the column. The same bargain
+    // DocumentText.mathMinimumWidth strikes for the single surface.
 
     @ViewBuilder
     private func typeset(_ layout: MathLayout) -> some View {
-        ScrollView(.horizontal, showsIndicators: layout.width > available) {
+        let content = layout.width + copyButtonGutter * 2
+        ScrollView(.horizontal, showsIndicators: content > available) {
             Canvas { ctx, _ in
                 ctx.withCGContext { cg in
                     layout.draw(in: cg, at: .zero, color: ink, flipped: true)
                 }
             }
             .frame(width: layout.width, height: layout.height)
-            .padding(.horizontal, 4)
+            .padding(.horizontal, copyButtonGutter)
             .frame(maxWidth: available > 0 ? available : nil)
             .accessibilityLabel(tex)
         }

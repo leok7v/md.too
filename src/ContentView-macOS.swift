@@ -14,7 +14,6 @@ struct ContentView: View {
     @State private var showSource = false
     @State private var liveText: String? = nil
     @State private var expanded = false
-    @State private var hovering = false
     @StateObject private var find = MarkdownFindController()
     @State private var findVisible = false
     @State private var findQuery = ""
@@ -22,7 +21,6 @@ struct ContentView: View {
 
     private var theme: ThemeMode { ThemeMode(raw: themeRaw) }
     private var displayText: String { liveText ?? text }
-    private var idle: Bool { expanded && !hovering }
 
     var body: some View {
         MarkdownView(displayText: displayText, theme: theme,
@@ -34,9 +32,15 @@ struct ContentView: View {
             .toolbar {
                 ToolbarItem(placement: .primaryAction) { actions }
             }
-            .task(id: idle) { await collapseAfterIdle() }
             .watchingFile(fileURL, into: $liveText)
     }
+
+    // The row stays open until it is closed, and there is no countdown
+    // waiting to take it away. Save and Share hand off to a panel or a
+    // menu of their own, and the pointer goes with them -- the row it
+    // came from then reads as untouched, so any idle timer fires exactly
+    // when the reader is midway through the thing they opened it for.
+    // The iOS sibling keeps a countdown only for a row nobody touched.
 
     private var actions: some View {
         HStack(spacing: 8) {
@@ -65,15 +69,7 @@ struct ContentView: View {
                 .help("More actions")
             }
         }
-        .onHover { inside in hovering = inside }
         .animation(.easeInOut(duration: 0.2), value: expanded)
-    }
-
-    private func collapseAfterIdle() async {
-        if idle {
-            try? await Task.sleep(nanoseconds: 3_000_000_000)
-            if !Task.isCancelled { expanded = false }
-        }
     }
 
     private var findShortcut: some View {

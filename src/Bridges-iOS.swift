@@ -25,11 +25,13 @@ extension NativeText: UIViewRepresentable {
                 width: CGFloat.greatestFiniteMagnitude,
                 height: CGFloat.greatestFiniteMagnitude)
         }
+        v.onCopySpots = onCopySpots
         return v
     }
 
     func updateUIView(_ v: ResizingUITextView, context: Context) {
         v.nowrap = nowrap
+        v.onCopySpots = onCopySpots
         let next = resolved()
         if !v.textStorage.isEqual(to: next) {
             v.textStorage.beginEditing()
@@ -61,6 +63,7 @@ extension NativeText: UIViewRepresentable {
     final class ResizingUITextView: UITextView {
 
         var nowrap: Bool = false
+        var onCopySpots: (([CopyBlockSpot]) -> Void)?
         private var lastWidth: CGFloat = 0
 
         override var intrinsicContentSize: CGSize {
@@ -85,6 +88,85 @@ extension NativeText: UIViewRepresentable {
             if bounds.size.width != lastWidth {
                 lastWidth = bounds.size.width
                 invalidateIntrinsicContentSize()
+            }
+            computeCopySpots()
+        }
+
+        // Walk MAXIMAL atomic runs (longestEffectiveRange; the plain
+        // enumeration fragments at each cell's style boundary) and
+        // report each copyable block's corner rect + source up to
+        // SwiftUI, which overlays the actual Copy button there. Same
+        // contract as the macOS sibling, so one button serves both
+        // single-surface builders. The report is async: layoutSubviews()
+        // can run inside a SwiftUI update, where setting @State directly
+        // is illegal.
+        //
+        // Nothing is remembered here between passes, and the macOS
+        // sibling's stored previous report has NO twin on this side.
+        // UIKit lays this view out while its Swift stored properties are
+        // still the zeroes alloc left: a Bool reads false and an
+        // Optional closure reads nil, both harmless, but a non-optional
+        // Array reads as a NULL buffer and traps the instant anything
+        // asks for its count. SelectableText compares before it stores,
+        // which is where that state can be held safely.
+        //
+        // No illustration ever: the iOS builder rasterizes a formula
+        // into the attachment's image rather than drawing through a
+        // cell, so there is no vector page to offer the pasteboard.
+        private func computeCopySpots() {
+            var spots: [CopyBlockSpot] = []
+            let ts = textStorage
+            let lm = layoutManager
+            let tc = textContainer
+            lm.ensureLayout(for: tc)
+            let inset = textContainerInset
+            let full = NSRange(location: 0, length: ts.length)
+            var pos = 0
+            while pos < ts.length {
+                var run = NSRange(location: 0, length: 0)
+                let id = ts.attribute(atomicIdKey, at: pos,
+                                      longestEffectiveRange: &run,
+                                      in: full) as? String
+                let copy = id == nil ? nil
+                    : ts.attribute(atomicCopyKey, at: run.location,
+                                   effectiveRange: nil) as? String
+                let kind = id == nil ? nil
+                    : ts.attribute(atomicKindKey, at: run.location,
+                                   effectiveRange: nil) as? String
+                if let id, let copy {
+                    let gr = lm.glyphRange(forCharacterRange: run,
+                                           actualCharacterRange: nil)
+                    let block = lm.boundingRect(forGlyphRange: gr, in: tc)
+                    // Centre the button on the FIRST line fragment, not
+                    // the block's overall top: anchored to the block top
+                    // the glyph reads as sitting on the first line's
+                    // baseline, lower still for a table whose header row
+                    // starts below its cell padding.
+                    let line = lm.lineFragmentUsedRect(
+                        forGlyphAt: gr.location, effectiveRange: nil)
+                    // A code fence and a table start at the left margin,
+                    // so a button set just inside their right edge lands
+                    // in empty corner. A display is CENTRED, so that same
+                    // inset lands on the formula -- it has to go out to
+                    // the margin instead, which is the line fragment
+                    // rather than the ink.
+                    let right = kind == AtomicKind.math.rawValue
+                        ? lm.lineFragmentRect(
+                            forGlyphAt: gr.location,
+                            effectiveRange: nil).maxX
+                        : block.maxX
+                    let x = right + inset.left - copyButtonGutter
+                    let y = line.minY + inset.top + (line.height - 22) / 2
+                    spots.append(CopyBlockSpot(
+                        id: id,
+                        rect: CGRect(x: x, y: y, width: 22, height: 22),
+                        copy: copy))
+                }
+                pos = max(NSMaxRange(run), pos + 1)
+            }
+            let report = spots
+            DispatchQueue.main.async { [weak self] in
+                self?.onCopySpots?(report)
             }
         }
     }

@@ -99,7 +99,9 @@ struct SelectableText: View {
                    secondary: secondary || envSecondary,
                    scale: textZoom,
                    find: find,
-                   onCopySpots: { spots in copySpots = spots })
+                   onCopySpots: { spots in
+                       if spots != copySpots { copySpots = spots }
+                   })
             .fixedSize(horizontal: nowrap, vertical: true)
             .overlay(alignment: .topLeading) { copyOverlays }
     }
