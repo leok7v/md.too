@@ -2,6 +2,17 @@ import Foundation
 
 enum DocumentText {
 
+    // Blocks separate by paragraph spacing, not by a blank line: a blank
+    // line is a full line height and list items are a few points apart, so
+    // the two scales never agreed.
+    static let blockSpacing: CGFloat = 6
+
+    static func blockParagraph() -> NSMutableParagraphStyle {
+        let para = NSMutableParagraphStyle()
+        para.paragraphSpacing = blockSpacing
+        return para
+    }
+
     typealias DocumentImage = PlatformImage
 
     static func attributed(from blocks: [Block],
@@ -232,7 +243,7 @@ enum DocumentText {
                        value: AtomicKind.math.rawValue, range: content)
         m.addAttribute(atomicIdKey, value: UUID().uuidString, range: content)
         m.addAttribute(atomicCopyKey, value: tex, range: content)
-        m.append(NSAttributedString(string: "\n\n"))
+        m.append(NSAttributedString(string: "\n"))
         let para = NSMutableParagraphStyle()
         para.alignment = .center
         para.paragraphSpacing = 6
@@ -270,21 +281,20 @@ enum DocumentText {
         -> NSAttributedString {
         let m = NSMutableAttributedString()
         let indent = CGFloat(depth + 1) * 20
-        let para = NSMutableParagraphStyle()
-        para.headIndent = indent
-        para.firstLineHeadIndent = indent - 20
-        para.tabStops = [NSTextTab(textAlignment: .left, location: indent)]
-        para.paragraphSpacing = tight ? 2 : 8
-        para.paragraphSpacingBefore = tight ? 2 : 4
-        for item in items {
+        for (idx, item) in items.enumerated() {
+            let para = NSMutableParagraphStyle()
+            para.headIndent = indent
+            para.firstLineHeadIndent = indent - 20
+            para.tabStops = [NSTextTab(textAlignment: .left,
+                                       location: indent)]
+            para.paragraphSpacing = tight ? 2 : 8
+            para.paragraphSpacingBefore = tight ? 2 : 4
+            if idx == items.count - 1, depth == 0 {
+                para.paragraphSpacing = blockSpacing
+            }
             m.append(listItem(item, para: para, tight: tight,
                               depth: depth, images: images))
         }
-        // Blocks separate with a blank line and each item already ends
-        // with one newline, so a top-level list owes one more to match
-        // the paragraph / heading convention. A nested list sits inside
-        // an item and must not open a gap mid-list.
-        if depth == 0 { m.append(NSAttributedString(string: "\n")) }
         return m
     }
 
@@ -370,7 +380,9 @@ enum DocumentText {
             m.addAttribute(atomicKindKey,
                            value: AtomicKind.image.rawValue, range: full)
             m.addAttribute(atomicIdKey, value: UUID().uuidString, range: full)
-            m.append(NSAttributedString(string: "\n\n"))
+            m.addAttribute(.paragraphStyle, value: blockParagraph(),
+                           range: full)
+            m.append(NSAttributedString(string: "\n"))
             result = m
         } else {
             let label = alt.isEmpty ? url.absoluteString : alt
@@ -434,7 +446,9 @@ enum DocumentText {
         -> NSAttributedString {
         let m = NSMutableAttributedString()
         translateInline(attr, base: FontRole.body.platformFont, into: m)
-        m.append(NSAttributedString(string: "\n\n"))
+        m.addAttribute(.paragraphStyle, value: blockParagraph(),
+                       range: NSRange(location: 0, length: m.length))
+        m.append(NSAttributedString(string: "\n"))
         return m
     }
 
@@ -444,7 +458,11 @@ enum DocumentText {
         let m = NSMutableAttributedString()
         translateInline(text, base: FontRole.heading(level).platformFont,
                               into: m)
-        m.append(NSAttributedString(string: "\n\n"))
+        let para = blockParagraph()
+        para.paragraphSpacingBefore = blockSpacing
+        m.addAttribute(.paragraphStyle, value: para,
+                       range: NSRange(location: 0, length: m.length))
+        m.append(NSAttributedString(string: "\n"))
         return m
     }
 
