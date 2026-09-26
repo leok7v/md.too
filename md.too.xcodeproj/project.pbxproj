@@ -77,6 +77,38 @@
 		B6000002AAAAAAAAAAAAAAAA /* MarkdownDocument.swift in Sources */ = {isa = PBXBuildFile; fileRef = B6000000AAAAAAAAAAAAAAAA /* MarkdownDocument.swift */; };
 		B6000011AAAAAAAAAAAAAAAA /* PDFExport.swift in Sources */ = {isa = PBXBuildFile; fileRef = B6000010AAAAAAAAAAAAAAAA /* PDFExport.swift */; };
 		B6000012AAAAAAAAAAAAAAAA /* PDFExport.swift in Sources */ = {isa = PBXBuildFile; fileRef = B6000010AAAAAAAAAAAAAAAA /* PDFExport.swift */; };
+		7E5700000000000000000020 /* Fixtures.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7E5700000000000000000010 /* Fixtures.swift */; };
+		7E5700000000000000000021 /* KaTeXGoldenTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7E5700000000000000000011 /* KaTeXGoldenTests.swift */; };
+		7E5700000000000000000022 /* IncrementalTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7E5700000000000000000012 /* IncrementalTests.swift */; };
+		7E5700000000000000000023 /* TeXTokenTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7E5700000000000000000013 /* TeXTokenTests.swift */; };
+		7E5700000000000000000024 /* MathCacheTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7E5700000000000000000014 /* MathCacheTests.swift */; };
+		7E5700000000000000000025 /* ParserGoldenTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7E5700000000000000000015 /* ParserGoldenTests.swift */; };
+		7E5700000000000000000026 /* ExportRoundTripTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7E5700000000000000000016 /* ExportRoundTripTests.swift */; };
+		7E5700000000000000000040 /* Platform-macOS.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A2B3C4D5200000000000013 /* Platform-macOS.swift */; };
+		7E5700000000000000000041 /* FontRole.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A2B3C4D5200000000000014 /* FontRole.swift */; };
+		7E5700000000000000000042 /* Environment.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A2B3C4D5200000000000015 /* Environment.swift */; };
+		7E5700000000000000000043 /* FileWatcher.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A2B3C4D5200000000000017 /* FileWatcher.swift */; };
+		7E5700000000000000000044 /* Find.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA00000000000000000000A1 /* Find.swift */; };
+		7E5700000000000000000045 /* Toolbar.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A2B3C4D5200000000000018 /* Toolbar.swift */; };
+		7E5700000000000000000046 /* Toolbar-macOS.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A2B3C4D5200000000000019 /* Toolbar-macOS.swift */; };
+		7E5700000000000000000047 /* MarkdownParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A2B3C4D5200000000000001 /* MarkdownParser.swift */; };
+		7E5700000000000000000048 /* MarkdownView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A2B3C4D520000000000001A /* MarkdownView.swift */; };
+		7E5700000000000000000049 /* ContentView-macOS.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A2B3C4D5300000000000033 /* ContentView-macOS.swift */; };
+		7E570000000000000000004A /* DocumentText.swift in Sources */ = {isa = PBXBuildFile; fileRef = B317307E2FD2273100C6B7F0 /* DocumentText.swift */; };
+		7E570000000000000000004B /* BlockViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A2B3C4D520000000000001B /* BlockViews.swift */; };
+		7E570000000000000000004C /* SelectableText.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A2B3C4D520000000000001C /* SelectableText.swift */; };
+		7E570000000000000000004D /* PlainExport.swift in Sources */ = {isa = PBXBuildFile; fileRef = B317307A2FD226F500C6B7F0 /* PlainExport.swift */; };
+		7E570000000000000000004E /* MarkdownDocument.swift in Sources */ = {isa = PBXBuildFile; fileRef = B6000000AAAAAAAAAAAAAAAA /* MarkdownDocument.swift */; };
+		7E570000000000000000004F /* PDFExport.swift in Sources */ = {isa = PBXBuildFile; fileRef = B6000010AAAAAAAAAAAAAAAA /* PDFExport.swift */; };
+		7E5700000000000000000050 /* PDFRenderer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A2B3C4D520000000000000F /* PDFRenderer.swift */; };
+		7E5700000000000000000051 /* DocumentText-macOS.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A2B3C4D530000000000002F /* DocumentText-macOS.swift */; };
+		7E5700000000000000000052 /* HtmlExport.swift in Sources */ = {isa = PBXBuildFile; fileRef = B31730762FD226CE00C6B7F0 /* HtmlExport.swift */; };
+		7E5700000000000000000053 /* TeX.swift in Sources */ = {isa = PBXBuildFile; fileRef = B31730822FD2283E00C6B7F0 /* TeX.swift */; };
+		7E5700000000000000000054 /* KaTeX.swift in Sources */ = {isa = PBXBuildFile; fileRef = B31730902FD2283E00C6B7F0 /* KaTeX.swift */; };
+		7E5700000000000000000055 /* ImagePrefetch.swift in Sources */ = {isa = PBXBuildFile; fileRef = B5000000AAAAAAAAAAAAAAAA /* ImagePrefetch.swift */; };
+		7E5700000000000000000056 /* TableMetrics.swift in Sources */ = {isa = PBXBuildFile; fileRef = B5000010AAAAAAAAAAAAAAAA /* TableMetrics.swift */; };
+		7E5700000000000000000057 /* Bridges-macOS.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A2B3C4D5200000000000011 /* Bridges-macOS.swift */; };
+		7E5700000000000000000058 /* Highlight.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A2B3C4D520000000000000B /* Highlight.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -135,6 +167,14 @@
 		B5000010AAAAAAAAAAAAAAAA /* TableMetrics.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TableMetrics.swift; sourceTree = "<group>"; };
 		B6000000AAAAAAAAAAAAAAAA /* MarkdownDocument.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarkdownDocument.swift; sourceTree = "<group>"; };
 		B6000010AAAAAAAAAAAAAAAA /* PDFExport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PDFExport.swift; sourceTree = "<group>"; };
+		7E5700000000000000000010 /* Fixtures.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Fixtures.swift; sourceTree = "<group>"; };
+		7E5700000000000000000011 /* KaTeXGoldenTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KaTeXGoldenTests.swift; sourceTree = "<group>"; };
+		7E5700000000000000000012 /* IncrementalTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IncrementalTests.swift; sourceTree = "<group>"; };
+		7E5700000000000000000013 /* TeXTokenTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TeXTokenTests.swift; sourceTree = "<group>"; };
+		7E5700000000000000000014 /* MathCacheTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MathCacheTests.swift; sourceTree = "<group>"; };
+		7E5700000000000000000015 /* ParserGoldenTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ParserGoldenTests.swift; sourceTree = "<group>"; };
+		7E5700000000000000000016 /* ExportRoundTripTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExportRoundTripTests.swift; sourceTree = "<group>"; };
+		7E5700000000000000000008 /* md.too Tests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "md.too Tests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -159,6 +199,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		7E5700000000000000000006 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -167,6 +214,7 @@
 			children = (
 				1A2B3C4D5100000000000003 /* src */,
 				1A2B3C4D5100000000000004 /* config */,
+				7E5700000000000000000009 /* tests */,
 				1A2B3C4D5200000000000007 /* Assets.xcassets */,
 				1A2B3C4D5100000000000002 /* Products */,
 			);
@@ -177,6 +225,7 @@
 			children = (
 				1A2B3C4D5200000000000008 /* md.too.app */,
 				1A2B3C4D520000000000000A /* md.too QuickLook.appex */,
+				7E5700000000000000000008 /* md.too Tests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -234,6 +283,20 @@
 			path = config;
 			sourceTree = "<group>";
 		};
+		7E5700000000000000000009 /* tests */ = {
+			isa = PBXGroup;
+			children = (
+				7E5700000000000000000010 /* Fixtures.swift */,
+				7E5700000000000000000011 /* KaTeXGoldenTests.swift */,
+				7E5700000000000000000012 /* IncrementalTests.swift */,
+				7E5700000000000000000013 /* TeXTokenTests.swift */,
+				7E5700000000000000000014 /* MathCacheTests.swift */,
+				7E5700000000000000000015 /* ParserGoldenTests.swift */,
+				7E5700000000000000000016 /* ExportRoundTripTests.swift */,
+			);
+			path = tests;
+			sourceTree = "<group>";
+		};
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
@@ -276,6 +339,23 @@
 			productReference = 1A2B3C4D520000000000000A /* md.too QuickLook.appex */;
 			productType = "com.apple.product-type.app-extension";
 		};
+		7E5700000000000000000001 /* md.too Tests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 7E5700000000000000000002 /* Build configuration list for PBXNativeTarget "md.too Tests" */;
+			buildPhases = (
+				7E5700000000000000000005 /* Sources */,
+				7E5700000000000000000006 /* Frameworks */,
+				7E5700000000000000000007 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = "md.too Tests";
+			productName = "md.too Tests";
+			productReference = 7E5700000000000000000008 /* md.too Tests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -290,6 +370,9 @@
 						CreatedOnToolsVersion = 15.0;
 					};
 					1A2B3C4D5400000000000003 = {
+						CreatedOnToolsVersion = 15.0;
+					};
+					7E5700000000000000000001 = {
 						CreatedOnToolsVersion = 15.0;
 					};
 				};
@@ -309,6 +392,7 @@
 			targets = (
 				1A2B3C4D5400000000000001 /* md.too */,
 				1A2B3C4D5400000000000003 /* md.too QuickLook */,
+				7E5700000000000000000001 /* md.too Tests */,
 			);
 		};
 /* End PBXProject section */
@@ -328,6 +412,13 @@
 			buildActionMask = 2147483647;
 			files = (
 				1A2B3C4D530000000000000C /* highlights.ini in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		7E5700000000000000000007 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -474,6 +565,45 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		7E5700000000000000000005 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				7E5700000000000000000020 /* Fixtures.swift in Sources */,
+				7E5700000000000000000021 /* KaTeXGoldenTests.swift in Sources */,
+				7E5700000000000000000022 /* IncrementalTests.swift in Sources */,
+				7E5700000000000000000023 /* TeXTokenTests.swift in Sources */,
+				7E5700000000000000000024 /* MathCacheTests.swift in Sources */,
+				7E5700000000000000000025 /* ParserGoldenTests.swift in Sources */,
+				7E5700000000000000000026 /* ExportRoundTripTests.swift in Sources */,
+				7E5700000000000000000040 /* Platform-macOS.swift in Sources */,
+				7E5700000000000000000041 /* FontRole.swift in Sources */,
+				7E5700000000000000000042 /* Environment.swift in Sources */,
+				7E5700000000000000000043 /* FileWatcher.swift in Sources */,
+				7E5700000000000000000044 /* Find.swift in Sources */,
+				7E5700000000000000000045 /* Toolbar.swift in Sources */,
+				7E5700000000000000000046 /* Toolbar-macOS.swift in Sources */,
+				7E5700000000000000000047 /* MarkdownParser.swift in Sources */,
+				7E5700000000000000000048 /* MarkdownView.swift in Sources */,
+				7E5700000000000000000049 /* ContentView-macOS.swift in Sources */,
+				7E570000000000000000004A /* DocumentText.swift in Sources */,
+				7E570000000000000000004B /* BlockViews.swift in Sources */,
+				7E570000000000000000004C /* SelectableText.swift in Sources */,
+				7E570000000000000000004D /* PlainExport.swift in Sources */,
+				7E570000000000000000004E /* MarkdownDocument.swift in Sources */,
+				7E570000000000000000004F /* PDFExport.swift in Sources */,
+				7E5700000000000000000050 /* PDFRenderer.swift in Sources */,
+				7E5700000000000000000051 /* DocumentText-macOS.swift in Sources */,
+				7E5700000000000000000052 /* HtmlExport.swift in Sources */,
+				7E5700000000000000000053 /* TeX.swift in Sources */,
+				7E5700000000000000000054 /* KaTeX.swift in Sources */,
+				7E5700000000000000000055 /* ImagePrefetch.swift in Sources */,
+				7E5700000000000000000056 /* TableMetrics.swift in Sources */,
+				7E5700000000000000000057 /* Bridges-macOS.swift in Sources */,
+				7E5700000000000000000058 /* Highlight.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
@@ -525,7 +655,6 @@
 				DEAD_CODE_STRIPPING = YES;
 				DEBUG_INFORMATION_FORMAT = dwarf;
 				DEVELOPMENT_TEAM = "$(LOCAL_DEVELOPMENT_TEAM)";
-				"DEVELOPMENT_TEAM[sdk=macosx*]" = "";
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_TESTABILITY = YES;
 				ENABLE_USER_SCRIPT_SANDBOXING = NO;
@@ -590,7 +719,6 @@
 				DEAD_CODE_STRIPPING = YES;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				DEVELOPMENT_TEAM = "$(LOCAL_DEVELOPMENT_TEAM)";
-				"DEVELOPMENT_TEAM[sdk=macosx*]" = "";
 				ENABLE_NS_ASSERTIONS = NO;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_USER_SCRIPT_SANDBOXING = NO;
@@ -617,8 +745,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				"CODE_SIGN_ENTITLEMENTS[sdk=macosx*]" = config/Markdown.Preview.debug.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
-				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "-";
-				CODE_SIGN_STYLE = Manual;
+				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
 				DEAD_CODE_STRIPPING = YES;
 				ENABLE_HARDENED_RUNTIME = YES;
@@ -647,7 +774,6 @@
 				PRODUCT_MODULE_NAME = MarkdownPreview;
 				PRODUCT_NAME = md.too;
 				PROVISIONING_PROFILE_SPECIFIER = "";
-				"PROVISIONING_PROFILE_SPECIFIER[sdk=macosx*]" = "";
 				SDKROOT = auto;
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx";
 				SUPPORTS_MACCATALYST = NO;
@@ -664,8 +790,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				"CODE_SIGN_ENTITLEMENTS[sdk=macosx*]" = config/Markdown.Preview.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
-				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "-";
-				CODE_SIGN_STYLE = Manual;
+				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
 				DEAD_CODE_STRIPPING = YES;
 				ENABLE_HARDENED_RUNTIME = YES;
@@ -694,7 +819,6 @@
 				PRODUCT_MODULE_NAME = MarkdownPreview;
 				PRODUCT_NAME = md.too;
 				PROVISIONING_PROFILE_SPECIFIER = "";
-				"PROVISIONING_PROFILE_SPECIFIER[sdk=macosx*]" = "";
 				SDKROOT = auto;
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx";
 				SUPPORTS_MACCATALYST = NO;
@@ -710,7 +834,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_ENTITLEMENTS = config/QuickLook.debug.entitlements;
-				CODE_SIGN_STYLE = Manual;
+				CODE_SIGN_STYLE = Automatic;
 				DEAD_CODE_STRIPPING = YES;
 				ENABLE_HARDENED_RUNTIME = YES;
 				GENERATE_INFOPLIST_FILE = NO;
@@ -738,7 +862,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_ENTITLEMENTS = config/QuickLook.entitlements;
-				CODE_SIGN_STYLE = Manual;
+				CODE_SIGN_STYLE = Automatic;
 				DEAD_CODE_STRIPPING = YES;
 				ENABLE_HARDENED_RUNTIME = YES;
 				GENERATE_INFOPLIST_FILE = NO;
@@ -758,6 +882,40 @@
 				SUPPORTED_PLATFORMS = macosx;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "$(inherited) QUICKLOOK_EXTENSION";
 				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
+		7E5700000000000000000003 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				DEAD_CODE_STRIPPING = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 13.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.leok7v.md.too.tests;
+				PRODUCT_MODULE_NAME = MarkdownPreviewTests;
+				PRODUCT_NAME = "md.too Tests";
+				SDKROOT = macosx;
+				SUPPORTED_PLATFORMS = macosx;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+		7E5700000000000000000004 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				DEAD_CODE_STRIPPING = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 13.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.leok7v.md.too.tests;
+				PRODUCT_MODULE_NAME = MarkdownPreviewTests;
+				PRODUCT_NAME = "md.too Tests";
+				SDKROOT = macosx;
+				SUPPORTED_PLATFORMS = macosx;
+				SWIFT_EMIT_LOC_STRINGS = NO;
 				SWIFT_VERSION = 5.0;
 			};
 			name = Release;
@@ -788,6 +946,15 @@
 			buildConfigurations = (
 				1A2B3C4D5600000000000007 /* Debug */,
 				1A2B3C4D5600000000000008 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		7E5700000000000000000002 /* Build configuration list for PBXNativeTarget "md.too Tests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				7E5700000000000000000003 /* Debug */,
+				7E5700000000000000000004 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

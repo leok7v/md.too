@@ -1,0 +1,501 @@
+=== example-intro
+<h1>Less Is More</h1>
+<p>A short essay about plain text that looks good, plus a regression test for every feature this app renders.</p>
+=== example-1-how-we-got-here
+<h2>How we got here</h2>
+<p>In 2004 John Gruber wrote down a tiny set of rules so people writing on the web could stop copying HTML angle brackets around like they were eggs. The rules fit on one page. The promise was simple: write the way you would write in a notebook, save the file as plain text, and let some small program turn it into something pleasant to read. <strong>Less syntax, more reading.</strong> <em>Asterisks for emphasis. Hashes for headings. A blank line for a new paragraph.</em> That was the whole pitch.</p>
+<p>Two decades later the average Markdown editor ships with roughly the same disk footprint as a small mainframe. There is a kind of poetry in opening a 240MB application to read four paragraphs about your weekly groceries. We do not judge. We just keep a smaller tool nearby for when we want to read.</p>
+<blockquote style="border-left:3px solid rgba(128,128,128,0.5);padding-left:12px;margin-left:0;opacity:0.85;">
+<p>"Programs are meant to be read by humans and only incidentally for computers to execute."  Hal Abelson, <em>Structure and Interpretation of Computer Programs</em>. Markdown asks for the same courtesy from your text.</p>
+</blockquote>
+=== example-2-the-shape-of-a-thought
+<h2>The shape of a thought</h2>
+<p>Good notes nest the way thinking does: a point, the caveat that softens the point, the example that rescues the caveat. A list should let that structure show without getting loud about it.</p>
+<ul style="margin:0.5em 0;padding-left:1.5em;">
+<li><p>Write the thing you mean, and if the sentence runs long, just let it keep going onto the next line. The reader's eye does not care where your editor decided to wrap a line; it cares only where your idea ends.</p>
+</li>
+<li><p>Give an idea room when it needs a second breath.</p>
+<p>A second paragraph, still part of the same point, because some thoughts do not fit on one line and should not be shoved onto one.</p>
+</li>
+<li><p>Indent a sub-point only when it genuinely sits beneath the one above:</p>
+<ul style="margin:0.2em 0;padding-left:1.5em;">
+<li><p>like this,</p>
+</li>
+<li><p>and this,</p>
+<ul style="margin:0.2em 0;padding-left:1.5em;">
+<li><p>and, once in a while, one level deeper, where the left margin holds steady instead of wandering rightward as the text wraps.</p>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><p>Then stop, because the best list is the one that ends on time.</p>
+</li>
+</ul>
+<p>A numbered list is the same idea wearing shoes. A small recipe, say:</p>
+<ol style="margin:0.5em 0;padding-left:1.5em;">
+<li><p>Pick a file. Any <code style="background:rgba(128,128,128,0.14);padding:1px 4px;border-radius:3px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:0.92em;">.md</code> will do; this one volunteered for the part.</p>
+</li>
+<li><p>Read it from the top. When a step has something to show, it can carry a quote of its own,</p>
+<blockquote style="border-left:3px solid rgba(128,128,128,0.5);padding-left:12px;margin-left:0;opacity:0.85;">
+<p>The palest ink is better than the best memory.</p>
+</blockquote>
+<p>or a single honest line of code,</p>
+<pre style="background:rgba(128,128,128,0.10);padding:8px 12px;border-radius:4px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:0.92em;overflow-x:auto;white-space:pre;"><code>print("hello, reader")</code></pre>
+<p>and the step still reads as one thought.</p>
+</li>
+<li><p>Close the file. That was the whole recipe.</p>
+</li>
+</ol>
+=== example-3-math-the-small-kind
+<h2>Math, the small kind</h2>
+<p>Two engines, split by which delimiter you used, and you never pick.</p>
+<p>Inline maths stays text: α + β = γ, the right triangle staple x² + y² = z², Gauss's schoolboy trick ∑(i=1)ⁿ i (he was nine, allegedly), and x ∈ ℝ. It is Unicode, so it flows with the sentence, selects with it, and Find searches it.</p>
+<p>A <code style="background:rgba(128,128,128,0.14);padding:1px 4px;border-radius:3px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:0.92em;">$$</code> display is typeset properly, by a TeX layout engine reading the OpenType MATH table of a real maths font:</p>
+<p style="text-align:center;font-style:italic;margin:0.8em 0;">-b ± √b² - 4ac⁄2a</p>
+<p>Big operators take their limits above and below, and the fences grow to fit what is inside them:</p>
+<p style="text-align:center;font-style:italic;margin:0.8em 0;">(∑(i=1)ⁿ aᵢ bᵢ)² ≤ (∑(i=1)ⁿ aᵢ²)(∑(i=1)ⁿ bᵢ²)</p>
+<p>Integrals with bounds, which the old renderer used to punt on:</p>
+<p style="text-align:center;font-style:italic;margin:0.8em 0;">∫₀(∞) e(-x^2) dx = √π⁄2</p>
+<p>Named operators carry their limits too, and a root can take an index:</p>
+<p style="text-align:center;font-style:italic;margin:0.8em 0;">\lim(n → ∞) ∑(k=1)ⁿ 1⁄k² = π²⁄6 \qquad √[3]x²+1⁄x-1</p>
+<p>Matrices, cases and aligned blocks, which it also used to punt on:</p>
+<p style="text-align:center;font-style:italic;margin:0.8em 0;">\beginpmatrix a &amp; b 
+ c &amp; d \endpmatrix(-1) = 1⁄ad-bc\beginpmatrix d &amp; -b 
+ -c &amp; a \endpmatrix</p>
+<p style="text-align:center;font-style:italic;margin:0.8em 0;">f(n) = \begincases n/2 &amp; if  n  is even 
+ 3n+1 &amp; otherwise \endcases</p>
+<p>An <code style="background:rgba(128,128,128,0.14);padding:1px 4px;border-radius:3px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:0.92em;">aligned</code> block lines its rows up on the relation between them, which is how anyone writing more than one equation expects them to sit:</p>
+<p style="text-align:center;font-style:italic;margin:0.8em 0;">\beginaligned ∇ · \mathbfE &amp;= ρ⁄ε₀ 
+ ∇ × \mathbfB &amp;= μ₀(\mathbfJ + ε₀ ∂ \mathbfE⁄∂ t) \endaligned</p>
+<p>Fences nest and keep growing, and scripts keep shrinking until they hit scriptscript and stop:</p>
+<p style="text-align:center;font-style:italic;margin:0.8em 0;">[(\fracab)⁄c] \qquad A(B^C^D) \qquad ∂ u⁄∂ t = α ∇² u</p>
+<p>The maths alphabets are separate Unicode blocks rather than a font trick, so blackboard bold, script, fraktur, bold, sans and monospace all keep their own letters:</p>
+<p style="text-align:center;font-style:italic;margin:0.8em 0;">\mathbbRQZ \quad \mathcalABC \quad \mathfrakgsl \quad \mathbfxyz \quad \mathsfuvw \quad \mathtt101</p>
+<p>Inline, only the ones with a single settled codepoint survive the trip through Unicode: ℝ, ℕ, ℤ, ℚ, ℂ. Anything more wants a display.</p>
+<p>Greek alphabet, lower and upper, in case you need both at once:</p>
+<p style="text-align:center;font-style:italic;margin:0.8em 0;">α β γ δ ε ζ η θ ι κ λ μ ν ξ π ρ σ τ φ χ ψ ω</p>
+<p style="text-align:center;font-style:italic;margin:0.8em 0;">Γ Δ Θ Λ Ξ Π Σ Φ Ψ Ω</p>
+<p>Operators and a corner of set theory: ≤ ≥ ≠ ≈ ± × · ÷ → ⇒, ∀ x ∈ ℕ, ∃ y ∈ ℤ, A ∩ B, A ∪ B, ∅.</p>
+<p>Tools that lift equations out of a PDF often forget the delimiters and leave the bare TeX sitting in a paragraph. A paragraph that opens with a control word and parses cleanly as TeX, with no ordinary words in it, is read as a display anyway:</p>
+<p style="text-align:center;font-style:italic;margin:0.8em 0;">D x N ⁄ \frac  ( Truth )   1 6 0 0   x   1 4   
+  4 2 8   x   1 0 ⁄ ( 1 )  
+  2 9   x   9 5 ⁄ ( 2 3 )</p>
+<p>That is three separate tests, and prose fails all but the first: <code style="background:rgba(128,128,128,0.14);padding:1px 4px;border-radius:3px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:0.92em;">\alpha is the first letter</code> parses perfectly well as alpha times i times s and so on, and is caught by the run of ordinary letters. Rows separated by <code style="background:rgba(128,128,128,0.14);padding:1px 4px;border-radius:3px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:0.92em;">\\</code>, and columns by <code style="background:rgba(128,128,128,0.14);padding:1px 4px;border-radius:3px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:0.92em;">&amp;</code>, work without naming an environment.</p>
+<p>There are still limits. No <code style="background:rgba(128,128,128,0.14);padding:1px 4px;border-radius:3px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:0.92em;">\def</code> or <code style="background:rgba(128,128,128,0.14);padding:1px 4px;border-radius:3px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:0.92em;">\newcommand</code>, no <code style="background:rgba(128,128,128,0.14);padding:1px 4px;border-radius:3px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:0.92em;">\color</code>, and no line breaking inside a formula. A display the engine will not accept falls back to the inline spelling rather than showing you nothing, and copying any display gives you back the TeX you wrote.</p>
+=== example-4-footprints
+<h2>Footprints</h2>
+<p>A few napkin numbers for context. Sizes are rough installer or app bundle measurements on macOS and they drift; spirit holds.</p>
+<table style="border-collapse:collapse;margin:0.5em 0;">
+<thead><tr style="background:rgba(128,128,128,0.14);">
+<th style="padding:6px 14px;text-align:left;border-bottom:1px solid rgba(128,128,128,0.3);border-right:1px solid rgba(128,128,128,0.20);">Tool</th>
+<th style="padding:6px 14px;text-align:left;border-bottom:1px solid rgba(128,128,128,0.3);border-right:1px solid rgba(128,128,128,0.20);">Approximate size</th>
+<th style="padding:6px 14px;text-align:left;border-bottom:1px solid rgba(128,128,128,0.3);">What it edits</th>
+</tr></thead>
+<tbody>
+<tr>
+<td style="padding:6px 14px;border-bottom:1px solid rgba(128,128,128,0.12);border-right:1px solid rgba(128,128,128,0.20);"><code style="background:rgba(128,128,128,0.14);padding:1px 4px;border-radius:3px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:0.92em;">vi</code></td>
+<td style="padding:6px 14px;border-bottom:1px solid rgba(128,128,128,0.12);border-right:1px solid rgba(128,128,128,0.20);">1 MB</td>
+<td style="padding:6px 14px;border-bottom:1px solid rgba(128,128,128,0.12);">anything plain</td>
+</tr>
+<tr style="background:rgba(128,128,128,0.07);">
+<td style="padding:6px 14px;border-bottom:1px solid rgba(128,128,128,0.12);border-right:1px solid rgba(128,128,128,0.20);"><code style="background:rgba(128,128,128,0.14);padding:1px 4px;border-radius:3px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:0.92em;">nano</code></td>
+<td style="padding:6px 14px;border-bottom:1px solid rgba(128,128,128,0.12);border-right:1px solid rgba(128,128,128,0.20);">2 MB</td>
+<td style="padding:6px 14px;border-bottom:1px solid rgba(128,128,128,0.12);">anything plain</td>
+</tr>
+<tr>
+<td style="padding:6px 14px;border-bottom:1px solid rgba(128,128,128,0.12);border-right:1px solid rgba(128,128,128,0.20);">this app</td>
+<td style="padding:6px 14px;border-bottom:1px solid rgba(128,128,128,0.12);border-right:1px solid rgba(128,128,128,0.20);">4 MB</td>
+<td style="padding:6px 14px;border-bottom:1px solid rgba(128,128,128,0.12);">rendered Markdown</td>
+</tr>
+<tr style="background:rgba(128,128,128,0.07);">
+<td style="padding:6px 14px;border-bottom:1px solid rgba(128,128,128,0.12);border-right:1px solid rgba(128,128,128,0.20);">Visual Studio Code</td>
+<td style="padding:6px 14px;border-bottom:1px solid rgba(128,128,128,0.12);border-right:1px solid rgba(128,128,128,0.20);">370 MB</td>
+<td style="padding:6px 14px;border-bottom:1px solid rgba(128,128,128,0.12);">code, prose, your hopes</td>
+</tr>
+<tr>
+<td style="padding:6px 14px;border-bottom:1px solid rgba(128,128,128,0.12);border-right:1px solid rgba(128,128,128,0.20);">Obsidian</td>
+<td style="padding:6px 14px;border-bottom:1px solid rgba(128,128,128,0.12);border-right:1px solid rgba(128,128,128,0.20);">250 MB</td>
+<td style="padding:6px 14px;border-bottom:1px solid rgba(128,128,128,0.12);">notes, plus a graph</td>
+</tr>
+<tr style="background:rgba(128,128,128,0.07);">
+<td style="padding:6px 14px;border-bottom:1px solid rgba(128,128,128,0.12);border-right:1px solid rgba(128,128,128,0.20);">Typora</td>
+<td style="padding:6px 14px;border-bottom:1px solid rgba(128,128,128,0.12);border-right:1px solid rgba(128,128,128,0.20);">120 MB</td>
+<td style="padding:6px 14px;border-bottom:1px solid rgba(128,128,128,0.12);">Markdown only</td>
+</tr>
+</tbody>
+</table>
+=== example-5-what-we-shipped-and-what-we-are-still-ch
+<h2>What we shipped, and what we are still chewing on</h2>
+<ul style="margin:0.2em 0;padding-left:1.5em;">
+<li><span style="margin-right:0.4em">&#9745;</span><p>write a parser that fits in a tiny Swift codebase,</p>
+</li>
+<li><span style="margin-right:0.4em">&#9745;</span><p>make the Quick Look extension feel like the rest of the app,</p>
+</li>
+<li><span style="margin-right:0.4em">&#9745;</span><p>externalize syntax data so adding a language is one line,</p>
+</li>
+<li><span style="margin-right:0.4em">&#9745;</span><p>keep the source under 2,500 lines,</p>
+</li>
+<li><span style="margin-right:0.4em">&#9745;</span><p>decide whether tables should support inline images (yes, image only cells).</p>
+</li>
+</ul>
+=== example-6-code-that-travels-well
+<h2>Code that travels well</h2>
+<p>Each fence below should color the way you expect. If a block looks plain, the language tag is probably misspelled or the language is one we have not added yet.</p>
+<p>Swift:</p>
+<pre style="background:rgba(128,128,128,0.10);padding:8px 12px;border-radius:4px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:0.92em;overflow-x:auto;white-space:pre;"><code class="language-swift">import Foundation
+
+struct Greeter {
+    let name: String
+    func greet() -&gt; String {
+        return "Hello, \(name)!"
+    }
+}
+
+let g = Greeter(name: "World")
+print(g.greet())</code></pre>
+<p>C, with a preprocessor line and a block comment:</p>
+<pre style="background:rgba(128,128,128,0.10);padding:8px 12px;border-radius:4px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:0.92em;overflow-x:auto;white-space:pre;"><code class="language-c">#include &lt;stdio.h&gt;
+
+/* Block comment.
+   Should color through line breaks. */
+int main(int argc, char** argv) {
+    const char* msg = "hello, world\n";
+    for (int i = 0; i &lt; argc; ++i) {
+        printf("%s argv[%d] = %s\n", msg, i, argv[i]);
+    }
+    return 0;
+}</code></pre>
+<p>C++:</p>
+<pre style="background:rgba(128,128,128,0.10);padding:8px 12px;border-radius:4px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:0.92em;overflow-x:auto;white-space:pre;"><code class="language-cpp">#include &lt;vector&gt;
+#include &lt;string&gt;
+
+template &lt;typename T&gt;
+auto sum(const std::vector&lt;T&gt;&amp; xs) -&gt; T {
+    T total{};
+    for (const auto&amp; x : xs) total += x;
+    return total;
+}</code></pre>
+<p>Java:</p>
+<pre style="background:rgba(128,128,128,0.10);padding:8px 12px;border-radius:4px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:0.92em;overflow-x:auto;white-space:pre;"><code class="language-java">import java.util.List;
+
+public class Greeter {
+    private final String name;
+    public Greeter(String name) { this.name = name; }
+    public String greet() { return "Hello, " + name + "!"; }
+
+    public static void main(String[] args) {
+        var g = new Greeter("World");
+        System.out.println(g.greet());
+    }
+}</code></pre>
+<p>Kotlin:</p>
+<pre style="background:rgba(128,128,128,0.10);padding:8px 12px;border-radius:4px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:0.92em;overflow-x:auto;white-space:pre;"><code class="language-kotlin">data class User(val id: Int, val name: String)
+
+fun greet(u: User): String = "Hello, ${u.name} (${u.id})"
+
+fun main() {
+    val u = User(id = 1, name = "World")
+    println(greet(u))
+}</code></pre>
+<p>JavaScript:</p>
+<pre style="background:rgba(128,128,128,0.10);padding:8px 12px;border-radius:4px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:0.92em;overflow-x:auto;white-space:pre;"><code class="language-javascript">const greet = (name) =&gt; `Hello, ${name}!`;
+async function main() {
+    const res = await fetch("https://api.example.com/users");
+    const json = await res.json();
+    console.log(json);
+}</code></pre>
+<p>TypeScript:</p>
+<pre style="background:rgba(128,128,128,0.10);padding:8px 12px;border-radius:4px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:0.92em;overflow-x:auto;white-space:pre;"><code class="language-typescript">interface User { id: number; name: string; }
+function greet(u: User): string {
+    return `Hello, ${u.name} (${u.id})`;
+}</code></pre>
+<p>Python, with a decorator and a triple quoted docstring:</p>
+<pre style="background:rgba(128,128,128,0.10);padding:8px 12px;border-radius:4px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:0.92em;overflow-x:auto;white-space:pre;"><code class="language-python">from dataclasses import dataclass
+
+@dataclass
+class User:
+    id: int
+    name: str
+
+def greet(u: User) -&gt; str:
+    """Triple quoted docstring should highlight as a string."""
+    return f"Hello, {u.name} ({u.id})"</code></pre>
+<p>Rust, with attributes:</p>
+<pre style="background:rgba(128,128,128,0.10);padding:8px 12px;border-radius:4px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:0.92em;overflow-x:auto;white-space:pre;"><code class="language-rust">#![allow(dead_code)]
+
+fn greet(name: &amp;str) -&gt; String {
+    format!("Hello, {}!", name)
+}
+
+fn main() {
+    let v: Vec&lt;i32&gt; = (1..=5).collect();
+    println!("{:?}", v);
+}</code></pre>
+<p>Go:</p>
+<pre style="background:rgba(128,128,128,0.10);padding:8px 12px;border-radius:4px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:0.92em;overflow-x:auto;white-space:pre;"><code class="language-go">package main
+
+import "fmt"
+
+func main() {
+    nums := []int{1, 2, 3}
+    for i, n := range nums {
+        fmt.Printf("%d: %d\n", i, n)
+    }
+}</code></pre>
+<p>Ruby:</p>
+<pre style="background:rgba(128,128,128,0.10);padding:8px 12px;border-radius:4px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:0.92em;overflow-x:auto;white-space:pre;"><code class="language-ruby">class Greeter
+  attr_reader :name
+  def initialize(name) = @name = name
+  def greet = "Hello, #{name}!"
+end
+
+puts Greeter.new("World").greet</code></pre>
+<p>JSON, with the keys colored as attributes and the values colored by type:</p>
+<pre style="background:rgba(128,128,128,0.10);padding:8px 12px;border-radius:4px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:0.92em;overflow-x:auto;white-space:pre;"><code class="language-json">{
+    "name": "Markdown Preview",
+    "version": "1.0",
+    "features": ["headings", "lists", "tables", "code", "math"],
+    "deps": null
+}</code></pre>
+<p>YAML, with keys, list bullets, and the <code style="background:rgba(128,128,128,0.14);padding:1px 4px;border-radius:3px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:0.92em;">~</code> keyword each in their own color:</p>
+<pre style="background:rgba(128,128,128,0.10);padding:8px 12px;border-radius:4px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:0.92em;overflow-x:auto;white-space:pre;"><code class="language-yaml">name: Markdown Preview
+features:
+  * headings
+  * tables
+  * syntax_highlighting
+deps: ~</code></pre>
+<p>TOML, where section headers and assignments get their own colors:</p>
+<pre style="background:rgba(128,128,128,0.10);padding:8px 12px;border-radius:4px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:0.92em;overflow-x:auto;white-space:pre;"><code class="language-toml">[package]
+name = "markdown_preview"
+version = "1.0.0"
+
+[features]
+math = true
+images = false</code></pre>
+<p>SQL, mixing case to confirm both are recognized:</p>
+<pre style="background:rgba(128,128,128,0.10);padding:8px 12px;border-radius:4px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:0.92em;overflow-x:auto;white-space:pre;"><code class="language-sql">SELECT name, count(*) AS n
+FROM events
+WHERE created_at &gt; '2026_01_01'
+GROUP BY name
+ORDER BY n DESC
+LIMIT 10;</code></pre>
+<p>Bash, with a shebang, a comment, and a <code style="background:rgba(128,128,128,0.14);padding:1px 4px;border-radius:3px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:0.92em;">$variable</code>:</p>
+<pre style="background:rgba(128,128,128,0.10);padding:8px 12px;border-radius:4px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:0.92em;overflow-x:auto;white-space:pre;"><code class="language-bash">#!/usr/bin/env bash
+set -euo pipefail
+for f in *.md; do
+    wc -l "$f"
+done</code></pre>
+<p>Dockerfile:</p>
+<pre style="background:rgba(128,128,128,0.10);padding:8px 12px;border-radius:4px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:0.92em;overflow-x:auto;white-space:pre;"><code class="language-dockerfile">FROM alpine:3.19
+RUN apk add --no-cache curl
+WORKDIR /app
+COPY . /app
+ENTRYPOINT ["./run.sh"]</code></pre>
+<p>HTML:</p>
+<pre style="background:rgba(128,128,128,0.10);padding:8px 12px;border-radius:4px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:0.92em;overflow-x:auto;white-space:pre;"><code class="language-html">&lt;!DOCTYPE html&gt;
+&lt;html&gt;
+  &lt;head&gt;&lt;title&gt;Hello&lt;/title&gt;&lt;/head&gt;
+  &lt;body&gt;&lt;h1 class="greeting"&gt;Hi&lt;/h1&gt;&lt;/body&gt;
+&lt;/html&gt;</code></pre>
+<p>CSS:</p>
+<pre style="background:rgba(128,128,128,0.10);padding:8px 12px;border-radius:4px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:0.92em;overflow-x:auto;white-space:pre;"><code class="language-css">.body {
+    font_family: _apple_system, BlinkMacSystemFont, sans_serif;
+    padding: 1.5rem 2rem;
+    color: #2a1500;
+}</code></pre>
+<p>A code fence with no language stays plain monospaced, which is what you want for shell transcripts and ASCII art:</p>
+<pre style="background:rgba(128,128,128,0.10);padding:8px 12px;border-radius:4px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:0.92em;overflow-x:auto;white-space:pre;"><code>no language =&gt; no highlighting, just the monospace font
+the [copy] button still works</code></pre>
+<p>An indented code block (four spaces) renders the same way:</p>
+<pre style="background:rgba(128,128,128,0.10);padding:8px 12px;border-radius:4px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:0.92em;overflow-x:auto;white-space:pre;"><code>int x = 0;
+for (int i = 0; i &lt; 10; ++i) x += i;</code></pre>
+<hr style="border:none;border-top:1px solid rgba(128,128,128,0.3);margin:1em 0;">
+=== example-7-a-quick-combined-block
+<h2>A quick combined block</h2>
+<p>Just to confirm everything composes:</p>
+<blockquote style="border-left:3px solid rgba(128,128,128,0.5);padding-left:12px;margin-left:0;opacity:0.85;">
+<p>A blockquote with a <a href="https://example.com">link</a>, some <code style="background:rgba(128,128,128,0.14);padding:1px 4px;border-radius:3px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:0.92em;">inline code</code>, and even a math fragment π ≈ 3.14159 on one line.</p>
+</blockquote>
+<ol style="margin:0.2em 0;padding-left:1.5em;">
+<li><p>List item with <strong>bold</strong>, then a code span: <code style="background:rgba(128,128,128,0.14);padding:1px 4px;border-radius:3px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:0.92em;">let x = 42</code>.</p>
+</li>
+<li><p>List item with a <a href="https://swift.org">link</a>.</p>
+</li>
+<li><p><code style="background:rgba(128,128,128,0.14);padding:1px 4px;border-radius:3px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:0.92em;">code only item</code></p>
+</li>
+</ol>
+<table style="border-collapse:collapse;margin:0.5em 0;">
+<thead><tr style="background:rgba(128,128,128,0.14);">
+<th style="padding:6px 14px;text-align:left;border-bottom:1px solid rgba(128,128,128,0.3);border-right:1px solid rgba(128,128,128,0.20);">Description</th>
+<th style="padding:6px 14px;text-align:left;border-bottom:1px solid rgba(128,128,128,0.3);">Example</th>
+</tr></thead>
+<tbody>
+<tr>
+<td style="padding:6px 14px;border-bottom:1px solid rgba(128,128,128,0.12);border-right:1px solid rgba(128,128,128,0.20);">Code in a cell</td>
+<td style="padding:6px 14px;border-bottom:1px solid rgba(128,128,128,0.12);"><code style="background:rgba(128,128,128,0.14);padding:1px 4px;border-radius:3px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:0.92em;">let x = 1</code></td>
+</tr>
+<tr style="background:rgba(128,128,128,0.07);">
+<td style="padding:6px 14px;border-bottom:1px solid rgba(128,128,128,0.12);border-right:1px solid rgba(128,128,128,0.20);">Link in a cell</td>
+<td style="padding:6px 14px;border-bottom:1px solid rgba(128,128,128,0.12);"><a href="https://example.com">click</a></td>
+</tr>
+<tr>
+<td style="padding:6px 14px;border-bottom:1px solid rgba(128,128,128,0.12);border-right:1px solid rgba(128,128,128,0.20);">Bold and italic in cell</td>
+<td style="padding:6px 14px;border-bottom:1px solid rgba(128,128,128,0.12);"><strong><em>strong</em></strong></td>
+</tr>
+<tr style="background:rgba(128,128,128,0.07);">
+<td style="padding:6px 14px;border-bottom:1px solid rgba(128,128,128,0.12);border-right:1px solid rgba(128,128,128,0.20);">Empty cell</td>
+<td style="padding:6px 14px;border-bottom:1px solid rgba(128,128,128,0.12);"></td>
+</tr>
+</tbody>
+</table>
+<p>Hard line breaks still work. The next sentence ends with two trailing spaces
+so this part starts on its own line, no paragraph gap, no fuss.</p>
+<p>You can also underline through raw HTML and <del>strike things out</del> when the situation calls for it. We try not to call for it.</p>
+<p>Markdown has no spelling for subscript or superscript, so the raw HTML tags carry those too: water is H<sub>2</sub>O, a hectare is 10<sup>4</sup> m<sup>2</sup>, and a rate constant is k<sub>obs</sub>. They nest, so m<sub>DO2</sub> reads the way it was written. Both work inside table cells, where scientific notation usually lands:</p>
+<table style="border-collapse:collapse;margin:0.5em 0;">
+<thead><tr style="background:rgba(128,128,128,0.14);">
+<th style="padding:6px 14px;text-align:left;border-bottom:1px solid rgba(128,128,128,0.3);border-right:1px solid rgba(128,128,128,0.20);">Quantity</th>
+<th style="padding:6px 14px;text-align:left;border-bottom:1px solid rgba(128,128,128,0.3);">Value</th>
+</tr></thead>
+<tbody>
+<tr>
+<td style="padding:6px 14px;border-bottom:1px solid rgba(128,128,128,0.12);border-right:1px solid rgba(128,128,128,0.20);">A [m<sup>2</sup>]</td>
+<td style="padding:6px 14px;border-bottom:1px solid rgba(128,128,128,0.12);">80</td>
+</tr>
+<tr style="background:rgba(128,128,128,0.07);">
+<td style="padding:6px 14px;border-bottom:1px solid rgba(128,128,128,0.12);border-right:1px solid rgba(128,128,128,0.20);">K<sub>a</sub> [m<sup>2</sup>/g]</td>
+<td style="padding:6px 14px;border-bottom:1px solid rgba(128,128,128,0.12);">0.1</td>
+</tr>
+<tr>
+<td style="padding:6px 14px;border-bottom:1px solid rgba(128,128,128,0.12);border-right:1px solid rgba(128,128,128,0.20);">C<sub>p</sub> [J kg<sup>-1</sup> K<sup>-1</sup>]</td>
+<td style="padding:6px 14px;border-bottom:1px solid rgba(128,128,128,0.12);">4184</td>
+</tr>
+</tbody>
+</table>
+<p>Copy that table as plain text and the scripts come back as Unicode, because a monospaced paste has no baseline to shift.</p>
+=== example-8-a-picture-is-worth-a-few-hundred-bytes
+<h2>A picture is worth a few hundred bytes</h2>
+<p>Block level images load from any URL the document points at. If the load fails, we render a captioned placeholder so the layout never collapses around a missing image. A trailing <code style="background:rgba(128,128,128,0.14);padding:1px 4px;border-radius:3px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:0.92em;">{width=NNN}</code> (GitLab style) caps the rendered width; <code style="background:rgba(128,128,128,0.14);padding:1px 4px;border-radius:3px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:0.92em;">{height=NNN}</code> does the obvious thing.</p>
+<p>Images can also live inside table cells, one image per cell. Setting the same <code style="background:rgba(128,128,128,0.14);padding:1px 4px;border-radius:3px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:0.92em;">height</code> on both lines them up at the same vertical extent even though one is portrait and the other landscape:</p>
+<table style="border-collapse:collapse;margin:0.5em 0;">
+<thead><tr style="background:rgba(128,128,128,0.14);">
+<th style="padding:6px 14px;text-align:left;border-bottom:1px solid rgba(128,128,128,0.3);border-right:1px solid rgba(128,128,128,0.20);">Renaissance</th>
+<th style="padding:6px 14px;text-align:left;border-bottom:1px solid rgba(128,128,128,0.3);">Apollo</th>
+</tr></thead>
+<tbody>
+<tr>
+<td style="padding:6px 14px;border-bottom:1px solid rgba(128,128,128,0.12);border-right:1px solid rgba(128,128,128,0.20);">![Mona Lisa](https://dn710208.ca.archive.org/0/items/mona-lisa-by-leonardo-da-vinci-from-c-2-rmf-retouched/Mona_Lisa%2C_by_Leonardo_da_Vinci%2C_from_C2RMF_retouched.jpg){height=200}</td>
+<td style="padding:6px 14px;border-bottom:1px solid rgba(128,128,128,0.12);">![Earthrise](https://archive.org/download/297755main_GPN-2001-000009_full/297755main_GPN-2001-000009_full.jpg){height=200}</td>
+</tr>
+<tr style="background:rgba(128,128,128,0.07);">
+<td style="padding:6px 14px;border-bottom:1px solid rgba(128,128,128,0.12);border-right:1px solid rgba(128,128,128,0.20);">Internet Archive</td>
+<td style="padding:6px 14px;border-bottom:1px solid rgba(128,128,128,0.12);">NASA</td>
+</tr>
+</tbody>
+</table>
+<p>The next image points to a deliberately broken URL so you can see the captioned-placeholder fallback. Layout doesn't collapse around the missing content; the alt text becomes a small box with a photo icon and the caption right where the image would have gone:</p>
+<p style="color:rgba(128,128,128,0.7);font-style:italic;">[image not found]</p>
+<hr style="border:none;border-top:1px solid rgba(128,128,128,0.3);margin:1em 0;">
+=== example-9-memory-and-performance
+<h2>Memory and performance</h2>
+<p>A Markdown file is just bytes. The most this reader needs to hold in memory is roughly the file size, M ≤ c · N. A typical 40 KB README weighs about 50 KB once parsed, and renders in under one frame.</p>
+<p>A popular Electron-based editor uses ~240 MB on disk and ~400 MB of memory per window for the same job:</p>
+<p style="text-align:center;font-style:italic;margin:0.8em 0;">M(electron)⁄M(this) ≈ 100</p>
+<p>A 100× memory premium for HTML rendering of plain Markdown is a choice. Reasonable people make it. We chose differently.</p>
+<h3>The supply-chain axis</h3>
+<p>The most popular JavaScript Markdown library, <code style="background:rgba(128,128,128,0.14);padding:1px 4px;border-radius:3px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:0.92em;">marked</code>, lists about 636 transitive packages and ~39,000 lines of code on its public dependency graph. Doing the same job in a tiny Swift codebase with zero dependencies turned out to work.</p>
+<p>Pick a rough industry defect rate of δ ≈ 15 bugs per 1,000 lines. The "code a user runs" is the app plus every dep:</p>
+<table style="border-collapse:collapse;margin:0.5em 0;">
+<thead><tr style="background:rgba(128,128,128,0.14);">
+<th style="padding:6px 14px;text-align:left;border-bottom:1px solid rgba(128,128,128,0.3);border-right:1px solid rgba(128,128,128,0.20);">Stack</th>
+<th style="padding:6px 14px;text-align:left;border-bottom:1px solid rgba(128,128,128,0.3);border-right:1px solid rgba(128,128,128,0.20);">Lines</th>
+<th style="padding:6px 14px;text-align:left;border-bottom:1px solid rgba(128,128,128,0.3);">Expected defects</th>
+</tr></thead>
+<tbody>
+<tr>
+<td style="padding:6px 14px;border-bottom:1px solid rgba(128,128,128,0.12);border-right:1px solid rgba(128,128,128,0.20);">TypeScript with <code style="background:rgba(128,128,128,0.14);padding:1px 4px;border-radius:3px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:0.92em;">marked</code></td>
+<td style="padding:6px 14px;border-bottom:1px solid rgba(128,128,128,0.12);border-right:1px solid rgba(128,128,128,0.20);">~3.2 M</td>
+<td style="padding:6px 14px;border-bottom:1px solid rgba(128,128,128,0.12);">~48,000</td>
+</tr>
+<tr style="background:rgba(128,128,128,0.07);">
+<td style="padding:6px 14px;border-bottom:1px solid rgba(128,128,128,0.12);border-right:1px solid rgba(128,128,128,0.20);">This app, zero dependencies</td>
+<td style="padding:6px 14px;border-bottom:1px solid rgba(128,128,128,0.12);border-right:1px solid rgba(128,128,128,0.20);">~2,000</td>
+<td style="padding:6px 14px;border-bottom:1px solid rgba(128,128,128,0.12);">~30</td>
+</tr>
+</tbody>
+</table>
+<p>Now the CVE side. If each dependency has a 1-in-200 chance of harboring a fresh CVE in a year, the odds <em>at least one</em> dep in a tree of N does is</p>
+<p style="text-align:center;font-style:italic;margin:0.8em 0;">P = 1 - (1 - 0.005)(N)</p>
+<p>For 636 deps that is ~96%. For 0 deps it is 0%. Every package you don't pull in is a CVE you don't have to read on a Saturday night.</p>
+<p>This is napkin math, not a peer-reviewed study. The point is the multiplier sitting in front of every other consideration.</p>
+<h3>Time you actually spend</h3>
+<p>Adults read prose at about 250 words per minute. A 10,000-word document is ~40 minutes of reading. Any feature that adds a few seconds to startup quietly steals from those 40 minutes before the reader has seen a single word.</p>
+<p>Optimizing for the small things is just respect.</p>
+<hr style="border:none;border-top:1px solid rgba(128,128,128,0.3);margin:1em 0;">
+=== example-10-closing-thought
+<h2>Closing thought</h2>
+<p>Good prose is short. Good code is short. Good tools are smaller than you think they need to be.</p>
+<p>If you scrolled this far without your CPU pinning, the layout loop is holding. The Share button in the toolbar exports this entire document, code blocks and tables and image captions and all, to a paginated PDF.</p>
+<p>That, in the end, is the point.</p>
+<hr style="border:none;border-top:1px solid rgba(128,128,128,0.3);margin:1em 0;">
+<p>Copyright (c) 2026 Dmitry "<strong>Leo</strong>" Kuznetsov</p>
+=== edge-intro
+<h1>Edge cases</h1>
+<p>The shapes the feature tour does not reach, one per section, so the parser and the exporters are pinned on them too.</p>
+=== edge-1-task-items-with-children
+<h2>Task items with children</h2>
+<ul style="margin:0.5em 0;padding-left:1.5em;">
+<li><span style="margin-right:0.4em">&#9745;</span><p>A done task with a follow-up paragraph</p>
+<p>The paragraph belongs to the task.</p>
+<ul style="margin:0.2em 0;padding-left:1.5em;">
+<li><span style="margin-right:0.4em">&#9744;</span><p>a nested task under it</p>
+</li>
+<li><span style="margin-right:0.4em">&#9744;</span><p>and a second one</p>
+</li>
+</ul>
+</li>
+<li><span style="margin-right:0.4em">&#9744;</span><p>An open task with a quote</p>
+<blockquote style="border-left:3px solid rgba(128,128,128,0.5);padding-left:12px;margin-left:0;opacity:0.85;">
+<p>quoted under the task</p>
+</blockquote>
+</li>
+</ul>
+=== edge-2-loose-ordered-list-past-nine
+<h2>Loose ordered list past nine</h2>
+<ol style="margin:0.5em 0;padding-left:1.5em;">
+<li><p>eight</p>
+</li>
+<li><p>nine</p>
+</li>
+<li><p>ten, with a code block under it</p>
+<pre style="background:rgba(128,128,128,0.10);padding:8px 12px;border-radius:4px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:0.92em;overflow-x:auto;white-space:pre;"><code class="language-sh">echo ten</code></pre>
+</li>
+<li><p>eleven</p>
+</li>
+</ol>
+=== edge-3-code-spans-with-backticks
+<h2>Code spans with backticks</h2>
+<p>A span holding a backtick: <code style="background:rgba(128,128,128,0.14);padding:1px 4px;border-radius:3px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:0.92em;">a`b</code>. One that starts with one: <code style="background:rgba(128,128,128,0.14);padding:1px 4px;border-radius:3px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:0.92em;">`x</code>. A backslash pair inside code stays literal: <code style="background:rgba(128,128,128,0.14);padding:1px 4px;border-radius:3px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:0.92em;">\\</code> and <code style="background:rgba(128,128,128,0.14);padding:1px 4px;border-radius:3px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:0.92em;">\n</code>.</p>
+=== edge-4-hard-breaks-and-escapes
+<h2>Hard breaks and escapes</h2>
+<p>First line
+second line after a hard break, then an escaped *star* and a literal underscore_in_a_word.</p>
+=== edge-5-empty-and-odd-cells
+<h2>Empty and odd cells</h2>
+<table style="border-collapse:collapse;margin:0.5em 0;">
+<thead><tr style="background:rgba(128,128,128,0.14);">
+<th style="padding:6px 14px;text-align:left;border-bottom:1px solid rgba(128,128,128,0.3);border-right:1px solid rgba(128,128,128,0.20);">a</th>
+<th style="padding:6px 14px;text-align:left;border-bottom:1px solid rgba(128,128,128,0.3);">b</th>
+</tr></thead>
+<tbody>
+<tr>
+<td style="padding:6px 14px;border-bottom:1px solid rgba(128,128,128,0.12);border-right:1px solid rgba(128,128,128,0.20);"></td>
+<td style="padding:6px 14px;border-bottom:1px solid rgba(128,128,128,0.12);">only b</td>
+</tr>
+<tr style="background:rgba(128,128,128,0.07);">
+<td style="padding:6px 14px;border-bottom:1px solid rgba(128,128,128,0.12);border-right:1px solid rgba(128,128,128,0.20);">only a</td>
+<td style="padding:6px 14px;border-bottom:1px solid rgba(128,128,128,0.12);"></td>
+</tr>
+</tbody>
+</table>

@@ -423,6 +423,10 @@ public final class MathFontFile {
     }
 
 
+    // Test hook: how many sizes the CTFont cache has been asked for.
+
+    var cachedFontCount: Int { ctCache.count }
+
     func ctFont(_ size: CGFloat) -> CTFont {
         let result: CTFont
         if let cached = ctCache[size] {

@@ -1,0 +1,251 @@
+=== example-intro
+heading 1: Less Is More|
+paragraph: A short essay about plain text that looks good, plus a regression test for every feature this app renders.|
+=== example-1-how-we-got-here
+heading 2: How we got here|
+paragraph: In 2004 John Gruber wrote down a tiny set of rules so people writing on the web could stop copying HTML angle brackets around like they were eggs. The rules fit on one page. The promise was simple: write the way you would write in a notebook, save the file as plain text, and let some small program turn it into something pleasant to read. |Less syntax, more reading.{b}| |Asterisks for emphasis. Hashes for headings. A blank line for a new paragraph.{i}| That was the whole pitch.|
+paragraph: Two decades later the average Markdown editor ships with roughly the same disk footprint as a small mainframe. There is a kind of poetry in opening a 240MB application to read four paragraphs about your weekly groceries. We do not judge. We just keep a smaller tool nearby for when we want to read.|
+quote:
+  paragraph: "Programs are meant to be read by humans and only incidentally for computers to execute."  Hal Abelson, |Structure and Interpretation of Computer Programs{i}|. Markdown asks for the same courtesy from your text.|
+=== example-2-the-shape-of-a-thought
+heading 2: The shape of a thought|
+paragraph: Good notes nest the way thinking does: a point, the caveat that softens the point, the example that rescues the caveat. A list should let that structure show without getting loud about it.|
+list loose:
+  item •:
+    paragraph: Write the thing you mean, and if the sentence runs long, just let it keep going onto the next line. The reader's eye does not care where your editor decided to wrap a line; it cares only where your idea ends.|
+  item •:
+    paragraph: Give an idea room when it needs a second breath.|
+    paragraph: A second paragraph, still part of the same point, because some thoughts do not fit on one line and should not be shoved onto one.|
+  item •:
+    paragraph: Indent a sub-point only when it genuinely sits beneath the one above:|
+    list tight:
+      item •:
+        paragraph: like this,|
+      item •:
+        paragraph: and this,|
+        list tight:
+          item •:
+            paragraph: and, once in a while, one level deeper, where the left margin holds steady instead of wandering rightward as the text wraps.|
+  item •:
+    paragraph: Then stop, because the best list is the one that ends on time.|
+paragraph: A numbered list is the same idea wearing shoes. A small recipe, say:|
+list loose:
+  item 1.:
+    paragraph: Pick a file. Any |.md{c}| will do; this one volunteered for the part.|
+  item 2.:
+    paragraph: Read it from the top. When a step has something to show, it can carry a quote of its own,|
+    quote:
+      paragraph: The palest ink is better than the best memory.|
+    paragraph: or a single honest line of code,|
+    code[]: print("hello, reader")
+    paragraph: and the step still reads as one thought.|
+  item 3.:
+    paragraph: Close the file. That was the whole recipe.|
+=== example-3-math-the-small-kind
+heading 2: Math, the small kind|
+paragraph: Two engines, split by which delimiter you used, and you never pick.|
+paragraph: Inline maths stays text: |α + β = γ|, the right triangle staple |x² + y² = z²|, Gauss's schoolboy trick |∑(i=1)ⁿ i| (he was nine, allegedly), and |x ∈ ℝ|. It is Unicode, so it flows with the sentence, selects with it, and Find searches it.|
+paragraph: A |$${c}| display is typeset properly, by a TeX layout engine reading the OpenType MATH table of a real maths font:|
+math: \\frac\{-b \\pm \\sqrt\{b^2 - 4ac\}\}\{2a\}
+paragraph: Big operators take their limits above and below, and the fences grow to fit what is inside them:|
+math: \\left(\\sum_\{i=1\}^\{n\} a_i b_i\\right)^2 \\le \\left(\\sum_\{i=1\}^\{n\} a_i^2\\right)\\left(\\sum_\{i=1\}^\{n\} b_i^2\\right)
+paragraph: Integrals with bounds, which the old renderer used to punt on:|
+math: \\int_\{0\}^\{\\infty\} e^\{-x^2\}\\,dx = \\frac\{\\sqrt\{\\pi\}\}\{2\}
+paragraph: Named operators carry their limits too, and a root can take an index:|
+math: \\lim_\{n \\to \\infty\} \\sum_\{k=1\}^\{n\} \\frac\{1\}\{k^2\} = \\frac\{\\pi^2\}\{6\} \\qquad \\sqrt[3]\{\\frac\{x^2+1\}\{x-1\}\}
+paragraph: Matrices, cases and aligned blocks, which it also used to punt on:|
+math: \\begin\{pmatrix\} a & b \\\\ c & d \\end\{pmatrix\}^\{-1\} = \\frac\{1\}\{ad-bc\}\\begin\{pmatrix\} d & -b \\\\ -c & a \\end\{pmatrix\}
+math: f(n) = \\begin\{cases\} n/2 & \\text\{if \} n \\text\{ is even\} \\\\ 3n+1 & \\text\{otherwise\} \\end\{cases\}
+paragraph: An |aligned{c}| block lines its rows up on the relation between them, which is how anyone writing more than one equation expects them to sit:|
+math: \\begin\{aligned\} \\nabla \\cdot \\mathbf\{E\} &= \\frac\{\\rho\}\{\\varepsilon_0\} \\\\ \\nabla \\times \\mathbf\{B\} &= \\mu_0\\left(\\mathbf\{J\} + \\varepsilon_0 \\frac\{\\partial \\mathbf\{E\}\}\{\\partial t\}\\right) \\end\{aligned\}
+paragraph: Fences nest and keep growing, and scripts keep shrinking until they hit scriptscript and stop:|
+math: \\left[\\frac\{\\left(\\frac\{a\}\{b\}\\right)\}\{c\}\\right] \\qquad A^\{B^\{C^\{D\}\}\} \\qquad \\frac\{\\partial u\}\{\\partial t\} = \\alpha \\nabla^2 u
+paragraph: The maths alphabets are separate Unicode blocks rather than a font trick, so blackboard bold, script, fraktur, bold, sans and monospace all keep their own letters:|
+math: \\mathbb\{RQZ\} \\quad \\mathcal\{ABC\} \\quad \\mathfrak\{gsl\} \\quad \\mathbf\{xyz\} \\quad \\mathsf\{uvw\} \\quad \\mathtt\{101\}
+paragraph: Inline, only the ones with a single settled codepoint survive the trip through Unicode: |ℝ|, |ℕ|, |ℤ|, |ℚ|, |ℂ|. Anything more wants a display.|
+paragraph: Greek alphabet, lower and upper, in case you need both at once:|
+math: \\alpha \\beta \\gamma \\delta \\epsilon \\zeta \\eta \\theta \\iota \\kappa \\lambda \\mu \\nu \\xi \\pi \\rho \\sigma \\tau \\phi \\chi \\psi \\omega
+math: \\Gamma \\Delta \\Theta \\Lambda \\Xi \\Pi \\Sigma \\Phi \\Psi \\Omega
+paragraph: Operators and a corner of set theory: |≤ ≥ ≠ ≈ ± × · ÷ → ⇒|, |∀ x ∈ ℕ, ∃ y ∈ ℤ|, |A ∩ B|, |A ∪ B|, |∅|.|
+paragraph: Tools that lift equations out of a PDF often forget the delimiters and leave the bare TeX sitting in a paragraph. A paragraph that opens with a control word and parses cleanly as TeX, with no ordinary words in it, is read as a display anyway:|
+math: \\frac \{ D x N \} \{ \\frac \{ ( \\text \{Truth\} ) \} \{ 1 6 0 0 \\, x \\, 1 4 \} \} \\\\ \\frac \{ 4 2 8 \\, x \\, 1 0 \} \{ ( 1 ) \} \\\\ \\frac \{ 2 9 \\, x \\, 9 5 \} \{ ( 2 3 ) \}
+paragraph: That is three separate tests, and prose fails all but the first: |\\alpha is the first letter{c}| parses perfectly well as alpha times i times s and so on, and is caught by the run of ordinary letters. Rows separated by |\\\\{c}|, and columns by |&{c}|, work without naming an environment.|
+paragraph: There are still limits. No |\\def{c}| or |\\newcommand{c}|, no |\\color{c}|, and no line breaking inside a formula. A display the engine will not accept falls back to the inline spelling rather than showing you nothing, and copying any display gives you back the TeX you wrote.|
+=== example-4-footprints
+heading 2: Footprints|
+paragraph: A few napkin numbers for context. Sizes are rough installer or app bundle measurements on macOS and they drift; spirit holds.|
+table 3x6:
+  h: [Tool] [Approximate size] [What it edits]
+  r: [`vi`] [1 MB] [anything plain]
+  r: [`nano`] [2 MB] [anything plain]
+  r: [this app] [4 MB] [rendered Markdown]
+  r: [Visual Studio Code] [370 MB] [code, prose, your hopes]
+  r: [Obsidian] [250 MB] [notes, plus a graph]
+  r: [Typora] [120 MB] [Markdown only]
+=== example-5-what-we-shipped-and-what-we-are-still-ch
+heading 2: What we shipped, and what we are still chewing on|
+list tight:
+  item • [x]:
+    paragraph: write a parser that fits in a tiny Swift codebase,|
+  item • [x]:
+    paragraph: make the Quick Look extension feel like the rest of the app,|
+  item • [x]:
+    paragraph: externalize syntax data so adding a language is one line,|
+  item • [x]:
+    paragraph: keep the source under 2,500 lines,|
+  item • [x]:
+    paragraph: decide whether tables should support inline images (yes, image only cells).|
+=== example-6-code-that-travels-well
+heading 2: Code that travels well|
+paragraph: Each fence below should color the way you expect. If a block looks plain, the language tag is probably misspelled or the language is one we have not added yet.|
+paragraph: Swift:|
+code[swift]: import Foundation\n\nstruct Greeter \{\n    let name: String\n    func greet() -> String \{\n        return "Hello, \\(name)!"\n    \}\n\}\n\nlet g = Greeter(name: "World")\nprint(g.greet())
+paragraph: C, with a preprocessor line and a block comment:|
+code[c]: #include <stdio.h>\n\n/* Block comment.\n   Should color through line breaks. */\nint main(int argc, char** argv) \{\n    const char* msg = "hello, world\\n";\n    for (int i = 0; i < argc; ++i) \{\n        printf("%s argv[%d] = %s\\n", msg, i, argv[i]);\n    \}\n    return 0;\n\}
+paragraph: C++:|
+code[cpp]: #include <vector>\n#include <string>\n\ntemplate <typename T>\nauto sum(const std::vector<T>& xs) -> T \{\n    T total\{\};\n    for (const auto& x : xs) total += x;\n    return total;\n\}
+paragraph: Java:|
+code[java]: import java.util.List;\n\npublic class Greeter \{\n    private final String name;\n    public Greeter(String name) \{ this.name = name; \}\n    public String greet() \{ return "Hello, " + name + "!"; \}\n\n    public static void main(String[] args) \{\n        var g = new Greeter("World");\n        System.out.println(g.greet());\n    \}\n\}
+paragraph: Kotlin:|
+code[kotlin]: data class User(val id: Int, val name: String)\n\nfun greet(u: User): String = "Hello, $\{u.name\} ($\{u.id\})"\n\nfun main() \{\n    val u = User(id = 1, name = "World")\n    println(greet(u))\n\}
+paragraph: JavaScript:|
+code[javascript]: const greet = (name) => `Hello, $\{name\}!`;\nasync function main() \{\n    const res = await fetch("https://api.example.com/users");\n    const json = await res.json();\n    console.log(json);\n\}
+paragraph: TypeScript:|
+code[typescript]: interface User \{ id: number; name: string; \}\nfunction greet(u: User): string \{\n    return `Hello, $\{u.name\} ($\{u.id\})`;\n\}
+paragraph: Python, with a decorator and a triple quoted docstring:|
+code[python]: from dataclasses import dataclass\n\n@dataclass\nclass User:\n    id: int\n    name: str\n\ndef greet(u: User) -> str:\n    """Triple quoted docstring should highlight as a string."""\n    return f"Hello, \{u.name\} (\{u.id\})"
+paragraph: Rust, with attributes:|
+code[rust]: #![allow(dead_code)]\n\nfn greet(name: &str) -> String \{\n    format!("Hello, \{\}!", name)\n\}\n\nfn main() \{\n    let v: Vec<i32> = (1..=5).collect();\n    println!("\{:?\}", v);\n\}
+paragraph: Go:|
+code[go]: package main\n\nimport "fmt"\n\nfunc main() \{\n    nums := []int\{1, 2, 3\}\n    for i, n := range nums \{\n        fmt.Printf("%d: %d\\n", i, n)\n    \}\n\}
+paragraph: Ruby:|
+code[ruby]: class Greeter\n  attr_reader :name\n  def initialize(name) = @name = name\n  def greet = "Hello, #\{name\}!"\nend\n\nputs Greeter.new("World").greet
+paragraph: JSON, with the keys colored as attributes and the values colored by type:|
+code[json]: \{\n    "name": "Markdown Preview",\n    "version": "1.0",\n    "features": ["headings", "lists", "tables", "code", "math"],\n    "deps": null\n\}
+paragraph: YAML, with keys, list bullets, and the |~{c}| keyword each in their own color:|
+code[yaml]: name: Markdown Preview\nfeatures:\n  * headings\n  * tables\n  * syntax_highlighting\ndeps: ~
+paragraph: TOML, where section headers and assignments get their own colors:|
+code[toml]: [package]\nname = "markdown_preview"\nversion = "1.0.0"\n\n[features]\nmath = true\nimages = false
+paragraph: SQL, mixing case to confirm both are recognized:|
+code[sql]: SELECT name, count(*) AS n\nFROM events\nWHERE created_at > '2026_01_01'\nGROUP BY name\nORDER BY n DESC\nLIMIT 10;
+paragraph: Bash, with a shebang, a comment, and a |$variable{c}|:|
+code[bash]: #!/usr/bin/env bash\nset -euo pipefail\nfor f in *.md; do\n    wc -l "$f"\ndone
+paragraph: Dockerfile:|
+code[dockerfile]: FROM alpine:3.19\nRUN apk add --no-cache curl\nWORKDIR /app\nCOPY . /app\nENTRYPOINT ["./run.sh"]
+paragraph: HTML:|
+code[html]: <!DOCTYPE html>\n<html>\n  <head><title>Hello</title></head>\n  <body><h1 class="greeting">Hi</h1></body>\n</html>
+paragraph: CSS:|
+code[css]: .body \{\n    font_family: _apple_system, BlinkMacSystemFont, sans_serif;\n    padding: 1.5rem 2rem;\n    color: #2a1500;\n\}
+paragraph: A code fence with no language stays plain monospaced, which is what you want for shell transcripts and ASCII art:|
+code[]: no language => no highlighting, just the monospace font\nthe [copy] button still works
+paragraph: An indented code block (four spaces) renders the same way:|
+code[]: int x = 0;\nfor (int i = 0; i < 10; ++i) x += i;
+rule
+=== example-7-a-quick-combined-block
+heading 2: A quick combined block|
+paragraph: Just to confirm everything composes:|
+quote:
+  paragraph: A blockquote with a |link{link=https://example.com}|, some |inline code{c}|, and even a math fragment |π ≈ 3.14159| on one line.|
+list tight:
+  item 1.:
+    paragraph: List item with |bold{b}|, then a code span: |let x = 42{c}|.|
+  item 2.:
+    paragraph: List item with a |link{link=https://swift.org}|.|
+  item 3.:
+    paragraph: code only item{c}|
+table 2x4:
+  h: [Description] [Example]
+  r: [Code in a cell] [`let x = 1`]
+  r: [Link in a cell] [[click](https://example.com)]
+  r: [Bold and italic in cell] [***strong***]
+  r: [Empty cell] []
+paragraph: Hard line breaks still work. The next sentence ends with two trailing spaces\nso this part starts on its own line, no paragraph gap, no fuss.|
+paragraph: You can also |underline through raw HTML{u}| and |strike things out{s}| when the situation calls for it. We try not to call for it.|
+paragraph: Markdown has no spelling for subscript or superscript, so the raw HTML tags carry those too: water is H|2{sub}|O, a hectare is 10|4{sup}| m|2{sup}|, and a rate constant is k|obs{sub}|. They nest, so m|DO2{sub}| reads the way it was written. Both work inside table cells, where scientific notation usually lands:|
+table 2x3:
+  h: [Quantity] [Value]
+  r: [A [m<sup>2</sup>]] [80]
+  r: [K<sub>a</sub> [m<sup>2</sup>/g]] [0.1]
+  r: [C<sub>p</sub> [J kg<sup>-1</sup> K<sup>-1</sup>]] [4184]
+paragraph: Copy that table as plain text and the scripts come back as Unicode, because a monospaced paste has no baseline to shift.|
+=== example-8-a-picture-is-worth-a-few-hundred-bytes
+heading 2: A picture is worth a few hundred bytes|
+paragraph: Block level images load from any URL the document points at. If the load fails, we render a captioned placeholder so the layout never collapses around a missing image. A trailing |\{width=NNN\}{c}| (GitLab style) caps the rendered width; |\{height=NNN\}{c}| does the obvious thing.|
+paragraph: Images can also live inside table cells, one image per cell. Setting the same |height{c}| on both lines them up at the same vertical extent even though one is portrait and the other landscape:|
+table 2x2:
+  h: [Renaissance] [Apollo]
+  r: [![Mona Lisa](https://dn710208.ca.archive.org/0/items/mona-lisa-by-leonardo-da-vinci-from-c-2-rmf-retouched/Mona_Lisa%2C_by_Leonardo_da_Vinci%2C_from_C2RMF_retouched.jpg)\{height=200\}] [![Earthrise](https://archive.org/download/297755main_GPN-2001-000009_full/297755main_GPN-2001-000009_full.jpg)\{height=200\}]
+  r: [Internet Archive] [NASA]
+paragraph: The next image points to a deliberately broken URL so you can see the captioned-placeholder fallback. Layout doesn't collapse around the missing content; the alt text becomes a small box with a photo icon and the caption right where the image would have gone:|
+image alt=image not found url=https://example.com/some-image.png w=- h=-
+rule
+=== example-9-memory-and-performance
+heading 2: Memory and performance|
+paragraph: A Markdown file is just bytes. The most this reader needs to hold in memory is roughly the file size, |M ≤ c · N|. A typical 40 KB README weighs about 50 KB once parsed, and renders in under one frame.|
+paragraph: A popular Electron-based editor uses ~240 MB on disk and ~400 MB of memory per window for the same job:|
+math: \\frac\{M_\\text\{electron\}\}\{M_\\text\{this\}\} \\approx 100
+paragraph: A 100× memory premium for HTML rendering of plain Markdown is a choice. Reasonable people make it. We chose differently.|
+heading 3: The supply-chain axis|
+paragraph: The most popular JavaScript Markdown library, |marked{c}|, lists about 636 transitive packages and ~39,000 lines of code on its public dependency graph. Doing the same job in a tiny Swift codebase with zero dependencies turned out to work.|
+paragraph: Pick a rough industry defect rate of |δ ≈ 15| bugs per 1,000 lines. The "code a user runs" is the app plus every dep:|
+table 3x2:
+  h: [Stack] [Lines] [Expected defects]
+  r: [TypeScript with `marked`] [~3.2 M] [~48,000]
+  r: [This app, zero dependencies] [~2,000] [~30]
+paragraph: Now the CVE side. If each dependency has a 1-in-200 chance of harboring a fresh CVE in a year, the odds |at least one{i}| dep in a tree of |N| does is|
+math: P = 1 - (1 - 0.005)^N
+paragraph: For 636 deps that is ~96%. For 0 deps it is 0%. Every package you don't pull in is a CVE you don't have to read on a Saturday night.|
+paragraph: This is napkin math, not a peer-reviewed study. The point is the multiplier sitting in front of every other consideration.|
+heading 3: Time you actually spend|
+paragraph: Adults read prose at about 250 words per minute. A 10,000-word document is ~40 minutes of reading. Any feature that adds a few seconds to startup quietly steals from those 40 minutes before the reader has seen a single word.|
+paragraph: Optimizing for the small things is just respect.|
+rule
+=== example-10-closing-thought
+heading 2: Closing thought|
+paragraph: Good prose is short. Good code is short. Good tools are smaller than you think they need to be.|
+paragraph: If you scrolled this far without your CPU pinning, the layout loop is holding. The Share button in the toolbar exports this entire document, code blocks and tables and image captions and all, to a paginated PDF.|
+paragraph: That, in the end, is the point.|
+rule
+paragraph: Copyright (c) 2026 Dmitry "|Leo{b}|" Kuznetsov|
+=== edge-intro
+heading 1: Edge cases|
+paragraph: The shapes the feature tour does not reach, one per section, so the parser and the exporters are pinned on them too.|
+=== edge-1-task-items-with-children
+heading 2: Task items with children|
+list loose:
+  item • [x]:
+    paragraph: A done task with a follow-up paragraph|
+    paragraph: The paragraph belongs to the task.|
+    list tight:
+      item • [ ]:
+        paragraph: a nested task under it|
+      item • [ ]:
+        paragraph: and a second one|
+  item • [ ]:
+    paragraph: An open task with a quote|
+    quote:
+      paragraph: quoted under the task|
+=== edge-2-loose-ordered-list-past-nine
+heading 2: Loose ordered list past nine|
+list loose:
+  item 8.:
+    paragraph: eight|
+  item 9.:
+    paragraph: nine|
+  item 10.:
+    paragraph: ten, with a code block under it|
+    code[sh]: echo ten
+  item 11.:
+    paragraph: eleven|
+=== edge-3-code-spans-with-backticks
+heading 2: Code spans with backticks|
+paragraph: A span holding a backtick: |a`b{c}|. One that starts with one: |`x{c}|. A backslash pair inside code stays literal: |\\\\{c}| and |\\n{c}|.|
+=== edge-4-hard-breaks-and-escapes
+heading 2: Hard breaks and escapes|
+paragraph: First line\nsecond line after a hard break, then an escaped *star* and a literal underscore_in_a_word.|
+=== edge-5-empty-and-odd-cells
+heading 2: Empty and odd cells|
+table 2x2:
+  h: [a] [b]
+  r: [] [only b]
+  r: [only a]

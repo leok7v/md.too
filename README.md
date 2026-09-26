@@ -69,6 +69,15 @@ xcodebuild -project md.too.xcodeproj -scheme "md.too" \
 
 The project ships with no `DEVELOPMENT_TEAM` set, so a fresh clone builds with ad-hoc ("Sign to Run Locally") signing — no Apple Developer account required for local development. To override locally, drop a one-line `Local.xcconfig` next to `Base.xcconfig` containing `LOCAL_DEVELOPMENT_TEAM = YOURTEAMID`; it's gitignored.
 
+The tests live in `tests/` as the `md.too Tests` target: a golden dump of the parser over every section of `EXAMPLE.md`, a golden of the HTML export, the KaTeX layout engine fingerprinted by metrics and pixels, the incremental splice, the maths cache, and the plain-text export as a round-trip. Run them with:
+
+```sh
+xcodebuild test -project md.too.xcodeproj -scheme "md.too" \
+  -destination "platform=macOS"
+```
+
+A golden that moved on purpose is re-recorded by setting `TEST_RUNNER_PARSER_GOLDEN_UPDATE=1`, `TEST_RUNNER_HTML_GOLDEN_UPDATE=1` or `TEST_RUNNER_KATEX_GOLDEN_UPDATE=1` on that command, then reading the diff before committing it.
+
 ## Privacy
 
 [Privacy policy](https://leok7v.github.io/md.too/privacy.html) — short version: the app collects nothing, stores nothing, transmits nothing. The only network requests are HTTPS image fetches for inline images you reference by URL in your own Markdown.

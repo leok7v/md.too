@@ -21,6 +21,21 @@ enum TeX {
     nonisolated(unsafe) private static var layouts: [LayoutKey: MathLayout?]
         = [:]
 
+    // Test hooks: the cache is otherwise invisible, and a test that
+    // wants to prove a formula is laid out once has to start empty.
+
+    static func forgetLayouts() {
+        layoutLock.lock()
+        defer { layoutLock.unlock() }
+        layouts.removeAll()
+    }
+
+    static var cachedLayoutCount: Int {
+        layoutLock.lock()
+        defer { layoutLock.unlock() }
+        return layouts.count
+    }
+
     static func layout(_ tex: String, size: CGFloat) -> MathLayout? {
         let key = LayoutKey(tex: tex, size: size)
         layoutLock.lock()
@@ -309,7 +324,7 @@ enum TeX {
         return result
     }
 
-    private static func replaceTokens(_ s: String) -> String {
+    static func replaceTokens(_ s: String) -> String {
         let scalars = Array(s.unicodeScalars)
         var out = String.UnicodeScalarView()
         var i = 0
@@ -362,7 +377,7 @@ enum TeX {
         return result
     }
 
-    private static let tokenMap: [String: String] = [
+    static let tokenMap: [String: String] = [
         "\\alpha": "α", "\\beta": "β", "\\gamma": "γ", "\\delta": "δ",
         "\\epsilon": "ε", "\\varepsilon": "ε", "\\zeta": "ζ", "\\eta": "η",
         "\\theta": "θ", "\\vartheta": "ϑ", "\\iota": "ι", "\\kappa": "κ",
