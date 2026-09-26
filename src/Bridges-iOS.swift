@@ -32,13 +32,7 @@ extension NativeText: UIViewRepresentable {
     func updateUIView(_ v: ResizingUITextView, context: Context) {
         v.nowrap = nowrap
         v.onCopySpots = onCopySpots
-        let next = resolved()
-        if !v.textStorage.isEqual(to: next) {
-            v.textStorage.beginEditing()
-            applyIncremental(v.textStorage, next)
-            v.textStorage.endEditing()
-            v.invalidateIntrinsicContentSize()
-        }
+        v.applyResolved(resolved())
     }
 
     // Height measured for the PROPOSED width rather than left to the
@@ -65,6 +59,16 @@ extension NativeText: UIViewRepresentable {
         var nowrap: Bool = false
         var onCopySpots: (([CopyBlockSpot]) -> Void)?
         private var lastWidth: CGFloat = 0
+        private var contentGeneration = 0
+        private var overlayGeneration = -1
+
+        func applyResolved(_ next: NSAttributedString) {
+            if applyIncremental(textStorage, next) {
+                contentGeneration += 1
+                invalidateIntrinsicContentSize()
+                setNeedsLayout()
+            }
+        }
 
         override var intrinsicContentSize: CGSize {
             var result = super.intrinsicContentSize
@@ -85,11 +89,15 @@ extension NativeText: UIViewRepresentable {
 
         override func layoutSubviews() {
             super.layoutSubviews()
-            if bounds.size.width != lastWidth {
+            let resized = bounds.size.width != lastWidth
+            if resized {
                 lastWidth = bounds.size.width
                 invalidateIntrinsicContentSize()
             }
-            computeCopySpots()
+            if resized || overlayGeneration != contentGeneration {
+                overlayGeneration = contentGeneration
+                computeCopySpots()
+            }
         }
 
         // Walk MAXIMAL atomic runs (longestEffectiveRange; the plain

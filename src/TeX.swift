@@ -11,11 +11,32 @@ enum TeX {
     // without a context (HTML, plain text, the clipboard) skips this
     // and takes the Unicode form directly.
 
+    private struct LayoutKey: Hashable {
+        let tex: String
+        let size: CGFloat
+    }
+
+    private static let layoutLock = NSLock()
+    private static let layoutCapacity = 256
+    nonisolated(unsafe) private static var layouts: [LayoutKey: MathLayout?]
+        = [:]
+
     static func layout(_ tex: String, size: CGFloat) -> MathLayout? {
-        var settings = MathSettings()
-        settings.displayMode = true
-        settings.fontSize = size
-        return try? KaTeX.layout(tex, settings: settings)
+        let key = LayoutKey(tex: tex, size: size)
+        layoutLock.lock()
+        defer { layoutLock.unlock() }
+        let result: MathLayout?
+        if let known = layouts[key] {
+            result = known
+        } else {
+            var settings = MathSettings()
+            settings.displayMode = true
+            settings.fontSize = size
+            result = try? KaTeX.layout(tex, settings: settings)
+            if layouts.count >= layoutCapacity { layouts.removeAll() }
+            layouts.updateValue(result, forKey: key)
+        }
+        return result
     }
 
     // Display maths is set larger than the prose around it, the way a
@@ -289,12 +310,24 @@ enum TeX {
     }
 
     private static func replaceTokens(_ s: String) -> String {
-        var out = s
-        let pairs = tokenMap.sorted { a, b in a.key.count > b.key.count }
-        for (k, v) in pairs {
-            out = replaceToken(out, k, v)
+        let scalars = Array(s.unicodeScalars)
+        var out = String.UnicodeScalarView()
+        var i = 0
+        while i < scalars.count {
+            let taken = scalars[i] == "\\" ? expansion(scalars, at: i) : nil
+            if let taken {
+                out.append(contentsOf: taken.value.unicodeScalars)
+                i = taken.end
+            } else {
+                out.append(scalars[i])
+                i += 1
+            }
         }
-        return out
+        return String(out)
+    }
+
+    private static func isAsciiLetter(_ c: Unicode.Scalar) -> Bool {
+        (c >= "a" && c <= "z") || (c >= "A" && c <= "Z")
     }
 
     // A control word ends where a non-letter begins. Without that,
@@ -303,22 +336,28 @@ enum TeX {
     // KaTeX refuses a formula and this is all that is left. Keys that do
     // not end in a letter (\, \; \\) have no boundary to respect.
 
-    private static func replaceToken(_ s: String, _ key: String,
-                                     _ value: String) -> String {
-        var result = s
-        if let last = key.last, last.isLetter {
-            let pattern = NSRegularExpression.escapedPattern(for: key)
-                        + "(?![A-Za-z])"
-            if let re = try? NSRegularExpression(pattern: pattern) {
-                let ns = s as NSString
-                let full = NSRange(location: 0, length: ns.length)
-                result = re.stringByReplacingMatches(
-                    in: s, range: full,
-                    withTemplate:
-                        NSRegularExpression.escapedTemplate(for: value))
-            }
-        } else {
-            result = s.replacingOccurrences(of: key, with: value)
+    private static func controlWordEnd(_ s: [Unicode.Scalar],
+                                       at i: Int) -> Int {
+        var end = i + 1
+        if end < s.count, isAsciiLetter(s[end]) {
+            while end < s.count, isAsciiLetter(s[end]) { end += 1 }
+        } else if end < s.count {
+            end += 1
+        }
+        return end
+    }
+
+    private static func expansion(_ s: [Unicode.Scalar], at i: Int)
+        -> (value: String, end: Int)? {
+        let end = controlWordEnd(s, at: i)
+        var word = ""
+        word.unicodeScalars.append(contentsOf: s[i..<end])
+        var result: (value: String, end: Int)? = nil
+        if end + 2 < s.count, s[end] == "{", s[end + 2] == "}",
+           let braced = tokenMap[word + "{" + String(s[end + 1]) + "}"] {
+            result = (braced, end + 3)
+        } else if let plain = tokenMap[word] {
+            result = (plain, end)
         }
         return result
     }

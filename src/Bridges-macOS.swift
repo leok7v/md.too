@@ -137,14 +137,7 @@ extension NativeText: NSViewRepresentable {
     func updateNSView(_ v: ResizingTextView, context: Context) {
         v.nowrap = nowrap
         v.onCopySpots = onCopySpots
-        let next = resolved()
-        if let ts = v.textStorage, !ts.isEqual(to: next) {
-            ts.beginEditing()
-            applyIncremental(ts, next)
-            ts.endEditing()
-            v.invalidateIntrinsicContentSize()
-            v.reapplyFind()
-        }
+        v.applyResolved(resolved())
     }
 
     final class ResizingTextView: NSTextView, FindableTextView {
@@ -153,6 +146,8 @@ extension NativeText: NSViewRepresentable {
         weak var findController: MarkdownFindController?
         var onCopySpots: (([CopyBlockSpot]) -> Void)?
         private var lastBounds: NSSize = .zero
+        private var contentGeneration = 0
+        private var overlayGeneration = -1
         private var lastSpots: [CopyBlockSpot] = []
         private var findMatches: [NSRange] = []
         private var activeIndex: Int? = nil
@@ -160,6 +155,15 @@ extension NativeText: NSViewRepresentable {
         private var findCaseSensitive = false
 
         var liveFindCount: Int { findMatches.count }
+
+        func applyResolved(_ next: NSAttributedString) {
+            if let ts = textStorage, applyIncremental(ts, next) {
+                contentGeneration += 1
+                invalidateIntrinsicContentSize()
+                needsLayout = true
+                reapplyFind()
+            }
+        }
 
         // Concrete sRGB: a dynamic system color resolves to nil off a
         // trait environment and would abort the attribute set.
@@ -423,11 +427,15 @@ extension NativeText: NSViewRepresentable {
 
         override func layout() {
             super.layout()
-            if bounds.size != lastBounds {
+            let resized = bounds.size != lastBounds
+            if resized {
                 lastBounds = bounds.size
                 invalidateIntrinsicContentSize()
             }
-            computeCopySpots()
+            if resized || overlayGeneration != contentGeneration {
+                overlayGeneration = contentGeneration
+                computeCopySpots()
+            }
         }
 
         // Walk MAXIMAL atomic runs (longestEffectiveRange; the plain

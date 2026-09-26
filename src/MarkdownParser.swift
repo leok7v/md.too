@@ -17,7 +17,7 @@ enum ScriptAttribute: AttributedStringKey {
     static let name = "md.too.script"
 }
 
-enum Block {
+enum Block: Equatable {
     case heading(level: Int, text: AttributedString)
     case paragraph(AttributedString)
     case code(language: String?, text: String)
@@ -33,7 +33,7 @@ enum Block {
     case image(alt: String, url: URL, width: CGFloat?, height: CGFloat?)
 }
 
-struct ListItem {
+struct ListItem: Equatable {
     let marker: String
     let checked: Bool?
     let blocks: [Block]
@@ -52,6 +52,31 @@ enum Markdown {
         return Markdown.$currentRefs.withValue(refs) {
             parseBlocks(lines)
         }
+    }
+
+    private static let cellLock = NSLock()
+    nonisolated(unsafe) private static var cells: [String: [Block]] = [:]
+    private static let cellLimit = 4096
+
+    // A cell's parse depends on the cell alone, since parse() scopes the
+    // reference definitions to the text it is given, so every renderer
+    // that meets the same cell string can share one parse of it.
+
+    static func parseCell(_ cell: String) -> [Block] {
+        cellLock.lock()
+        let hit = cells[cell]
+        cellLock.unlock()
+        let result: [Block]
+        if let hit {
+            result = hit
+        } else {
+            result = parse(cell)
+            cellLock.lock()
+            if cells.count >= cellLimit { cells.removeAll() }
+            cells[cell] = result
+            cellLock.unlock()
+        }
+        return result
     }
 
     private static func parseBlocks(_ lines: [String]) -> [Block] {

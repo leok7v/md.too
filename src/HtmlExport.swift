@@ -172,7 +172,7 @@ enum HtmlExport {
     }
 
     private static func inlineFromCell(_ raw: String) -> String {
-        let parsed = Markdown.parse(raw)
+        let parsed = Markdown.parseCell(raw)
         var attr = AttributedString(raw)
         if let first = parsed.first, case .paragraph(let a) = first {
             attr = a

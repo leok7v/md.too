@@ -166,16 +166,24 @@ struct NativeText {
     let find: MarkdownFindController?
     let onCopySpots: (([CopyBlockSpot]) -> Void)?
 
+    // An NSAttributedString source is complete when it is built and
+    // reaches the text view as it is; an AttributedString source carries
+    // only intent and is styled here.
+
     func resolved() -> NSAttributedString {
-        let ns: NSMutableAttributedString
+        let result: NSAttributedString
         if let nsAttributed {
-            ns = NSMutableAttributedString(attributedString: nsAttributed)
+            result = nsAttributed
         } else if let attributed {
-            ns = NSMutableAttributedString(
-                attributedString: NSAttributedString(attributed))
+            result = styled(NSAttributedString(attributed))
         } else {
-            ns = NSMutableAttributedString(string: "")
+            result = NSAttributedString(string: "")
         }
+        return result
+    }
+
+    private func styled(_ source: NSAttributedString) -> NSAttributedString {
+        let ns = NSMutableAttributedString(attributedString: source)
         let full = NSRange(location: 0, length: ns.length)
         let baseFont = role.platformFont(scale: scale)
         ns.enumerateAttribute(.font, in: full, options: []) {
@@ -214,15 +222,21 @@ struct NativeText {
 // update instead of setAttributedString.
 
 func applyIncremental(_ storage: NSMutableAttributedString,
-                      _ next: NSAttributedString) {
+                      _ next: NSAttributedString) -> Bool {
     let curLen = storage.length
     let nextLen = next.length
     let p = sharedAttributedPrefix(storage, next)
     let s = sharedAttributedSuffix(storage, next, after: p)
-    storage.replaceCharacters(
-        in: NSRange(location: p, length: curLen - p - s),
-        with: next.attributedSubstring(
-            from: NSRange(location: p, length: nextLen - p - s)))
+    let changed = curLen - p - s > 0 || nextLen - p - s > 0
+    if changed {
+        storage.beginEditing()
+        storage.replaceCharacters(
+            in: NSRange(location: p, length: curLen - p - s),
+            with: next.attributedSubstring(
+                from: NSRange(location: p, length: nextLen - p - s)))
+        storage.endEditing()
+    }
+    return changed
 }
 
 // Length of the leading run where BOTH the characters and their

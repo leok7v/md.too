@@ -184,9 +184,12 @@ private struct CodeBlock: View {
 
     let text: String
     let language: String?
+    @Environment(\.textZoom) private var zoom
 
+    // Built at the zoom the environment carries, so a changed notch
+    // re-runs this body: the text view takes the string as built.
     var body: some View {
-        let baseFont = FontRole.mono.platformFont
+        let baseFont = FontRole.mono.platformFont(scale: zoom)
         let highlighted = Highlight.attribute(text,
                                               language: language,
                                               baseFont: baseFont)
@@ -292,31 +295,31 @@ private struct TableBlock: View {
     let headers: [String]
     let rows: [[String]]
     @State private var available: CGFloat = 0
+    @State private var measure = TableMeasure()
 
     var body: some View {
-        let h = headers.map { s in TableMetrics.normalize(s) }
-        let r = rows.map { row in
-            row.map { s in TableMetrics.normalize(s) }
-        }
-        let n = TableMetrics.columnCount(headers: h, rows: r)
-        let layout = columnLayout(n, headers: h, rows: r)
+        let t = measure.measured(headers: headers, rows: rows)
+        let layout = columnLayout(t)
         let fitWidth: CGFloat? = layout.constrained
             ? max(0, available - 16) : nil
         ScrollView(.horizontal, showsIndicators: !layout.constrained) {
             VStack(alignment: .leading, spacing: 0) {
-                if !h.isEmpty {
-                    rowView(h, bold: true,
+                if !t.headers.isEmpty {
+                    rowView(t.headers, bold: true,
                             shade: Color.primary.opacity(0.07),
-                            n: n, widths: layout.widths, wrap: layout.wrap,
+                            n: t.cols, widths: layout.widths,
+                            wrap: layout.wrap,
                             constrained: layout.constrained)
                     Divider()
                 }
-                ForEach(Array(r.enumerated()), id: \.offset) { idx, row in
+                ForEach(Array(t.rows.enumerated()),
+                        id: \.offset) { idx, row in
                     rowView(row, bold: false,
                             shade: idx % 2 == 1
                                 ? Color.primary.opacity(0.04)
                                 : Color.clear,
-                            n: n, widths: layout.widths, wrap: layout.wrap,
+                            n: t.cols, widths: layout.widths,
+                            wrap: layout.wrap,
                             constrained: layout.constrained)
                 }
             }
@@ -337,8 +340,7 @@ private struct TableBlock: View {
             if w > 0, w != available { available = w }
         }
         .overlay(alignment: .topTrailing) {
-            CopyButton(string:
-                TableMetrics.serializeMonospaced(headers: h, rows: r))
+            CopyButton(string: t.monospaced)
                 .padding(6)
         }
     }
@@ -351,71 +353,26 @@ private struct TableBlock: View {
     // ScrollView, which is already here for the natural-width case,
     // carries what does not show.
 
-    private func columnLayout(_ n: Int,
-                              headers h: [String],
-                              rows r: [[String]])
+    private func columnLayout(_ t: TableMeasure.Measured)
         -> (widths: [CGFloat]?, wrap: Bool, constrained: Bool) {
         var result: ([CGFloat]?, Bool, Bool) = (nil, false, false)
-        let usable = available - CGFloat(max(n - 1, 0)) * 12 - 16
-        if available > 0, n > 0 {
-            let natural = naturalColumnWidths(n, headers: h, rows: r)
-            let mins = minimumColumnWidths(n, headers: h, rows: r)
-            if natural.reduce(0, +) <= usable {
-                result = (natural, false, false)
-            } else if mins.reduce(0, +) > usable {
-                result = (mins, true, false)
+        let usable = available - CGFloat(max(t.cols - 1, 0)) * 12 - 16
+        if available > 0, t.cols > 0 {
+            if t.naturals.reduce(0, +) <= usable {
+                result = (t.naturals, false, false)
+            } else if t.minimums.reduce(0, +) > usable {
+                result = (t.minimums, true, false)
             } else {
-                let widths = TableMetrics.pointWidths(headers: h,
-                                                      rows: r,
+                let widths = TableMetrics.pointWidths(headers: t.headers,
+                                                      rows: t.rows,
                                                       available: usable,
-                                                      minimums: mins)
+                                                      minimums: t.minimums)
                 if !widths.isEmpty {
                     result = (widths, true, true)
                 }
             }
         }
         return result
-    }
-
-    private func minimumColumnWidths(_ n: Int,
-                                     headers h: [String],
-                                     rows r: [[String]]) -> [CGFloat] {
-        let attrs: [NSAttributedString.Key: Any] = [
-            .font: FontRole.body.platformFont
-        ]
-        var widths = [CGFloat](repeating: 0, count: n)
-        for c in 0..<n {
-            let word = TableMetrics.longestWord(headers: h,
-                                                rows: r, col: c)
-            let w = (word as NSString).size(withAttributes: attrs).width
-            widths[c] = ceil(w) + 4
-        }
-        return widths
-    }
-
-    private func naturalColumnWidths(_ n: Int,
-                                     headers h: [String],
-                                     rows r: [[String]]) -> [CGFloat] {
-        let body = FontRole.body.platformFont
-        let bold = boldFont(of: body)
-        let bodyAttrs: [NSAttributedString.Key: Any] = [.font: body]
-        let boldAttrs: [NSAttributedString.Key: Any] = [.font: bold]
-        var widths = [CGFloat](repeating: 0, count: n)
-        for c in 0..<n {
-            var maxW: CGFloat = 0
-            if c < h.count {
-                let s = (TeX.scriptsToUnicode(h[c]) as NSString)
-                    .size(withAttributes: boldAttrs).width
-                if s > maxW { maxW = s }
-            }
-            for row in r where c < row.count {
-                let s = (TeX.scriptsToUnicode(row[c]) as NSString)
-                    .size(withAttributes: bodyAttrs).width
-                if s > maxW { maxW = s }
-            }
-            widths[c] = ceil(maxW) + 4
-        }
-        return widths
     }
 
     private func rowView(_ cells: [String], bold: Bool, shade: Color,
@@ -441,7 +398,7 @@ private struct TableBlock: View {
     @ViewBuilder
     private func cell(_ text: String, bold: Bool,
                       width: CGFloat?, wrap: Bool) -> some View {
-        let parsed = Markdown.parse(text)
+        let parsed = Markdown.parseCell(text)
         if let first = parsed.first,
            case .image(let alt, let url, let w, let h) = first {
             ImageBlockView(alt: alt, url: url, width: w, height: h)
@@ -467,6 +424,76 @@ private struct TableBlock: View {
             result = a
         }
         return result
+    }
+
+}
+
+// One measure per table per body size: SwiftUI re-runs the table body
+// on every geometry pass, and sizing every cell each time was most of
+// what the pass cost.
+
+final class TableMeasure {
+
+    struct Measured {
+        let headers: [String]
+        let rows: [[String]]
+        let cols: Int
+        let naturals: [CGFloat]
+        let minimums: [CGFloat]
+        let monospaced: String
+    }
+
+    private var headers: [String] = []
+    private var rows: [[String]] = []
+    private var bodySize: CGFloat = 0
+    private var value = Measured(headers: [], rows: [], cols: 0,
+                                 naturals: [], minimums: [], monospaced: "")
+
+    func measured(headers: [String], rows: [[String]]) -> Measured {
+        let bodySize = FontRole.body.platformFont.pointSize
+        let stale = self.headers != headers || self.rows != rows ||
+                    self.bodySize != bodySize
+        if stale {
+            value = TableMeasure.measure(headers: headers, rows: rows)
+            self.headers = headers
+            self.rows = rows
+            self.bodySize = bodySize
+        }
+        return value
+    }
+
+    static func measure(headers: [String], rows: [[String]]) -> Measured {
+        let h = headers.map { s in TableMetrics.normalize(s) }
+        let r = rows.map { row in row.map { s in TableMetrics.normalize(s) } }
+        let n = TableMetrics.columnCount(headers: h, rows: r)
+        let body = FontRole.body.platformFont
+        let bodyAttrs: [NSAttributedString.Key: Any] = [.font: body]
+        let boldAttrs: [NSAttributedString.Key: Any] = [
+            .font: boldFont(of: body),
+        ]
+        var naturals = [CGFloat](repeating: 0, count: n)
+        var minimums = [CGFloat](repeating: 0, count: n)
+        for c in 0..<n {
+            var maxW: CGFloat = 0
+            if c < h.count {
+                let s = (TeX.scriptsToUnicode(h[c]) as NSString)
+                    .size(withAttributes: boldAttrs).width
+                if s > maxW { maxW = s }
+            }
+            for row in r where c < row.count {
+                let s = (TeX.scriptsToUnicode(row[c]) as NSString)
+                    .size(withAttributes: bodyAttrs).width
+                if s > maxW { maxW = s }
+            }
+            naturals[c] = ceil(maxW) + 4
+            let word = TableMetrics.longestWord(headers: h, rows: r, col: c)
+            let w = (word as NSString).size(withAttributes: bodyAttrs).width
+            minimums[c] = ceil(w) + 4
+        }
+        return Measured(headers: h, rows: r, cols: n, naturals: naturals,
+                        minimums: minimums,
+                        monospaced: TableMetrics.serializeMonospaced(
+                            headers: h, rows: r))
     }
 
 }

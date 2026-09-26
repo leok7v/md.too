@@ -7,7 +7,7 @@ private struct ViewportWidthKey: PreferenceKey {
     }
 }
 
-struct MarkdownView: View {
+struct MarkdownView: View, Equatable {
 
     let displayText: String
     let theme: ThemeMode
@@ -21,6 +21,16 @@ struct MarkdownView: View {
 
     @State private var documentImages: [URL: DocumentText.DocumentImage] = [:]
     @State private var viewport: CGFloat = 0
+    @State private var cache = DocumentText.RenderCache()
+
+    // Equatable so a host re-render that changed none of these (a find
+    // keystroke, a toolbar toggle) does not re-parse the document.
+    static func == (a: MarkdownView, b: MarkdownView) -> Bool {
+        a.displayText == b.displayText && a.theme == b.theme &&
+        a.showSource == b.showSource &&
+        a.singleSurface == b.singleSurface &&
+        a.find === b.find && a.zoom == b.zoom
+    }
 
     var body: some View {
         ScrollViewReader { proxy in
@@ -77,18 +87,28 @@ struct MarkdownView: View {
     private var documentTextView: some View {
         let blocks = Markdown.parse(displayText)
         let fits = max(viewport - 40, 0)
-        let need = DocumentText.minimumWidth(of: blocks)
+        let need = DocumentText.minimumWidth(of: blocks,
+                                             images: documentImages,
+                                             cache: cache)
         let width = max(fits, need)
+        let urls = ImagePrefetch.collectURLs(in: blocks)
         return ScrollView(.horizontal, showsIndicators: need > fits) {
             SelectableText(
                 nsAttributed: DocumentText.attributed(
-                    from: blocks, images: documentImages),
+                    from: blocks, images: documentImages, cache: cache),
                 role: .body, find: find)
                 .frame(width: viewport > 0 ? width : nil,
                        alignment: .leading)
         }
-        .task(id: displayText) {
-            documentImages = await prefetchDocumentImages(in: blocks)
+        // Keyed on the image URLs, not the text: a reload that touched
+        // no image fetches nothing.
+        .task(id: urls) {
+            let missing = urls.subtracting(documentImages.keys)
+            if !missing.isEmpty {
+                let fetched = await ImagePrefetch.fetchAndDecode(
+                    missing, decode: platformDocumentImage)
+                documentImages.merge(fetched) { _, fresh in fresh }
+            }
         }
     }
 

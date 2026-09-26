@@ -51,7 +51,7 @@ enum ImagePrefetch {
     static func imageInCell(_ cell: String)
         -> (URL, CGFloat?, CGFloat?)? {
         var result: (URL, CGFloat?, CGFloat?)? = nil
-        let parsed = Markdown.parse(cell)
+        let parsed = Markdown.parseCell(cell)
         if let first = parsed.first,
            case .image(_, let url, let width, let height) = first {
             result = (url, width, height)
@@ -62,7 +62,13 @@ enum ImagePrefetch {
     static func fetchAndDecode<T>(in blocks: [Block],
                                   decode: (Data) -> T?)
         async -> [URL: T] {
-        await fetch(collectURLs(in: blocks)).compactMapValues(decode)
+        await fetchAndDecode(collectURLs(in: blocks), decode: decode)
+    }
+
+    static func fetchAndDecode<T>(_ urls: Set<URL>,
+                                  decode: (Data) -> T?)
+        async -> [URL: T] {
+        await fetch(urls).compactMapValues(decode)
     }
 
     static func fetch(_ urls: Set<URL>) async -> [URL: Data] {

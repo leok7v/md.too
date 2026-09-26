@@ -136,19 +136,15 @@ extension DocumentText {
     // question nobody asked -- the shares are weighted by character
     // count, so the sum can be reached with a column still starved.
 
-    static func tableMinimumWidth(headers: [String],
-                                  rows: [[String]]) -> CGFloat {
+    static func tableMinimumWidth(_ cells: TableCells) -> CGFloat {
         var result: CGFloat = 0
-        let cols = max(headers.count, rows.map(\.count).max() ?? 0)
-        if cols > 0 {
-            let mins = columnMinimums(headers: headers, rows: rows,
-                                      cols: cols)
+        if cells.cols > 0 {
             let fractions = TableMetrics.pointWidths(
-                headers: headers, rows: rows,
-                available: contentBudget(cols: cols) / 100)
-            for c in 0..<cols where c < fractions.count
-                                    && fractions[c] > 0 {
-                let need = mins[c] / fractions[c]
+                headers: cells.headers, rows: cells.rows,
+                available: contentBudget(cols: cells.cols) / 100)
+            for c in 0..<cells.cols where c < fractions.count
+                                          && fractions[c] > 0 {
+                let need = cells.minimums[c] / fractions[c]
                 if need > result { result = need }
             }
             result = ceil(result)
@@ -160,12 +156,11 @@ extension DocumentText {
         max(100 - CGFloat(cols) * cellPad * 2, 50)
     }
 
-    static func table(headers: [String], rows: [[String]],
-                      images: [URL: DocumentImage]) -> NSAttributedString {
+    static func table(_ cells: TableCells, id: String) -> NSAttributedString {
         let m = NSMutableAttributedString()
-        let cols = max(headers.count, rows.map(\.count).max() ?? 0)
+        let cols = cells.cols
         if cols > 0 {
-            let atomicId = UUID().uuidString
+            let atomicId = id
             let textTable = NSTextTable()
             textTable.numberOfColumns = cols
             // Automatic, not fixed: fixed layout is CSS table-layout:
@@ -181,29 +176,27 @@ extension DocumentText {
             // columns are squeezed off the edge. Percentage padding
             // keeps that arithmetic in one unit.
             let budget = contentBudget(cols: cols)
-            let shares = TableMetrics.pointWidths(headers: headers,
-                                                  rows: rows,
+            let shares = TableMetrics.pointWidths(headers: cells.headers,
+                                                  rows: cells.rows,
                                                   available: budget)
             var rowIdx = 0
-            if !headers.isEmpty {
-                m.append(tableRow(cells: headers, table: textTable,
+            if !cells.header.isEmpty {
+                m.append(tableRow(cells: cells.header, table: textTable,
                                   rowIdx: rowIdx, cols: cols,
                                   shares: shares,
                                   bold: true,
                                   tint: platformWhite(0.5, alpha: 0.14),
-                                  atomicId: atomicId,
-                                  images: images))
+                                  atomicId: atomicId))
                 rowIdx += 1
             }
-            for (idx, row) in rows.enumerated() {
+            for (idx, row) in cells.body.enumerated() {
                 let tint: PlatformColor = idx % 2 == 1
                     ? platformWhite(0.5, alpha: 0.07) : platformClearColor
                 m.append(tableRow(cells: row, table: textTable,
                                   rowIdx: rowIdx, cols: cols,
                                   shares: shares,
                                   bold: false, tint: tint,
-                                  atomicId: atomicId,
-                                  images: images))
+                                  atomicId: atomicId))
                 rowIdx += 1
             }
             // One contiguous atomic kind / id / copy over the whole table
@@ -217,26 +210,27 @@ extension DocumentText {
             m.addAttribute(atomicIdKey, value: atomicId, range: content)
             m.addAttribute(atomicCopyKey,
                            value: TableMetrics.serializeMonospaced(
-                               headers: headers, rows: rows),
+                               headers: cells.headers, rows: cells.rows),
                            range: content)
             m.append(NSAttributedString(string: "\n"))
         }
         return m
     }
 
-    private static func tableRow(cells: [String],
+    private static func tableRow(cells: [TableCell],
                                  table: NSTextTable,
                                  rowIdx: Int, cols: Int,
                                  shares: [CGFloat],
                                  bold: Bool,
                                  tint: PlatformColor,
-                                 atomicId: String,
-                                 images: [URL: DocumentImage])
+                                 atomicId: String)
         -> NSAttributedString {
         let m = NSMutableAttributedString()
-        let base = bold ? boldFont(of: FontRole.body.platformFont) : FontRole.body.platformFont
+        let body = FontRole.body.platformFont
+        let base = bold ? boldFont(of: body) : body
         for col in 0..<cols {
-            let cellText = col < cells.count ? cells[col] : ""
+            let text = col < cells.count ? cells[col].text
+                                         : NSAttributedString()
             let block = NSTextTableBlock(table: table,
                                          startingRow: rowIdx, rowSpan: 1,
                                          startingColumn: col,
@@ -267,9 +261,7 @@ extension DocumentText {
             // posing the question does.
             para.lineBreakMode = .byWordWrapping
             para.textBlocks = [block]
-            let cellAttr = NSMutableAttributedString(
-                attributedString: tableCell(cellText, base: base,
-                                            images: images))
+            let cellAttr = NSMutableAttributedString(attributedString: text)
             if cellAttr.length == 0 {
                 cellAttr.append(NSAttributedString(
                     string: "\u{00A0}",

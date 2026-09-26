@@ -15,14 +15,127 @@ enum DocumentText {
 
     typealias DocumentImage = PlatformImage
 
+    // Keyed by the block's position, so a block that did not change keeps
+    // the text it was built into, atomic id included, and the splice into
+    // the text view stays O(delta).
+    final class RenderCache {
+        struct Entry {
+            let block: Block
+            let bodySize: CGFloat
+            let images: [URL: ObjectIdentifier]
+            let text: NSAttributedString
+        }
+
+        struct Minimum {
+            let block: Block
+            let bodySize: CGFloat
+            let width: CGFloat
+        }
+
+        struct Table {
+            let block: Block
+            let bodySize: CGFloat
+            let images: [URL: ObjectIdentifier]
+            let cells: TableCells
+        }
+
+        var entries: [Int: Entry] = [:]
+        var minimums: [Int: Minimum] = [:]
+        var tables: [Int: Table] = [:]
+    }
+
     static func attributed(from blocks: [Block],
-                           images: [URL: DocumentImage] = [:])
+                           images: [URL: DocumentImage] = [:],
+                           cache: RenderCache? = nil)
         -> NSAttributedString {
         let m = NSMutableAttributedString()
-        for block in blocks {
-            m.append(render(block, images: images))
+        let bodySize = FontRole.body.platformFont.pointSize
+        let seen = images.mapValues { image in ObjectIdentifier(image) }
+        var live: [Int: RenderCache.Entry] = [:]
+        for (i, block) in blocks.enumerated() {
+            var entry = cache?.entries[i]
+            let stale = entry?.block != block ||
+                        entry?.bodySize != bodySize || entry?.images != seen
+            if stale {
+                entry = RenderCache.Entry(
+                    block: block, bodySize: bodySize, images: seen,
+                    text: completed(render(block, at: i, images: images,
+                                           seen: seen, cache: cache)))
+            }
+            if let entry {
+                live[i] = entry
+                m.append(entry.text)
+            }
+        }
+        if let cache {
+            cache.entries = live
+            cache.tables = cache.tables.filter { pair in
+                live[pair.key] != nil
+            }
         }
         return m
+    }
+
+    // Every run leaves here with a font and a colour, so the text view
+    // takes the string as it is: the separators and the attachments the
+    // builders append bare would otherwise fall to TextKit's defaults.
+
+    private static func completed(_ text: NSAttributedString)
+        -> NSAttributedString {
+        let m = NSMutableAttributedString(attributedString: text)
+        let full = NSRange(location: 0, length: m.length)
+        let base = FontRole.body.platformFont
+        m.enumerateAttribute(.font, in: full, options: []) { value, r, _ in
+            if value == nil { m.addAttribute(.font, value: base, range: r) }
+        }
+        m.enumerateAttribute(.foregroundColor, in: full,
+                             options: []) { value, r, _ in
+            if value == nil {
+                m.addAttribute(.foregroundColor,
+                               value: platformDefaultTextColor, range: r)
+            }
+        }
+        return m
+    }
+
+    // A top-level table's cells are built once and read by the measure
+    // and the render alike; a table nested in a quote or a list builds
+    // its own on the way through render(_:id:images:).
+
+    private static func render(_ block: Block, at i: Int,
+                               images: [URL: DocumentImage],
+                               seen: [URL: ObjectIdentifier],
+                               cache: RenderCache?) -> NSAttributedString {
+        let result: NSAttributedString
+        if let cells = tableCells(of: block, at: i, images: images,
+                                  seen: seen, cache: cache) {
+            result = table(cells, id: String(i))
+        } else {
+            result = render(block, id: String(i), images: images)
+        }
+        return result
+    }
+
+    private static func tableCells(of block: Block, at i: Int,
+                                   images: [URL: DocumentImage],
+                                   seen: [URL: ObjectIdentifier],
+                                   cache: RenderCache?) -> TableCells? {
+        var result: TableCells? = nil
+        if case .table(let headers, let rows) = block {
+            let bodySize = FontRole.body.platformFont.pointSize
+            var known = cache?.tables[i]
+            let stale = known?.block != block ||
+                        known?.bodySize != bodySize || known?.images != seen
+            if stale {
+                known = RenderCache.Table(
+                    block: block, bodySize: bodySize, images: seen,
+                    cells: tableCells(headers: headers, rows: rows,
+                                      images: images))
+                cache?.tables[i] = known
+            }
+            result = known?.cells
+        }
+        return result
     }
 
     // The narrowest this document can be drawn before a table or a
@@ -33,7 +146,46 @@ enum DocumentText {
     // viewport is smaller. Zero for a document with neither, which is
     // the common case and leaves the text width-aligned to the window.
 
-    static func minimumWidth(of blocks: [Block]) -> CGFloat {
+    static func minimumWidth(of blocks: [Block],
+                             images: [URL: DocumentImage] = [:],
+                             cache: RenderCache? = nil) -> CGFloat {
+        var widest: CGFloat = 0
+        let bodySize = FontRole.body.platformFont.pointSize
+        let seen = images.mapValues { image in ObjectIdentifier(image) }
+        var live: [Int: RenderCache.Minimum] = [:]
+        for (i, block) in blocks.enumerated() {
+            var known = cache?.minimums[i]
+            let stale = known?.block != block || known?.bodySize != bodySize
+            if stale {
+                known = RenderCache.Minimum(
+                    block: block, bodySize: bodySize,
+                    width: minimumWidth(of: block, at: i, images: images,
+                                        seen: seen, cache: cache))
+            }
+            if let known {
+                live[i] = known
+                if known.width > widest { widest = known.width }
+            }
+        }
+        cache?.minimums = live
+        return widest
+    }
+
+    private static func minimumWidth(of block: Block, at i: Int,
+                                     images: [URL: DocumentImage],
+                                     seen: [URL: ObjectIdentifier],
+                                     cache: RenderCache?) -> CGFloat {
+        let result: CGFloat
+        if let cells = tableCells(of: block, at: i, images: images,
+                                  seen: seen, cache: cache) {
+            result = tableMinimumWidth(cells)
+        } else {
+            result = minimumWidth(ofBlock: block)
+        }
+        return result
+    }
+
+    private static func widestMinimum(in blocks: [Block]) -> CGFloat {
         var widest: CGFloat = 0
         for block in blocks {
             let w = minimumWidth(ofBlock: block)
@@ -50,10 +202,10 @@ enum DocumentText {
             case .math(let tex):
                 result = mathMinimumWidth(tex)
             case .quote(let inner):
-                result = indented(minimumWidth(of: inner), by: 18)
+                result = indented(widestMinimum(in: inner), by: 18)
             case .list(let items, _):
                 for item in items {
-                    let w = indented(minimumWidth(of: item.blocks), by: 20)
+                    let w = indented(widestMinimum(in: item.blocks), by: 20)
                     if w > result { result = w }
                 }
             default:
@@ -89,23 +241,117 @@ enum DocumentText {
         inner > 0 ? inner + amount : 0
     }
 
-    // Widest token a column must be able to hold, measured on the text
-    // that will be DRAWN rather than the markdown that was typed: a link
-    // shows its label, not its href, and a cell holding an image shows
-    // no words at all. Measuring the source instead turns one image URL
-    // into a demand for two thousand points.
-    //
+    static func tableMinimumWidth(headers: [String],
+                                  rows: [[String]]) -> CGFloat {
+        tableMinimumWidth(tableCells(headers: headers, rows: rows,
+                                     images: [:]))
+    }
+
+    static func table(headers: [String], rows: [[String]], id: String,
+                      images: [URL: DocumentImage]) -> NSAttributedString {
+        table(tableCells(headers: headers, rows: rows, images: images),
+              id: id)
+    }
+
+    struct TableCell {
+        let text: NSAttributedString
+        let minimum: CGFloat
+    }
+
+    struct TableCells {
+        let headers: [String]
+        let rows: [[String]]
+        let cols: Int
+        let header: [TableCell]
+        let body: [[TableCell]]
+        let minimums: [CGFloat]
+    }
+
+    static func tableCells(headers: [String], rows: [[String]],
+                           images: [URL: DocumentImage]) -> TableCells {
+        let body = FontRole.body.platformFont
+        let bold = boldFont(of: body)
+        let cols = max(headers.count, rows.map { r in r.count }.max() ?? 0)
+        let header = headers.map { cell in
+            tableCell(cell, base: bold, images: images)
+        }
+        let built = rows.map { row in
+            row.map { cell in tableCell(cell, base: body, images: images) }
+        }
+        var minimums = [CGFloat](repeating: 0, count: cols)
+        for row in [header] + built {
+            for (c, cell) in row.enumerated() where c < cols {
+                if cell.minimum > minimums[c] { minimums[c] = cell.minimum }
+            }
+        }
+        return TableCells(headers: headers, rows: rows, cols: cols,
+                          header: header, body: built,
+                          minimums: minimums.map { w in ceil(w) })
+    }
+
+    // The minimum is the widest token the cell will DRAW, not the markdown
+    // that was typed: a link shows its label, not its href, and a cell
+    // holding an image shows no words at all. Measuring the source instead
+    // turns one image URL into a demand for two thousand points.
+
+    static func tableCell(_ text: String, base: PlatformFont,
+                          images: [URL: DocumentImage]) -> TableCell {
+        let m = NSMutableAttributedString()
+        var drawn = TeX.scriptsToUnicode(text)
+        if let first = Markdown.parseCell(text).first {
+            switch first {
+                case .image(let alt, let url, let w, let h):
+                    appendImage(alt: alt, url: url, width: w, height: h,
+                                base: base, images: images, into: m)
+                    drawn = ""
+                case .paragraph(let attr):
+                    translateInline(attr, base: base, into: m)
+                    drawn = String(attr.characters)
+                default:
+                    m.append(NSAttributedString(
+                        string: text,
+                        attributes: [
+                            .font: base,
+                            .foregroundColor: platformDefaultTextColor,
+                        ]))
+            }
+        }
+        return TableCell(text: m,
+                         minimum: longestWordWidth(drawn, font: base))
+    }
+
+    private static func appendImage(alt: String, url: URL, width: CGFloat?,
+                                    height: CGFloat?, base: PlatformFont,
+                                    images: [URL: DocumentImage],
+                                    into m: NSMutableAttributedString) {
+        if let img = images[url] {
+            let attachment = NSTextAttachment()
+            attachment.image = img
+            attachment.bounds = imageBounds(img, width: width,
+                                            height: height)
+            m.append(NSAttributedString(attachment: attachment))
+        } else {
+            let label = alt.isEmpty ? url.absoluteString : alt
+            m.append(NSAttributedString(
+                string: "[Image: \(label)]",
+                attributes: [
+                    .font: base,
+                    .foregroundColor: platformSecondaryColor,
+                ]))
+        }
+    }
+
     // Measured against the WIDEST face the cell could end up in, not the
     // one it probably will. A run marked as code becomes monospaced and
     // one marked strong becomes bold, either of which outgrows the plain
     // body face -- and a token that outgrows its column is exactly the
     // thing this number exists to prevent.
 
-    static func longestWordWidth(_ cell: String,
-                                 font: PlatformFont) -> CGFloat {
+    private static func longestWordWidth(_ drawn: String,
+                                         font: PlatformFont) -> CGFloat {
         var widest: CGFloat = 0
         let faces = widestFaces(of: font)
-        for word in renderedText(of: cell).split(separator: " ") {
+        for word in drawn.split(separator: " ") {
             let ns = String(word) as NSString
             for face in faces {
                 let w = ns.size(withAttributes: [.font: face]).width
@@ -121,39 +367,8 @@ enum DocumentText {
          monoFont(at: base.pointSize)]
     }
 
-    private static func renderedText(of cell: String) -> String {
-        var result = TeX.scriptsToUnicode(cell)
-        if let first = Markdown.parse(cell).first {
-            switch first {
-                case .paragraph(let a): result = String(a.characters)
-                case .image: result = ""
-                default: break
-            }
-        }
-        return result
-    }
-
-    static func columnMinimums(headers: [String], rows: [[String]],
-                               cols: Int) -> [CGFloat] {
-        let body = FontRole.body.platformFont
-        let bold = boldFont(of: body)
-        var out = [CGFloat](repeating: 0, count: cols)
-        for c in 0..<cols {
-            var widest: CGFloat = 0
-            if c < headers.count {
-                let w = longestWordWidth(headers[c], font: bold)
-                if w > widest { widest = w }
-            }
-            for row in rows where c < row.count {
-                let w = longestWordWidth(row[c], font: body)
-                if w > widest { widest = w }
-            }
-            out[c] = ceil(widest)
-        }
-        return out
-    }
-
-    private static func render(_ block: Block, images: [URL: DocumentImage])
+    private static func render(_ block: Block, id: String,
+                               images: [URL: DocumentImage])
                                -> NSAttributedString {
         var result: NSAttributedString
         switch block {
@@ -162,64 +377,24 @@ enum DocumentText {
             case .heading(let level, let attr):
                 result = heading(level: level, text: attr)
             case .code(let lang, let text):
-                result = code(language: lang, text: text)
+                result = code(language: lang, text: text, id: id)
             case .quote(let inner):
-                result = quote(inner, images: images)
+                result = quote(inner, id: id, images: images)
             case .list(let items, let tight):
-                result = list(items: items, tight: tight, depth: 0,
+                result = list(items: items, tight: tight, depth: 0, id: id,
                               images: images)
             case .table(let headers, let rows):
-                result = table(headers: headers, rows: rows, images: images)
+                result = table(headers: headers, rows: rows, id: id,
+                               images: images)
             case .math(let tex):
-                result = math(tex)
+                result = math(tex, id: id)
             case .rule:
                 result = rule()
             case .image(let alt, let url, let w, let h):
                 result = image(alt: alt, url: url, width: w, height: h,
-                               images: images)
+                               id: id, images: images)
         }
         return result
-    }
-
-    static func tableCell(_ text: String,
-                          base: PlatformFont,
-                          images: [URL: DocumentImage])
-        -> NSAttributedString {
-        let parsed = Markdown.parse(text)
-        let m = NSMutableAttributedString()
-        if let first = parsed.first {
-            switch first {
-                case .image(let alt, let url, let w, let h):
-                    if let img = images[url] {
-                        let attachment = NSTextAttachment()
-                        attachment.image = img
-                        attachment.bounds = imageBounds(img,
-                                                        width: w,
-                                                        height: h)
-                        m.append(NSAttributedString(
-                            attachment: attachment))
-                    } else {
-                        let label = alt.isEmpty
-                            ? url.absoluteString : alt
-                        m.append(NSAttributedString(
-                            string: "[Image: \(label)]",
-                            attributes: [
-                                .font: base,
-                                .foregroundColor: platformSecondaryColor,
-                            ]))
-                    }
-                case .paragraph(let attr):
-                    translateInline(attr, base: base, into: m)
-                default:
-                    m.append(NSAttributedString(
-                        string: text,
-                        attributes: [
-                            .font: base,
-                            .foregroundColor: platformDefaultTextColor,
-                        ]))
-            }
-        }
-        return m
     }
 
     // A display sits in its own centred paragraph, carrying the TeX it
@@ -228,7 +403,7 @@ enum DocumentText {
     // hand over. Same contract as a code fence or a table, so the copy
     // overlay needs nothing new.
 
-    private static func math(_ tex: String) -> NSAttributedString {
+    private static func math(_ tex: String, id: String) -> NSAttributedString {
         let base = FontRole.body.platformFont
         let m = NSMutableAttributedString()
         let size = TeX.displaySize(body: base.pointSize)
@@ -241,7 +416,7 @@ enum DocumentText {
         let content = NSRange(location: 0, length: m.length)
         m.addAttribute(atomicKindKey,
                        value: AtomicKind.math.rawValue, range: content)
-        m.addAttribute(atomicIdKey, value: UUID().uuidString, range: content)
+        m.addAttribute(atomicIdKey, value: id, range: content)
         m.addAttribute(atomicCopyKey, value: tex, range: content)
         m.append(NSAttributedString(string: "\n"))
         let para = NSMutableParagraphStyle()
@@ -253,11 +428,12 @@ enum DocumentText {
         return m
     }
 
-    private static func quote(_ blocks: [Block], images: [URL: DocumentImage])
+    private static func quote(_ blocks: [Block], id: String,
+                              images: [URL: DocumentImage])
                               -> NSAttributedString {
         let m = NSMutableAttributedString()
-        for inner in blocks {
-            m.append(render(inner, images: images))
+        for (i, inner) in blocks.enumerated() {
+            m.append(render(inner, id: id + "." + String(i), images: images))
         }
         let full = NSRange(location: 0, length: m.length)
         m.enumerateAttribute(.paragraphStyle,
@@ -277,7 +453,7 @@ enum DocumentText {
     }
 
     private static func list(items: [ListItem], tight: Bool, depth: Int,
-                            images: [URL: DocumentImage])
+                             id: String, images: [URL: DocumentImage])
         -> NSAttributedString {
         let m = NSMutableAttributedString()
         let indent = CGFloat(depth + 1) * 20
@@ -293,13 +469,14 @@ enum DocumentText {
                 para.paragraphSpacing = blockSpacing
             }
             m.append(listItem(item, para: para, tight: tight,
-                              depth: depth, images: images))
+                              depth: depth, id: id + "." + String(idx),
+                              images: images))
         }
         return m
     }
 
     private static func listItem(_ item: ListItem, para: NSParagraphStyle,
-                                 tight: Bool, depth: Int,
+                                 tight: Bool, depth: Int, id: String,
                                  images: [URL: DocumentImage])
         -> NSAttributedString {
         let marker: String
@@ -329,7 +506,7 @@ enum DocumentText {
                     headHandled = true
                 case .list(let inner, let innerTight):
                     line.append(list(items: inner, tight: innerTight,
-                                     depth: depth + 1,
+                                     depth: depth + 1, id: id + ".0",
                                      images: images))
                     headHandled = true
                 default:
@@ -337,17 +514,20 @@ enum DocumentText {
             }
         }
         if !headHandled, let first = item.blocks.first {
-            line.append(render(first, images: images))
+            line.append(render(first, id: id + ".0", images: images))
         }
         line.append(NSAttributedString(string: "\n"))
         let contIndent = para.headIndent
-        for rest in item.blocks.dropFirst() {
+        for (k, rest) in item.blocks.enumerated().dropFirst() {
+            let restId = id + "." + String(k)
             if case .list(let inner, let innerTight) = rest {
                 line.append(list(items: inner, tight: innerTight,
-                                 depth: depth + 1, images: images))
+                                 depth: depth + 1, id: restId,
+                                 images: images))
             } else {
                 let rendered = NSMutableAttributedString(
-                    attributedString: render(rest, images: images))
+                    attributedString: render(rest, id: restId,
+                                             images: images))
                 let full = NSRange(location: 0, length: rendered.length)
                 rendered.enumerateAttribute(.paragraphStyle, in: full,
                                             options: []) { value, r, _ in
@@ -367,8 +547,9 @@ enum DocumentText {
     }
 
     private static func image(alt: String, url: URL, width: CGFloat?,
-                           height: CGFloat?, images: [URL: DocumentImage])
-                                -> NSAttributedString {
+                              height: CGFloat?, id: String,
+                              images: [URL: DocumentImage])
+                              -> NSAttributedString {
         var result: NSAttributedString
         if let img = images[url] {
             let attachment = NSTextAttachment()
@@ -379,7 +560,7 @@ enum DocumentText {
             let full = NSRange(location: 0, length: m.length)
             m.addAttribute(atomicKindKey,
                            value: AtomicKind.image.rawValue, range: full)
-            m.addAttribute(atomicIdKey, value: UUID().uuidString, range: full)
+            m.addAttribute(atomicIdKey, value: id, range: full)
             m.addAttribute(.paragraphStyle, value: blockParagraph(),
                            range: full)
             m.append(NSAttributedString(string: "\n"))
@@ -390,7 +571,7 @@ enum DocumentText {
                 .font: FontRole.body.platformFont,
                 .foregroundColor: platformSecondaryColor,
                 atomicKindKey: AtomicKind.image.rawValue,
-                atomicIdKey: UUID().uuidString,
+                atomicIdKey: id,
             ]
             result = NSAttributedString(
                 string: "[Image: \(label)]\n\n", attributes: attrs)
@@ -409,7 +590,7 @@ enum DocumentText {
         return CGRect(x: 0, y: 0, width: fit.width, height: fit.height)
     }
 
-    private static func code(language: String?, text: String)
+    private static func code(language: String?, text: String, id: String)
                                     -> NSAttributedString {
         let baseFont = monospaceFont()
         let highlighted = Highlight.attribute(text, language: language,
@@ -428,7 +609,7 @@ enum DocumentText {
                        value: platformWhite(0.5, alpha: 0.10), range: full)
         m.addAttribute(atomicKindKey,
                        value: AtomicKind.code.rawValue, range: full)
-        m.addAttribute(atomicIdKey, value: UUID().uuidString, range: full)
+        m.addAttribute(atomicIdKey, value: id, range: full)
         m.addAttribute(atomicCopyKey, value: text, range: full)
         m.append(NSAttributedString(string: "\n"))
         return m

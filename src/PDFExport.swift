@@ -18,12 +18,6 @@ enum TempPDFs {
     }
 }
 
-func prefetchDocumentImages(in blocks: [Block])
-    async -> [URL: DocumentText.DocumentImage] {
-    await ImagePrefetch.fetchAndDecode(in: blocks,
-                                       decode: platformDocumentImage)
-}
-
 func exportPDFDataSync(text: String, title: String) -> Data? {
     let blocks = Markdown.parse(text)
     return PDFExport.data(blocks: blocks, title: title)

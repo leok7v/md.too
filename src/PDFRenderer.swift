@@ -469,17 +469,20 @@ final class PDFRenderer {
             colWidths = colWidths.map { v in v * scale }
         }
         func drawRow(_ cells: [String], bold: Bool, shade: CGColor?) {
+            let built = (0..<cols).map { c in
+                cellContent(c < cells.count ? cells[c] : "", bold: bold)
+            }
             var rowH: CGFloat = scaledBodySize * 1.3
             for c in 0..<cols {
-                let txt = c < cells.count ? cells[c] : ""
                 let cellW = colWidths[c] - 2 * cellPad
                 var h: CGFloat = 0
-                if let info = ImagePrefetch.imageInCell(txt),
-                   let cg = images[info.0] {
-                    h = predictImageHeight(cg, maxWidth: cellW,
-                        explicitWidth: info.1, explicitHeight: info.2)
-                } else {
-                    h = textCellHeight(txt, bold: bold, width: cellW)
+                switch built[c] {
+                    case .picture(let cg, let ew, let eh):
+                        h = predictImageHeight(cg, maxWidth: cellW,
+                                               explicitWidth: ew,
+                                               explicitHeight: eh)
+                    case .text(let inner):
+                        h = textCellHeight(inner, width: cellW)
                 }
                 if h > rowH { rowH = h }
             }
@@ -495,28 +498,20 @@ final class PDFRenderer {
             var maxUsed: CGFloat = 0
             var x = contentLeft
             for c in 0..<cols {
-                let txt = c < cells.count ? cells[c] : ""
                 let xL = x + cellPad
                 let cellW = colWidths[c] - 2 * cellPad
-                if let info = ImagePrefetch.imageInCell(txt),
-                   let cg = images[info.0] {
-                    let used = drawCellImage(cg, x: xL, topY: savedY,
-                        maxWidth: cellW,
-                        explicitWidth: info.1, explicitHeight: info.2)
-                    if used > maxUsed { maxUsed = used }
-                } else {
-                    let inner = cellAttributed(txt, bold: bold)
-                    let fs = CTFramesetterCreateWithAttributedString(inner)
-                    let rect = CGRect(x: xL, y: contentBottom,
-                                      width: cellW,
-                                      height: savedY - contentBottom)
-                    let path = CGPath(rect: rect, transform: nil)
-                    let frame = CTFramesetterCreateFrame(fs,
-                        CFRange(location: 0, length: 0), path, nil)
-                    let used = lineHeightUsed(frame: frame, in: rect)
-                    CTFrameDraw(frame, ctx)
-                    if used > maxUsed { maxUsed = used }
+                var used: CGFloat = 0
+                switch built[c] {
+                    case .picture(let cg, let ew, let eh):
+                        used = drawCellImage(cg, x: xL, topY: savedY,
+                                             maxWidth: cellW,
+                                             explicitWidth: ew,
+                                             explicitHeight: eh)
+                    case .text(let inner):
+                        used = drawCellText(inner, x: xL, topY: savedY,
+                                            width: cellW)
                 }
+                if used > maxUsed { maxUsed = used }
                 x += colWidths[c]
             }
             y = savedY - maxUsed - rowPad
@@ -547,6 +542,37 @@ final class PDFRenderer {
             drawRow(row, bold: false,
                     shade: idx % 2 == 1 ? rowShadeColor : nil)
         }
+    }
+
+    private enum CellContent {
+        case text(NSAttributedString)
+        case picture(CGImage, CGFloat?, CGFloat?)
+    }
+
+    // Built once per cell, for the height pass and the draw alike.
+
+    private func cellContent(_ txt: String, bold: Bool) -> CellContent {
+        var result: CellContent
+        if let info = ImagePrefetch.imageInCell(txt),
+           let cg = images[info.0] {
+            result = .picture(cg, info.1, info.2)
+        } else {
+            result = .text(cellAttributed(txt, bold: bold))
+        }
+        return result
+    }
+
+    private func drawCellText(_ inner: NSAttributedString, x: CGFloat,
+                              topY: CGFloat, width: CGFloat) -> CGFloat {
+        let fs = CTFramesetterCreateWithAttributedString(inner)
+        let rect = CGRect(x: x, y: contentBottom, width: width,
+                          height: topY - contentBottom)
+        let path = CGPath(rect: rect, transform: nil)
+        let frame = CTFramesetterCreateFrame(
+            fs, CFRange(location: 0, length: 0), path, nil)
+        let used = lineHeightUsed(frame: frame, in: rect)
+        CTFrameDraw(frame, ctx)
+        return used
     }
 
     private func imageDrawSize(_ cg: CGImage, maxWidth: CGFloat,
@@ -601,7 +627,7 @@ final class PDFRenderer {
 
     private func cellAttributed(_ text: String,
                                 bold: Bool) -> NSAttributedString {
-        let parsed = Markdown.parse(text)
+        let parsed = Markdown.parseCell(text)
         var attr = AttributedString(text)
         if let first = parsed.first, case .paragraph(let a) = first {
             attr = a
@@ -658,9 +684,8 @@ final class PDFRenderer {
         return width / CGFloat(sample.count)
     }
 
-    private func textCellHeight(_ txt: String, bold: Bool,
+    private func textCellHeight(_ inner: NSAttributedString,
                                 width: CGFloat) -> CGFloat {
-        let inner = cellAttributed(txt, bold: bold)
         let fs = CTFramesetterCreateWithAttributedString(inner)
         let rect = CGRect(x: 0, y: 0, width: width, height: pageSize.height)
         let path = CGPath(rect: rect, transform: nil)
@@ -709,8 +734,11 @@ final class PDFRenderer {
         let wanted = TeX.displaySize(body: bodySize)
         var result = TeX.layout(tex, size: wanted)
         if let first = result, first.width > contentWidth, first.width > 0 {
-            let fitted = wanted * contentWidth / first.width
-            result = TeX.layout(tex, size: max(fitted, wanted * 0.5))
+            let fitted = max(wanted * contentWidth / first.width,
+                             wanted * 0.5)
+            let step: CGFloat = 0.25
+            result = TeX.layout(tex, size: (fitted / step).rounded(.down)
+                                           * step)
         }
         return result
     }
