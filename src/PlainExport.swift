@@ -28,9 +28,9 @@ enum PlainExport {
                     .joined(separator: "\n") + "\n"
             case .list(let items, let tight):
                 return renderList(items, tight: tight)
-            case .table(let h, let rows):
+            case .table(let h, let rows, let alignments):
                 return TableMetrics.serializeMonospaced(
-                    headers: h, rows: rows)
+                    headers: h, rows: rows, alignments: alignments)
             case .math(let tex):
                 // The source, not the rendering. Everything else this
                 // exporter emits is markdown -- # for headings, > for
@@ -110,7 +110,9 @@ enum PlainExport {
                 out += escaped(segment)
             }
         }
-        return out.replacingOccurrences(of: "\n", with: "  \n")
+        return out.replacingOccurrences(of: "[ \t]*\u{2028}[ \t]*",
+                                        with: "  \n",
+                                        options: .regularExpression)
     }
 
     // The characters the parser would read as markup go back out

@@ -27,8 +27,9 @@ struct BlockView: View {
                 }
             case .list(let items, let tight):
                 ListBlock(items: items, tight: tight)
-            case .table(let headers, let rows):
-                TableBlock(headers: headers, rows: rows)
+            case .table(let headers, let rows, let alignments):
+                TableBlock(headers: headers, rows: rows,
+                           alignments: alignments)
             case .math(let tex):
                 MathBlock(tex: tex)
             case .rule:
@@ -294,11 +295,13 @@ private struct TableBlock: View {
 
     let headers: [String]
     let rows: [[String]]
+    let alignments: [Alignment]
     @State private var available: CGFloat = 0
     @State private var measure = TableMeasure()
 
     var body: some View {
-        let t = measure.measured(headers: headers, rows: rows)
+        let t = measure.measured(headers: headers, rows: rows,
+                                 alignments: alignments)
         let layout = columnLayout(t)
         let fitWidth: CGFloat? = layout.constrained
             ? max(0, available - 16) : nil
@@ -382,7 +385,8 @@ private struct TableBlock: View {
         return HStack(alignment: .top, spacing: 12) {
             ForEach(Array(0..<n), id: \.self) { i in
                 let text = i < cells.count ? cells[i] : ""
-                cell(text, bold: bold, width: widths?[i], wrap: wrap)
+                cell(text, bold: bold, width: widths?[i], wrap: wrap,
+                     alignment: frameAlignment(i))
             }
         }
         .frame(maxWidth: fill, alignment: .leading)
@@ -395,19 +399,31 @@ private struct TableBlock: View {
     // arithmetic being wrong, and a truncated tail is recoverable where
     // text drawn across the next column is not.
 
+    private func frameAlignment(_ col: Int) -> SwiftUI.Alignment {
+        let a = col < alignments.count ? alignments[col] : .none
+        let result: SwiftUI.Alignment
+        switch a {
+            case .center: result = .center
+            case .right: result = .trailing
+            case .left, .none: result = .leading
+        }
+        return result
+    }
+
     @ViewBuilder
     private func cell(_ text: String, bold: Bool,
-                      width: CGFloat?, wrap: Bool) -> some View {
+                      width: CGFloat?, wrap: Bool,
+                      alignment: SwiftUI.Alignment) -> some View {
         let parsed = Markdown.parseCell(text)
         if let first = parsed.first,
            case .image(let alt, let url, let w, let h) = first {
             ImageBlockView(alt: alt, url: url, width: w, height: h)
-                .frame(width: width, alignment: .leading)
+                .frame(width: width, alignment: alignment)
                 .clipped()
         } else if let width {
             SelectableText(attributed: cellAttributed(text, parsed: parsed),
                            role: .body, nowrap: !wrap, bold: bold)
-                .frame(width: width, alignment: .leading)
+                .frame(width: width, alignment: alignment)
                 .clipped()
         } else {
             SelectableText(attributed: cellAttributed(text, parsed: parsed),
@@ -445,24 +461,30 @@ final class TableMeasure {
 
     private var headers: [String] = []
     private var rows: [[String]] = []
+    private var alignments: [Alignment] = []
     private var bodySize: CGFloat = 0
     private var value = Measured(headers: [], rows: [], cols: 0,
                                  naturals: [], minimums: [], monospaced: "")
 
-    func measured(headers: [String], rows: [[String]]) -> Measured {
+    func measured(headers: [String], rows: [[String]],
+                  alignments: [Alignment]) -> Measured {
         let bodySize = FontRole.body.platformFont.pointSize
         let stale = self.headers != headers || self.rows != rows ||
+                    self.alignments != alignments ||
                     self.bodySize != bodySize
         if stale {
-            value = TableMeasure.measure(headers: headers, rows: rows)
+            value = TableMeasure.measure(headers: headers, rows: rows,
+                                         alignments: alignments)
             self.headers = headers
             self.rows = rows
+            self.alignments = alignments
             self.bodySize = bodySize
         }
         return value
     }
 
-    static func measure(headers: [String], rows: [[String]]) -> Measured {
+    static func measure(headers: [String], rows: [[String]],
+                        alignments: [Alignment]) -> Measured {
         let h = headers.map { s in TableMetrics.normalize(s) }
         let r = rows.map { row in row.map { s in TableMetrics.normalize(s) } }
         let n = TableMetrics.columnCount(headers: h, rows: r)
@@ -493,7 +515,7 @@ final class TableMeasure {
         return Measured(headers: h, rows: r, cols: n, naturals: naturals,
                         minimums: minimums,
                         monospaced: TableMetrics.serializeMonospaced(
-                            headers: h, rows: r))
+                            headers: h, rows: r, alignments: alignments))
     }
 
 }

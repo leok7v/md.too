@@ -74,7 +74,7 @@ paragraph: There are still limits. No |\\def{c}| or |\\newcommand{c}|, no |\\col
 === example-4-footprints
 heading 2: Footprints|
 paragraph: A few napkin numbers for context. Sizes are rough installer or app bundle measurements on macOS and they drift; spirit holds.|
-table 3x6:
+table 3x6: left,right,left
   h: [Tool] [Approximate size] [What it edits]
   r: [`vi`] [1 MB] [anything plain]
   r: [`nano`] [2 MB] [anything plain]
@@ -153,16 +153,16 @@ list tight:
     paragraph: List item with a |link{link=https://swift.org}|.|
   item 3.:
     paragraph: code only item{c}|
-table 2x4:
+table 2x4: none,none
   h: [Description] [Example]
   r: [Code in a cell] [`let x = 1`]
   r: [Link in a cell] [[click](https://example.com)]
   r: [Bold and italic in cell] [***strong***]
   r: [Empty cell] []
-paragraph: Hard line breaks still work. The next sentence ends with two trailing spaces\nso this part starts on its own line, no paragraph gap, no fuss.|
+paragraph: Hard line breaks still work. The next sentence ends with two trailing spaces\u2028so this part starts on its own line, no paragraph gap, no fuss.|
 paragraph: You can also |underline through raw HTML{u}| and |strike things out{s}| when the situation calls for it. We try not to call for it.|
 paragraph: Markdown has no spelling for subscript or superscript, so the raw HTML tags carry those too: water is H|2{sub}|O, a hectare is 10|4{sup}| m|2{sup}|, and a rate constant is k|obs{sub}|. They nest, so m|DO2{sub}| reads the way it was written. Both work inside table cells, where scientific notation usually lands:|
-table 2x3:
+table 2x3: none,none
   h: [Quantity] [Value]
   r: [A [m<sup>2</sup>]] [80]
   r: [K<sub>a</sub> [m<sup>2</sup>/g]] [0.1]
@@ -172,14 +172,22 @@ paragraph: Copy that table as plain text and the scripts come back as Unicode, b
 heading 2: A picture is worth a few hundred bytes|
 paragraph: Block level images load from any URL the document points at. If the load fails, we render a captioned placeholder so the layout never collapses around a missing image. A trailing |\{width=NNN\}{c}| (GitLab style) caps the rendered width; |\{height=NNN\}{c}| does the obvious thing.|
 paragraph: Images can also live inside table cells, one image per cell. Setting the same |height{c}| on both lines them up at the same vertical extent even though one is portrait and the other landscape:|
-table 2x2:
+table 2x2: center,center
   h: [Renaissance] [Apollo]
   r: [![Mona Lisa](https://dn710208.ca.archive.org/0/items/mona-lisa-by-leonardo-da-vinci-from-c-2-rmf-retouched/Mona_Lisa%2C_by_Leonardo_da_Vinci%2C_from_C2RMF_retouched.jpg)\{height=200\}] [![Earthrise](https://archive.org/download/297755main_GPN-2001-000009_full/297755main_GPN-2001-000009_full.jpg)\{height=200\}]
   r: [Internet Archive] [NASA]
 paragraph: The next image points to a deliberately broken URL so you can see the captioned-placeholder fallback. Layout doesn't collapse around the missing content; the alt text becomes a small box with a photo icon and the caption right where the image would have gone:|
 image alt=image not found url=https://example.com/some-image.png w=- h=-
 rule
-=== example-9-memory-and-performance
+=== example-9-html-the-models-write
+heading 2: HTML the models write|
+paragraph: Markdown has no spelling for a few things, so a model, or a README author, reaches for HTML. The short list that is understood: a line break (\u2028) inside a paragraph\u2028like this one, |small print{small}|, |Cmd{c}|-|C{c}| for a key, |bold{b}| and |italic{i}| the old way, and a link written as |a tag{link=https://commonmark.org}|. A comment is dropped, and a centred wrapper centres what it holds:|
+paragraph: Centred, the way a README opens.{center}|
+paragraph: A |<details>{c}| block is drawn open, its summary in bold:|
+paragraph: The part that folds elsewhere{b}|
+paragraph: Shown here, because a viewer has nothing to fold.|
+paragraph: Anything else stays as written, so nothing is lost: |<blink>|this|</blink>| keeps its tags. Entities decode, © and — and a non-breaking space, except inside code, where |&nbsp;{c}| is the six characters.|
+=== example-10-memory-and-performance
 heading 2: Memory and performance|
 paragraph: A Markdown file is just bytes. The most this reader needs to hold in memory is roughly the file size, |M ≤ c · N|. A typical 40 KB README weighs about 50 KB once parsed, and renders in under one frame.|
 paragraph: A popular Electron-based editor uses ~240 MB on disk and ~400 MB of memory per window for the same job:|
@@ -188,7 +196,7 @@ paragraph: A 100× memory premium for HTML rendering of plain Markdown is a choi
 heading 3: The supply-chain axis|
 paragraph: The most popular JavaScript Markdown library, |marked{c}|, lists about 636 transitive packages and ~39,000 lines of code on its public dependency graph. Doing the same job in a tiny Swift codebase with zero dependencies turned out to work.|
 paragraph: Pick a rough industry defect rate of |δ ≈ 15| bugs per 1,000 lines. The "code a user runs" is the app plus every dep:|
-table 3x2:
+table 3x2: left,right,right
   h: [Stack] [Lines] [Expected defects]
   r: [TypeScript with `marked`] [~3.2 M] [~48,000]
   r: [This app, zero dependencies] [~2,000] [~30]
@@ -200,7 +208,7 @@ heading 3: Time you actually spend|
 paragraph: Adults read prose at about 250 words per minute. A 10,000-word document is ~40 minutes of reading. Any feature that adds a few seconds to startup quietly steals from those 40 minutes before the reader has seen a single word.|
 paragraph: Optimizing for the small things is just respect.|
 rule
-=== example-10-closing-thought
+=== example-11-closing-thought
 heading 2: Closing thought|
 paragraph: Good prose is short. Good code is short. Good tools are smaller than you think they need to be.|
 paragraph: If you scrolled this far without your CPU pinning, the layout loop is holding. The Share button in the toolbar exports this entire document, code blocks and tables and image captions and all, to a paginated PDF.|
@@ -242,10 +250,94 @@ heading 2: Code spans with backticks|
 paragraph: A span holding a backtick: |a`b{c}|. One that starts with one: |`x{c}|. A backslash pair inside code stays literal: |\\\\{c}| and |\\n{c}|.|
 === edge-4-hard-breaks-and-escapes
 heading 2: Hard breaks and escapes|
-paragraph: First line\nsecond line after a hard break, then an escaped *star* and a literal underscore_in_a_word.|
+paragraph: First line\u2028second line after a hard break, then an escaped *star* and a literal underscore_in_a_word.|
 === edge-5-empty-and-odd-cells
 heading 2: Empty and odd cells|
-table 2x2:
+table 2x2: none,none
   h: [a] [b]
   r: [] [only b]
   r: [only a]
+=== edge-6-aligned-columns-and-escaped-pipes
+heading 2: Aligned columns and escaped pipes|
+table 4x2: left,center,right,none
+  h: [Left] [Centre] [Right] [Pipe]
+  r: [a] [b] [c] [x \| y]
+  r: [aa] [bb] [cc] [`p\|q`]
+=== edge-7-a-tolerant-delimiter-row
+heading 2: A tolerant delimiter row|
+table 2x1: none,left
+  h: [Metric] [Value]
+  r: [cells] [still a table]
+=== edge-8-code-spans-are-opaque
+heading 2: Code spans are opaque|
+paragraph: A definition exists for |cmark{link=https://commonmark.org}| below, and |[cmark]{c}| in code is not a link. Prices in code: |$5 and $6{c}| stay dollars, and |<sup>2</sup>{c}| in code keeps its tags, while |2{sup}| outside is a superscript.|
+=== edge-9-tabs-after-markers
+heading 2: Tabs after markers|
+list tight:
+  item •:
+    paragraph: tab after a bullet|
+quote:
+  paragraph: tab after a quote marker|
+=== edge-10-indented-continuation
+heading 2: Indented continuation|
+paragraph: first line second line, indented four, still the same paragraph|
+code[]: a real indented code block after a blank line
+=== edge-11-task-boxes-at-the-end-of-the-line
+heading 2: Task boxes at the end of the line|
+list tight:
+  item • [ ]:
+
+  item • [x]:
+
+  item • [ ]:
+    paragraph: with text|
+=== edge-12-code-blocks-keep-their-html
+heading 2: Code blocks keep their HTML|
+code[]: <b>indented</b> code keeps <br> and <!-- this -->
+code[html]: <p align="center"><img src="x.png"></p>
+math: a <b> b
+=== edge-13-a-comment-between-paragraphs
+heading 2: A comment between paragraphs|
+paragraph: first paragraph|
+paragraph: second paragraph|
+=== html-intro
+heading 1: HTML the models write|
+paragraph: Fragments that arrive inside markdown from models and README authors, handled by the allow-list and nothing else.|
+=== html-1-line-breaks-and-small-print
+heading 2: Line breaks and small print|
+paragraph: First line\u2028second line\u2028third line\u2028fourth line.|
+paragraph: Some text with |small print{small}| after it.|
+paragraph: A cell with a break:|
+table 2x1: none,none
+  h: [Item] [Note]
+  r: [one] [first line<br>second line]
+=== html-2-synonyms-for-markdown
+heading 2: Synonyms for markdown|
+paragraph: Bold |b{b}| and |strong{b}|, italic |i{i}| and |em{i}|, struck |s{s}|, |del{s}| and |strike{s}|, code |x{c}| and a key |Cmd{c}|.|
+=== html-3-links-and-images
+heading 2: Links and images|
+paragraph: A link |to a{link=https://example.com/a}| and one with |single quotes{link=https://example.com/b}|.|
+image alt=Logo url=https://example.com/logo.png w=128.0 h=64.0
+paragraph: Inline in a cell:|
+table 2x1: none,none
+  h: [Logo] [Site]
+  r: [<img src="https://example.com/i.png" width="32">] [<a href="https://example.com">home</a>]
+=== html-4-comments-are-dropped
+heading 2: Comments are dropped|
+paragraph: Before  after.|
+paragraph: Still here.|
+=== html-5-centred-wrappers
+heading 2: Centred wrappers|
+paragraph: A centred title{b,center}|
+paragraph: A centred paragraph under it.{center}|
+paragraph: One line, opened and closed together.{center}|
+=== html-6-details
+heading 2: Details|
+paragraph: Click to expand{b}|
+paragraph: Hidden text, shown open here.|
+list tight:
+  item •:
+    paragraph: with a list|
+=== html-7-entities-and-unknown-tags
+heading 2: Entities and unknown tags|
+paragraph: An \u00a0 entity, an & ampersand, © and a dash — decode; |&nbsp;{c}| in code stays literal, and an |<unknown attr="x">|unknown tag|</unknown>| stays as written. So does \u2028 inside |<br>{c}| code.|

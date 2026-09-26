@@ -14,7 +14,7 @@ enum TableMetrics {
 
     static func charWidths(headers: [String], rows: [[String]]) -> [Int] {
         let n = columnCount(headers: headers, rows: rows)
-        var widths = [Int](repeating: 1, count: n)
+        var widths = [Int](repeating: 3, count: n)
         var all = rows
         all.insert(headers, at: 0)
         for cells in all {
@@ -131,18 +131,24 @@ enum TableMetrics {
     }
 
     static func serializeMonospaced(headers: [String],
-                                       rows: [[String]]) -> String {
+                                    rows: [[String]],
+                                    alignments: [Alignment] = []) -> String {
         let n = columnCount(headers: headers, rows: rows)
         // Converted once, up front: the padding is computed from the same
-        // strings that get printed, so the columns still line up.
-        let h = headers.map { c in TeX.scriptsToUnicode(c) }
-        let r = rows.map { row in row.map { c in TeX.scriptsToUnicode(c) } }
+        // strings that get printed, so the columns still line up. A pipe
+        // inside a cell goes back out escaped, or it reads as a divider.
+        let h = headers.map { c in pipesEscaped(TeX.scriptsToUnicode(c)) }
+        let r = rows.map { row in
+            row.map { c in pipesEscaped(TeX.scriptsToUnicode(c)) }
+        }
         let widths = charWidths(headers: h, rows: r)
         var lines: [String] = []
         if !h.isEmpty {
             lines.append(monoRow(h, n: n, widths: widths))
             let dashes = (0..<n).map { i in
-                String(repeating: "-", count: widths[i])
+                delimiter(width: widths[i],
+                          alignment: i < alignments.count
+                              ? alignments[i] : .none)
             }
             lines.append("| " + dashes.joined(separator: " | ") + " |")
         }
@@ -150,6 +156,29 @@ enum TableMetrics {
             lines.append(monoRow(row, n: n, widths: widths))
         }
         return lines.joined(separator: "\n") + "\n"
+    }
+
+    // The delimiter cell spells the column's alignment with its colons,
+    // so the serialisation parses back to the same table.
+
+    private static func delimiter(width: Int,
+                                  alignment: Alignment) -> String {
+        let inner = String(repeating: "-", count: max(width - 2, 1))
+        let result: String
+        switch alignment {
+            case .none: result = String(repeating: "-", count: max(width, 3))
+            case .left: result = ":" + inner + "-"
+            case .right: result = "-" + inner + ":"
+            case .center: result = ":" + inner + ":"
+        }
+        return result
+    }
+
+    // A pipe inside a cell goes back out escaped and a hard break as the
+    // tag it came from, so the copy parses to the cell it was.
+    private static func pipesEscaped(_ s: String) -> String {
+        s.replacingOccurrences(of: "|", with: "\\|")
+         .replacingOccurrences(of: "\u{2028}", with: "<br>")
     }
 
     private static func monoRow(_ cells: [String], n: Int,

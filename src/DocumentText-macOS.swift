@@ -183,7 +183,7 @@ extension DocumentText {
             if !cells.header.isEmpty {
                 m.append(tableRow(cells: cells.header, table: textTable,
                                   rowIdx: rowIdx, cols: cols,
-                                  shares: shares,
+                                  shares: shares, layout: cells,
                                   bold: true,
                                   tint: platformWhite(0.5, alpha: 0.14),
                                   atomicId: atomicId))
@@ -194,7 +194,7 @@ extension DocumentText {
                     ? platformWhite(0.5, alpha: 0.07) : platformClearColor
                 m.append(tableRow(cells: row, table: textTable,
                                   rowIdx: rowIdx, cols: cols,
-                                  shares: shares,
+                                  shares: shares, layout: cells,
                                   bold: false, tint: tint,
                                   atomicId: atomicId))
                 rowIdx += 1
@@ -210,17 +210,29 @@ extension DocumentText {
             m.addAttribute(atomicIdKey, value: atomicId, range: content)
             m.addAttribute(atomicCopyKey,
                            value: TableMetrics.serializeMonospaced(
-                               headers: cells.headers, rows: cells.rows),
+                               headers: cells.headers, rows: cells.rows,
+                               alignments: cells.alignments),
                            range: content)
             m.append(NSAttributedString(string: "\n"))
         }
         return m
     }
 
+    private static func nsAlignment(_ a: Alignment) -> NSTextAlignment {
+        let result: NSTextAlignment
+        switch a {
+            case .center: result = .center
+            case .right: result = .right
+            case .left, .none: result = .natural
+        }
+        return result
+    }
+
     private static func tableRow(cells: [TableCell],
                                  table: NSTextTable,
                                  rowIdx: Int, cols: Int,
                                  shares: [CGFloat],
+                                 layout: TableCells,
                                  bold: Bool,
                                  tint: PlatformColor,
                                  atomicId: String)
@@ -261,6 +273,7 @@ extension DocumentText {
             // posing the question does.
             para.lineBreakMode = .byWordWrapping
             para.textBlocks = [block]
+            para.alignment = nsAlignment(layout.alignment(col))
             let cellAttr = NSMutableAttributedString(attributedString: text)
             if cellAttr.length == 0 {
                 cellAttr.append(NSAttributedString(

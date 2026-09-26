@@ -427,6 +427,30 @@ The next image points to a deliberately broken URL so you can see the captioned-
 
 ***
 
+## HTML the models write
+
+Markdown has no spelling for a few things, so a model, or a README
+author, reaches for HTML. The short list that is understood: a line
+break (<br>) inside a paragraph<br>like this one, <small>small print</small>,
+<kbd>Cmd</kbd>-<kbd>C</kbd> for a key, <b>bold</b> and <i>italic</i> the
+old way, and a link written as <a href="https://commonmark.org">a tag</a>.
+A comment is dropped<!-- like this one -->, and a centred wrapper centres
+what it holds:
+
+<p align="center">Centred, the way a README opens.</p>
+
+A `<details>` block is drawn open, its summary in bold:
+
+<details>
+<summary>The part that folds elsewhere</summary>
+
+Shown here, because a viewer has nothing to fold.
+</details>
+
+Anything else stays as written, so nothing is lost: <blink>this</blink>
+keeps its tags. Entities decode, &copy; and &mdash; and a non-breaking
+space, except inside code, where `&nbsp;` is the six characters.
+
 ## Memory and performance
 
 A Markdown file is just bytes. The most this reader needs to hold in memory is roughly the file size, $M \le c \cdot N$. A typical 40 KB README weighs about 50 KB once parsed, and renders in under one frame.

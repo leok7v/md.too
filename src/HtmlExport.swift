@@ -29,9 +29,10 @@ enum HtmlExport {
                                      images: [URL: Data]) -> String {
         switch block {
             case .heading(let level, let text):
-                return "<h\(level)>\(renderInline(text))</h\(level)>\n"
+                return "<h\(level)\(alignStyle(text))>" +
+                       "\(renderInline(text))</h\(level)>\n"
             case .paragraph(let text):
-                return "<p>\(renderInline(text))</p>\n"
+                return "<p\(alignStyle(text))>\(renderInline(text))</p>\n"
             case .code(let lang, let text):
                 return renderCode(lang: lang, text: text)
             case .quote(let inner):
@@ -40,8 +41,9 @@ enum HtmlExport {
                 return s + "</blockquote>\n"
             case .list(let items, let tight):
                 return renderList(items, tight: tight, images: images)
-            case .table(let headers, let rows):
-                return renderTable(headers: headers, rows: rows)
+            case .table(let headers, let rows, let alignments):
+                return renderTable(headers: headers, rows: rows,
+                                   alignments: alignments)
             case .math(let tex):
                 // Unicode, not a picture. A rasterized formula would
                 // bake in one theme's ink, stop scaling with the page,
@@ -58,13 +60,26 @@ enum HtmlExport {
         }
     }
 
+    private static func alignStyle(_ attr: AttributedString) -> String {
+        var result = ""
+        if attr.runs.first?[AlignAttribute.self] == .center {
+            result = " style=\"text-align:center\""
+        }
+        return result
+    }
+
     private static func renderInline(_ attr: AttributedString) -> String {
         var out = ""
         for run in attr.runs {
             let segment = esc(String(attr[run.range].characters))
+                .replacingOccurrences(of: "\u{2028}", with: "<br>")
             let intent = run.inlinePresentationIntent ?? []
             var open: [String] = []
             var close: [String] = []
+            if run[SmallAttribute.self] == true {
+                open.append("<small>")
+                close.insert("</small>", at: 0)
+            }
             if let url = run.link {
                 open.append("<a href=\"\(escAttr(url.absoluteString))\">")
                 close.insert("</a>", at: 0)
@@ -84,6 +99,10 @@ enum HtmlExport {
             if intent.contains(.strikethrough) {
                 open.append("<del>")
                 close.insert("</del>", at: 0)
+            }
+            if run.underlineStyle != nil {
+                open.append("<u>")
+                close.insert("</u>", at: 0)
             }
             // Back to the tag the source wrote. The parser consumed it
             // so the on-screen render could offset a baseline; here the
@@ -134,14 +153,16 @@ enum HtmlExport {
     }
 
     private static func renderTable(headers: [String],
-                                    rows: [[String]]) -> String {
+                                    rows: [[String]],
+                                    alignments: [Alignment]) -> String {
         let n = TableMetrics.columnCount(headers: headers, rows: rows)
         var out = "<table style=\"\(tableStyle)\">\n"
         if !headers.isEmpty {
             out += "<thead><tr style=\"\(rowHeaderStyle)\">\n"
             for i in 0..<n {
                 let cell = i < headers.count ? headers[i] : ""
-                out += "<th style=\"\(thStyle)\(divider(i, of: n))\">" +
+                out += "<th style=\"\(thStyle)\(divider(i, of: n))" +
+                       "\(textAlign(i, alignments))\">" +
                        "\(inlineFromCell(cell))</th>\n"
             }
             out += "</tr></thead>\n"
@@ -155,7 +176,8 @@ enum HtmlExport {
             out += rowOpen + "\n"
             for i in 0..<n {
                 let cell = i < row.count ? row[i] : ""
-                out += "<td style=\"\(tdStyle)\(divider(i, of: n))\">" +
+                out += "<td style=\"\(tdStyle)\(divider(i, of: n))" +
+                       "\(textAlign(i, alignments))\">" +
                        "\(inlineFromCell(cell))</td>\n"
             }
             out += "</tr>\n"
@@ -169,6 +191,22 @@ enum HtmlExport {
 
     private static func divider(_ col: Int, of count: Int) -> String {
         col < count - 1 ? colDividerStyle : ""
+    }
+
+    // The header cell style says left already, so only a column that
+    // asked for something else carries an alignment of its own.
+
+    private static func textAlign(_ col: Int,
+                                  _ alignments: [Alignment]) -> String {
+        var result = ""
+        if col < alignments.count {
+            switch alignments[col] {
+                case .center: result = "text-align:center;"
+                case .right: result = "text-align:right;"
+                case .left, .none: result = ""
+            }
+        }
+        return result
     }
 
     private static func inlineFromCell(_ raw: String) -> String {

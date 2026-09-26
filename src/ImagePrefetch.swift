@@ -34,7 +34,7 @@ enum ImagePrefetch {
         for b in blocks {
             switch b {
                 case .image(_, let u, _, _): urls.insert(u)
-                case .table(_, let rows):
+                case .table(_, let rows, _):
                     for row in rows {
                         for cell in row {
                             if let info = imageInCell(cell) {

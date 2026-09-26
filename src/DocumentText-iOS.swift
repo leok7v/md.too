@@ -73,9 +73,11 @@ extension DocumentText {
                                                   available: tabStopExtent)
             var stops: [NSTextTab] = []
             var x: CGFloat = 0
-            for w in widths {
+            for (col, w) in widths.enumerated() {
                 x += w
-                stops.append(NSTextTab(textAlignment: .left, location: x))
+                stops.append(NSTextTab(
+                    textAlignment: tabAlignment(cells.alignment(col + 1)),
+                    location: x))
             }
             if !cells.header.isEmpty {
                 m.append(tableRowTabStops(cells: cells.header, stops: stops,
@@ -100,11 +102,25 @@ extension DocumentText {
             m.addAttribute(atomicIdKey, value: atomicId, range: content)
             m.addAttribute(atomicCopyKey,
                            value: TableMetrics.serializeMonospaced(
-                               headers: cells.headers, rows: cells.rows),
+                               headers: cells.headers, rows: cells.rows,
+                               alignments: cells.alignments),
                            range: content)
             m.append(NSAttributedString(string: "\n"))
         }
         return m
+    }
+
+    // A tab stop aligns the text that follows it, so the first column
+    // has none and the stop after column c carries column c + 1's.
+
+    private static func tabAlignment(_ a: Alignment) -> NSTextAlignment {
+        let result: NSTextAlignment
+        switch a {
+            case .center: result = .center
+            case .right: result = .right
+            case .left, .none: result = .left
+        }
+        return result
     }
 
     private static func tableRowTabStops(cells: [TableCell],

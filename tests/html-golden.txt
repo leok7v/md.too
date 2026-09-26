@@ -89,38 +89,38 @@
 <table style="border-collapse:collapse;margin:0.5em 0;">
 <thead><tr style="background:rgba(128,128,128,0.14);">
 <th style="padding:6px 14px;text-align:left;border-bottom:1px solid rgba(128,128,128,0.3);border-right:1px solid rgba(128,128,128,0.20);">Tool</th>
-<th style="padding:6px 14px;text-align:left;border-bottom:1px solid rgba(128,128,128,0.3);border-right:1px solid rgba(128,128,128,0.20);">Approximate size</th>
+<th style="padding:6px 14px;text-align:left;border-bottom:1px solid rgba(128,128,128,0.3);border-right:1px solid rgba(128,128,128,0.20);text-align:right;">Approximate size</th>
 <th style="padding:6px 14px;text-align:left;border-bottom:1px solid rgba(128,128,128,0.3);">What it edits</th>
 </tr></thead>
 <tbody>
 <tr>
 <td style="padding:6px 14px;border-bottom:1px solid rgba(128,128,128,0.12);border-right:1px solid rgba(128,128,128,0.20);"><code style="background:rgba(128,128,128,0.14);padding:1px 4px;border-radius:3px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:0.92em;">vi</code></td>
-<td style="padding:6px 14px;border-bottom:1px solid rgba(128,128,128,0.12);border-right:1px solid rgba(128,128,128,0.20);">1 MB</td>
+<td style="padding:6px 14px;border-bottom:1px solid rgba(128,128,128,0.12);border-right:1px solid rgba(128,128,128,0.20);text-align:right;">1 MB</td>
 <td style="padding:6px 14px;border-bottom:1px solid rgba(128,128,128,0.12);">anything plain</td>
 </tr>
 <tr style="background:rgba(128,128,128,0.07);">
 <td style="padding:6px 14px;border-bottom:1px solid rgba(128,128,128,0.12);border-right:1px solid rgba(128,128,128,0.20);"><code style="background:rgba(128,128,128,0.14);padding:1px 4px;border-radius:3px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:0.92em;">nano</code></td>
-<td style="padding:6px 14px;border-bottom:1px solid rgba(128,128,128,0.12);border-right:1px solid rgba(128,128,128,0.20);">2 MB</td>
+<td style="padding:6px 14px;border-bottom:1px solid rgba(128,128,128,0.12);border-right:1px solid rgba(128,128,128,0.20);text-align:right;">2 MB</td>
 <td style="padding:6px 14px;border-bottom:1px solid rgba(128,128,128,0.12);">anything plain</td>
 </tr>
 <tr>
 <td style="padding:6px 14px;border-bottom:1px solid rgba(128,128,128,0.12);border-right:1px solid rgba(128,128,128,0.20);">this app</td>
-<td style="padding:6px 14px;border-bottom:1px solid rgba(128,128,128,0.12);border-right:1px solid rgba(128,128,128,0.20);">4 MB</td>
+<td style="padding:6px 14px;border-bottom:1px solid rgba(128,128,128,0.12);border-right:1px solid rgba(128,128,128,0.20);text-align:right;">4 MB</td>
 <td style="padding:6px 14px;border-bottom:1px solid rgba(128,128,128,0.12);">rendered Markdown</td>
 </tr>
 <tr style="background:rgba(128,128,128,0.07);">
 <td style="padding:6px 14px;border-bottom:1px solid rgba(128,128,128,0.12);border-right:1px solid rgba(128,128,128,0.20);">Visual Studio Code</td>
-<td style="padding:6px 14px;border-bottom:1px solid rgba(128,128,128,0.12);border-right:1px solid rgba(128,128,128,0.20);">370 MB</td>
+<td style="padding:6px 14px;border-bottom:1px solid rgba(128,128,128,0.12);border-right:1px solid rgba(128,128,128,0.20);text-align:right;">370 MB</td>
 <td style="padding:6px 14px;border-bottom:1px solid rgba(128,128,128,0.12);">code, prose, your hopes</td>
 </tr>
 <tr>
 <td style="padding:6px 14px;border-bottom:1px solid rgba(128,128,128,0.12);border-right:1px solid rgba(128,128,128,0.20);">Obsidian</td>
-<td style="padding:6px 14px;border-bottom:1px solid rgba(128,128,128,0.12);border-right:1px solid rgba(128,128,128,0.20);">250 MB</td>
+<td style="padding:6px 14px;border-bottom:1px solid rgba(128,128,128,0.12);border-right:1px solid rgba(128,128,128,0.20);text-align:right;">250 MB</td>
 <td style="padding:6px 14px;border-bottom:1px solid rgba(128,128,128,0.12);">notes, plus a graph</td>
 </tr>
 <tr style="background:rgba(128,128,128,0.07);">
 <td style="padding:6px 14px;border-bottom:1px solid rgba(128,128,128,0.12);border-right:1px solid rgba(128,128,128,0.20);">Typora</td>
-<td style="padding:6px 14px;border-bottom:1px solid rgba(128,128,128,0.12);border-right:1px solid rgba(128,128,128,0.20);">120 MB</td>
+<td style="padding:6px 14px;border-bottom:1px solid rgba(128,128,128,0.12);border-right:1px solid rgba(128,128,128,0.20);text-align:right;">120 MB</td>
 <td style="padding:6px 14px;border-bottom:1px solid rgba(128,128,128,0.12);">Markdown only</td>
 </tr>
 </tbody>
@@ -349,9 +349,8 @@ for (int i = 0; i &lt; 10; ++i) x += i;</code></pre>
 </tr>
 </tbody>
 </table>
-<p>Hard line breaks still work. The next sentence ends with two trailing spaces
-so this part starts on its own line, no paragraph gap, no fuss.</p>
-<p>You can also underline through raw HTML and <del>strike things out</del> when the situation calls for it. We try not to call for it.</p>
+<p>Hard line breaks still work. The next sentence ends with two trailing spaces<br>so this part starts on its own line, no paragraph gap, no fuss.</p>
+<p>You can also <u>underline through raw HTML</u> and <del>strike things out</del> when the situation calls for it. We try not to call for it.</p>
 <p>Markdown has no spelling for subscript or superscript, so the raw HTML tags carry those too: water is H<sub>2</sub>O, a hectare is 10<sup>4</sup> m<sup>2</sup>, and a rate constant is k<sub>obs</sub>. They nest, so m<sub>DO2</sub> reads the way it was written. Both work inside table cells, where scientific notation usually lands:</p>
 <table style="border-collapse:collapse;margin:0.5em 0;">
 <thead><tr style="background:rgba(128,128,128,0.14);">
@@ -380,24 +379,32 @@ so this part starts on its own line, no paragraph gap, no fuss.</p>
 <p>Images can also live inside table cells, one image per cell. Setting the same <code style="background:rgba(128,128,128,0.14);padding:1px 4px;border-radius:3px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:0.92em;">height</code> on both lines them up at the same vertical extent even though one is portrait and the other landscape:</p>
 <table style="border-collapse:collapse;margin:0.5em 0;">
 <thead><tr style="background:rgba(128,128,128,0.14);">
-<th style="padding:6px 14px;text-align:left;border-bottom:1px solid rgba(128,128,128,0.3);border-right:1px solid rgba(128,128,128,0.20);">Renaissance</th>
-<th style="padding:6px 14px;text-align:left;border-bottom:1px solid rgba(128,128,128,0.3);">Apollo</th>
+<th style="padding:6px 14px;text-align:left;border-bottom:1px solid rgba(128,128,128,0.3);border-right:1px solid rgba(128,128,128,0.20);text-align:center;">Renaissance</th>
+<th style="padding:6px 14px;text-align:left;border-bottom:1px solid rgba(128,128,128,0.3);text-align:center;">Apollo</th>
 </tr></thead>
 <tbody>
 <tr>
-<td style="padding:6px 14px;border-bottom:1px solid rgba(128,128,128,0.12);border-right:1px solid rgba(128,128,128,0.20);">![Mona Lisa](https://dn710208.ca.archive.org/0/items/mona-lisa-by-leonardo-da-vinci-from-c-2-rmf-retouched/Mona_Lisa%2C_by_Leonardo_da_Vinci%2C_from_C2RMF_retouched.jpg){height=200}</td>
-<td style="padding:6px 14px;border-bottom:1px solid rgba(128,128,128,0.12);">![Earthrise](https://archive.org/download/297755main_GPN-2001-000009_full/297755main_GPN-2001-000009_full.jpg){height=200}</td>
+<td style="padding:6px 14px;border-bottom:1px solid rgba(128,128,128,0.12);border-right:1px solid rgba(128,128,128,0.20);text-align:center;">![Mona Lisa](https://dn710208.ca.archive.org/0/items/mona-lisa-by-leonardo-da-vinci-from-c-2-rmf-retouched/Mona_Lisa%2C_by_Leonardo_da_Vinci%2C_from_C2RMF_retouched.jpg){height=200}</td>
+<td style="padding:6px 14px;border-bottom:1px solid rgba(128,128,128,0.12);text-align:center;">![Earthrise](https://archive.org/download/297755main_GPN-2001-000009_full/297755main_GPN-2001-000009_full.jpg){height=200}</td>
 </tr>
 <tr style="background:rgba(128,128,128,0.07);">
-<td style="padding:6px 14px;border-bottom:1px solid rgba(128,128,128,0.12);border-right:1px solid rgba(128,128,128,0.20);">Internet Archive</td>
-<td style="padding:6px 14px;border-bottom:1px solid rgba(128,128,128,0.12);">NASA</td>
+<td style="padding:6px 14px;border-bottom:1px solid rgba(128,128,128,0.12);border-right:1px solid rgba(128,128,128,0.20);text-align:center;">Internet Archive</td>
+<td style="padding:6px 14px;border-bottom:1px solid rgba(128,128,128,0.12);text-align:center;">NASA</td>
 </tr>
 </tbody>
 </table>
 <p>The next image points to a deliberately broken URL so you can see the captioned-placeholder fallback. Layout doesn't collapse around the missing content; the alt text becomes a small box with a photo icon and the caption right where the image would have gone:</p>
 <p style="color:rgba(128,128,128,0.7);font-style:italic;">[image not found]</p>
 <hr style="border:none;border-top:1px solid rgba(128,128,128,0.3);margin:1em 0;">
-=== example-9-memory-and-performance
+=== example-9-html-the-models-write
+<h2>HTML the models write</h2>
+<p>Markdown has no spelling for a few things, so a model, or a README author, reaches for HTML. The short list that is understood: a line break (<br>) inside a paragraph<br>like this one, <small>small print</small>, <code style="background:rgba(128,128,128,0.14);padding:1px 4px;border-radius:3px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:0.92em;">Cmd</code>-<code style="background:rgba(128,128,128,0.14);padding:1px 4px;border-radius:3px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:0.92em;">C</code> for a key, <strong>bold</strong> and <em>italic</em> the old way, and a link written as <a href="https://commonmark.org">a tag</a>. A comment is dropped, and a centred wrapper centres what it holds:</p>
+<p style="text-align:center">Centred, the way a README opens.</p>
+<p>A <code style="background:rgba(128,128,128,0.14);padding:1px 4px;border-radius:3px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:0.92em;">&lt;details&gt;</code> block is drawn open, its summary in bold:</p>
+<p><strong>The part that folds elsewhere</strong></p>
+<p>Shown here, because a viewer has nothing to fold.</p>
+<p>Anything else stays as written, so nothing is lost: &lt;blink&gt;this&lt;/blink&gt; keeps its tags. Entities decode, © and — and a non-breaking space, except inside code, where <code style="background:rgba(128,128,128,0.14);padding:1px 4px;border-radius:3px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:0.92em;">&amp;nbsp;</code> is the six characters.</p>
+=== example-10-memory-and-performance
 <h2>Memory and performance</h2>
 <p>A Markdown file is just bytes. The most this reader needs to hold in memory is roughly the file size, M ≤ c · N. A typical 40 KB README weighs about 50 KB once parsed, and renders in under one frame.</p>
 <p>A popular Electron-based editor uses ~240 MB on disk and ~400 MB of memory per window for the same job:</p>
@@ -409,19 +416,19 @@ so this part starts on its own line, no paragraph gap, no fuss.</p>
 <table style="border-collapse:collapse;margin:0.5em 0;">
 <thead><tr style="background:rgba(128,128,128,0.14);">
 <th style="padding:6px 14px;text-align:left;border-bottom:1px solid rgba(128,128,128,0.3);border-right:1px solid rgba(128,128,128,0.20);">Stack</th>
-<th style="padding:6px 14px;text-align:left;border-bottom:1px solid rgba(128,128,128,0.3);border-right:1px solid rgba(128,128,128,0.20);">Lines</th>
-<th style="padding:6px 14px;text-align:left;border-bottom:1px solid rgba(128,128,128,0.3);">Expected defects</th>
+<th style="padding:6px 14px;text-align:left;border-bottom:1px solid rgba(128,128,128,0.3);border-right:1px solid rgba(128,128,128,0.20);text-align:right;">Lines</th>
+<th style="padding:6px 14px;text-align:left;border-bottom:1px solid rgba(128,128,128,0.3);text-align:right;">Expected defects</th>
 </tr></thead>
 <tbody>
 <tr>
 <td style="padding:6px 14px;border-bottom:1px solid rgba(128,128,128,0.12);border-right:1px solid rgba(128,128,128,0.20);">TypeScript with <code style="background:rgba(128,128,128,0.14);padding:1px 4px;border-radius:3px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:0.92em;">marked</code></td>
-<td style="padding:6px 14px;border-bottom:1px solid rgba(128,128,128,0.12);border-right:1px solid rgba(128,128,128,0.20);">~3.2 M</td>
-<td style="padding:6px 14px;border-bottom:1px solid rgba(128,128,128,0.12);">~48,000</td>
+<td style="padding:6px 14px;border-bottom:1px solid rgba(128,128,128,0.12);border-right:1px solid rgba(128,128,128,0.20);text-align:right;">~3.2 M</td>
+<td style="padding:6px 14px;border-bottom:1px solid rgba(128,128,128,0.12);text-align:right;">~48,000</td>
 </tr>
 <tr style="background:rgba(128,128,128,0.07);">
 <td style="padding:6px 14px;border-bottom:1px solid rgba(128,128,128,0.12);border-right:1px solid rgba(128,128,128,0.20);">This app, zero dependencies</td>
-<td style="padding:6px 14px;border-bottom:1px solid rgba(128,128,128,0.12);border-right:1px solid rgba(128,128,128,0.20);">~2,000</td>
-<td style="padding:6px 14px;border-bottom:1px solid rgba(128,128,128,0.12);">~30</td>
+<td style="padding:6px 14px;border-bottom:1px solid rgba(128,128,128,0.12);border-right:1px solid rgba(128,128,128,0.20);text-align:right;">~2,000</td>
+<td style="padding:6px 14px;border-bottom:1px solid rgba(128,128,128,0.12);text-align:right;">~30</td>
 </tr>
 </tbody>
 </table>
@@ -433,7 +440,7 @@ so this part starts on its own line, no paragraph gap, no fuss.</p>
 <p>Adults read prose at about 250 words per minute. A 10,000-word document is ~40 minutes of reading. Any feature that adds a few seconds to startup quietly steals from those 40 minutes before the reader has seen a single word.</p>
 <p>Optimizing for the small things is just respect.</p>
 <hr style="border:none;border-top:1px solid rgba(128,128,128,0.3);margin:1em 0;">
-=== example-10-closing-thought
+=== example-11-closing-thought
 <h2>Closing thought</h2>
 <p>Good prose is short. Good code is short. Good tools are smaller than you think they need to be.</p>
 <p>If you scrolled this far without your CPU pinning, the layout loop is holding. The Share button in the toolbar exports this entire document, code blocks and tables and image captions and all, to a paginated PDF.</p>
@@ -479,8 +486,7 @@ so this part starts on its own line, no paragraph gap, no fuss.</p>
 <p>A span holding a backtick: <code style="background:rgba(128,128,128,0.14);padding:1px 4px;border-radius:3px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:0.92em;">a`b</code>. One that starts with one: <code style="background:rgba(128,128,128,0.14);padding:1px 4px;border-radius:3px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:0.92em;">`x</code>. A backslash pair inside code stays literal: <code style="background:rgba(128,128,128,0.14);padding:1px 4px;border-radius:3px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:0.92em;">\\</code> and <code style="background:rgba(128,128,128,0.14);padding:1px 4px;border-radius:3px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:0.92em;">\n</code>.</p>
 === edge-4-hard-breaks-and-escapes
 <h2>Hard breaks and escapes</h2>
-<p>First line
-second line after a hard break, then an escaped *star* and a literal underscore_in_a_word.</p>
+<p>First line<br>second line after a hard break, then an escaped *star* and a literal underscore_in_a_word.</p>
 === edge-5-empty-and-odd-cells
 <h2>Empty and odd cells</h2>
 <table style="border-collapse:collapse;margin:0.5em 0;">
@@ -499,3 +505,134 @@ second line after a hard break, then an escaped *star* and a literal underscore_
 </tr>
 </tbody>
 </table>
+=== edge-6-aligned-columns-and-escaped-pipes
+<h2>Aligned columns and escaped pipes</h2>
+<table style="border-collapse:collapse;margin:0.5em 0;">
+<thead><tr style="background:rgba(128,128,128,0.14);">
+<th style="padding:6px 14px;text-align:left;border-bottom:1px solid rgba(128,128,128,0.3);border-right:1px solid rgba(128,128,128,0.20);">Left</th>
+<th style="padding:6px 14px;text-align:left;border-bottom:1px solid rgba(128,128,128,0.3);border-right:1px solid rgba(128,128,128,0.20);text-align:center;">Centre</th>
+<th style="padding:6px 14px;text-align:left;border-bottom:1px solid rgba(128,128,128,0.3);border-right:1px solid rgba(128,128,128,0.20);text-align:right;">Right</th>
+<th style="padding:6px 14px;text-align:left;border-bottom:1px solid rgba(128,128,128,0.3);">Pipe</th>
+</tr></thead>
+<tbody>
+<tr>
+<td style="padding:6px 14px;border-bottom:1px solid rgba(128,128,128,0.12);border-right:1px solid rgba(128,128,128,0.20);">a</td>
+<td style="padding:6px 14px;border-bottom:1px solid rgba(128,128,128,0.12);border-right:1px solid rgba(128,128,128,0.20);text-align:center;">b</td>
+<td style="padding:6px 14px;border-bottom:1px solid rgba(128,128,128,0.12);border-right:1px solid rgba(128,128,128,0.20);text-align:right;">c</td>
+<td style="padding:6px 14px;border-bottom:1px solid rgba(128,128,128,0.12);">x | y</td>
+</tr>
+<tr style="background:rgba(128,128,128,0.07);">
+<td style="padding:6px 14px;border-bottom:1px solid rgba(128,128,128,0.12);border-right:1px solid rgba(128,128,128,0.20);">aa</td>
+<td style="padding:6px 14px;border-bottom:1px solid rgba(128,128,128,0.12);border-right:1px solid rgba(128,128,128,0.20);text-align:center;">bb</td>
+<td style="padding:6px 14px;border-bottom:1px solid rgba(128,128,128,0.12);border-right:1px solid rgba(128,128,128,0.20);text-align:right;">cc</td>
+<td style="padding:6px 14px;border-bottom:1px solid rgba(128,128,128,0.12);"><code style="background:rgba(128,128,128,0.14);padding:1px 4px;border-radius:3px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:0.92em;">p|q</code></td>
+</tr>
+</tbody>
+</table>
+=== edge-7-a-tolerant-delimiter-row
+<h2>A tolerant delimiter row</h2>
+<table style="border-collapse:collapse;margin:0.5em 0;">
+<thead><tr style="background:rgba(128,128,128,0.14);">
+<th style="padding:6px 14px;text-align:left;border-bottom:1px solid rgba(128,128,128,0.3);border-right:1px solid rgba(128,128,128,0.20);">Metric</th>
+<th style="padding:6px 14px;text-align:left;border-bottom:1px solid rgba(128,128,128,0.3);">Value</th>
+</tr></thead>
+<tbody>
+<tr>
+<td style="padding:6px 14px;border-bottom:1px solid rgba(128,128,128,0.12);border-right:1px solid rgba(128,128,128,0.20);">cells</td>
+<td style="padding:6px 14px;border-bottom:1px solid rgba(128,128,128,0.12);">still a table</td>
+</tr>
+</tbody>
+</table>
+=== edge-8-code-spans-are-opaque
+<h2>Code spans are opaque</h2>
+<p>A definition exists for <a href="https://commonmark.org">cmark</a> below, and <code style="background:rgba(128,128,128,0.14);padding:1px 4px;border-radius:3px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:0.92em;">[cmark]</code> in code is not a link. Prices in code: <code style="background:rgba(128,128,128,0.14);padding:1px 4px;border-radius:3px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:0.92em;">$5 and $6</code> stay dollars, and <code style="background:rgba(128,128,128,0.14);padding:1px 4px;border-radius:3px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:0.92em;">&lt;sup&gt;2&lt;/sup&gt;</code> in code keeps its tags, while <sup>2</sup> outside is a superscript.</p>
+=== edge-9-tabs-after-markers
+<h2>Tabs after markers</h2>
+<ul style="margin:0.2em 0;padding-left:1.5em;">
+<li><p>tab after a bullet</p>
+</li>
+</ul>
+<blockquote style="border-left:3px solid rgba(128,128,128,0.5);padding-left:12px;margin-left:0;opacity:0.85;">
+<p>tab after a quote marker</p>
+</blockquote>
+=== edge-10-indented-continuation
+<h2>Indented continuation</h2>
+<p>first line second line, indented four, still the same paragraph</p>
+<pre style="background:rgba(128,128,128,0.10);padding:8px 12px;border-radius:4px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:0.92em;overflow-x:auto;white-space:pre;"><code>a real indented code block after a blank line</code></pre>
+=== edge-11-task-boxes-at-the-end-of-the-line
+<h2>Task boxes at the end of the line</h2>
+<ul style="margin:0.2em 0;padding-left:1.5em;">
+<li><span style="margin-right:0.4em">&#9744;</span></li>
+<li><span style="margin-right:0.4em">&#9745;</span></li>
+<li><span style="margin-right:0.4em">&#9744;</span><p>with text</p>
+</li>
+</ul>
+=== edge-12-code-blocks-keep-their-html
+<h2>Code blocks keep their HTML</h2>
+<pre style="background:rgba(128,128,128,0.10);padding:8px 12px;border-radius:4px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:0.92em;overflow-x:auto;white-space:pre;"><code>&lt;b&gt;indented&lt;/b&gt; code keeps &lt;br&gt; and &lt;!-- this --&gt;</code></pre>
+<pre style="background:rgba(128,128,128,0.10);padding:8px 12px;border-radius:4px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:0.92em;overflow-x:auto;white-space:pre;"><code class="language-html">&lt;p align="center"&gt;&lt;img src="x.png"&gt;&lt;/p&gt;</code></pre>
+<p style="text-align:center;font-style:italic;margin:0.8em 0;">a &lt;b&gt; b</p>
+=== edge-13-a-comment-between-paragraphs
+<h2>A comment between paragraphs</h2>
+<p>first paragraph</p>
+<p>second paragraph</p>
+=== html-intro
+<h1>HTML the models write</h1>
+<p>Fragments that arrive inside markdown from models and README authors, handled by the allow-list and nothing else.</p>
+=== html-1-line-breaks-and-small-print
+<h2>Line breaks and small print</h2>
+<p>First line<br>second line<br>third line<br>fourth line.</p>
+<p>Some text with <small>small print</small> after it.</p>
+<p>A cell with a break:</p>
+<table style="border-collapse:collapse;margin:0.5em 0;">
+<thead><tr style="background:rgba(128,128,128,0.14);">
+<th style="padding:6px 14px;text-align:left;border-bottom:1px solid rgba(128,128,128,0.3);border-right:1px solid rgba(128,128,128,0.20);">Item</th>
+<th style="padding:6px 14px;text-align:left;border-bottom:1px solid rgba(128,128,128,0.3);">Note</th>
+</tr></thead>
+<tbody>
+<tr>
+<td style="padding:6px 14px;border-bottom:1px solid rgba(128,128,128,0.12);border-right:1px solid rgba(128,128,128,0.20);">one</td>
+<td style="padding:6px 14px;border-bottom:1px solid rgba(128,128,128,0.12);">first line<br>second line</td>
+</tr>
+</tbody>
+</table>
+=== html-2-synonyms-for-markdown
+<h2>Synonyms for markdown</h2>
+<p>Bold <strong>b</strong> and <strong>strong</strong>, italic <em>i</em> and <em>em</em>, struck <del>s</del>, <del>del</del> and <del>strike</del>, code <code style="background:rgba(128,128,128,0.14);padding:1px 4px;border-radius:3px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:0.92em;">x</code> and a key <code style="background:rgba(128,128,128,0.14);padding:1px 4px;border-radius:3px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:0.92em;">Cmd</code>.</p>
+=== html-3-links-and-images
+<h2>Links and images</h2>
+<p>A link <a href="https://example.com/a">to a</a> and one with <a href="https://example.com/b">single quotes</a>.</p>
+<p style="color:rgba(128,128,128,0.7);font-style:italic;">[Logo]</p>
+<p>Inline in a cell:</p>
+<table style="border-collapse:collapse;margin:0.5em 0;">
+<thead><tr style="background:rgba(128,128,128,0.14);">
+<th style="padding:6px 14px;text-align:left;border-bottom:1px solid rgba(128,128,128,0.3);border-right:1px solid rgba(128,128,128,0.20);">Logo</th>
+<th style="padding:6px 14px;text-align:left;border-bottom:1px solid rgba(128,128,128,0.3);">Site</th>
+</tr></thead>
+<tbody>
+<tr>
+<td style="padding:6px 14px;border-bottom:1px solid rgba(128,128,128,0.12);border-right:1px solid rgba(128,128,128,0.20);">&lt;img src="https://example.com/i.png" width="32"&gt;</td>
+<td style="padding:6px 14px;border-bottom:1px solid rgba(128,128,128,0.12);"><a href="https://example.com">home</a></td>
+</tr>
+</tbody>
+</table>
+=== html-4-comments-are-dropped
+<h2>Comments are dropped</h2>
+<p>Before  after.</p>
+<p>Still here.</p>
+=== html-5-centred-wrappers
+<h2>Centred wrappers</h2>
+<p style="text-align:center"><strong>A centred title</strong></p>
+<p style="text-align:center">A centred paragraph under it.</p>
+<p style="text-align:center">One line, opened and closed together.</p>
+=== html-6-details
+<h2>Details</h2>
+<p><strong>Click to expand</strong></p>
+<p>Hidden text, shown open here.</p>
+<ul style="margin:0.2em 0;padding-left:1.5em;">
+<li><p>with a list</p>
+</li>
+</ul>
+=== html-7-entities-and-unknown-tags
+<h2>Entities and unknown tags</h2>
+<p>An   entity, an &amp; ampersand, © and a dash — decode; <code style="background:rgba(128,128,128,0.14);padding:1px 4px;border-radius:3px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:0.92em;">&amp;nbsp;</code> in code stays literal, and an &lt;unknown attr="x"&gt;unknown tag&lt;/unknown&gt; stays as written. So does <br> inside <code style="background:rgba(128,128,128,0.14);padding:1px 4px;border-radius:3px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:0.92em;">&lt;br&gt;</code> code.</p>

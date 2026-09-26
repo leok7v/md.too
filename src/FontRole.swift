@@ -100,6 +100,42 @@ func applyScriptRuns(_ m: NSMutableAttributedString,
     }
 }
 
+// A <small> run is set at 0.85 of the size it would otherwise have,
+// read back off the string the same way a script run is.
+
+func smallRunFont(base: PlatformFont) -> PlatformFont {
+    platformResizedFont(base, to: (base.pointSize * 0.85).rounded())
+}
+
+func applySmallRuns(_ m: NSMutableAttributedString,
+                    from attr: AttributedString) {
+    for run in attr.runs {
+        let r = NSRange(run.range, in: attr)
+        if run[SmallAttribute.self] == true, r.length > 0,
+           NSMaxRange(r) <= m.length,
+           let base = m.attribute(.font, at: r.location,
+                                  effectiveRange: nil) as? PlatformFont {
+            m.addAttribute(.font, value: smallRunFont(base: base), range: r)
+        }
+    }
+}
+
+// A centred paragraph carries its alignment on its runs; here it is
+// turned into the paragraph style the text system reads.
+
+func applyParagraphAlignment(_ m: NSMutableAttributedString,
+                             from attr: AttributedString) {
+    if attr.runs.first?[AlignAttribute.self] == .center, m.length > 0 {
+        let full = NSRange(location: 0, length: m.length)
+        let existing = m.attribute(.paragraphStyle, at: 0,
+                                   effectiveRange: nil) as? NSParagraphStyle
+        let para = NSMutableParagraphStyle()
+        if let existing { para.setParagraphStyle(existing) }
+        para.alignment = .center
+        m.addAttribute(.paragraphStyle, value: para, range: full)
+    }
+}
+
 private func stampScript(_ m: NSMutableAttributedString,
                          level: Int, range: NSRange) {
     let base = m.attribute(.font, at: range.location,

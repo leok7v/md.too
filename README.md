@@ -11,8 +11,9 @@ A minimalist Markdown viewer for macOS and iOS. Read-only, native, zero third-pa
 - Toggle between the rendered view and the raw Markdown source from the toolbar.
 - macOS Quick Look extension renders `.md` in Finder's preview pane and on spacebar peek.
 - Syntax highlighting for about 40 languages (Swift, C/C++/C#/Objective-C, Java, Kotlin, Scala, JS/TS, Python, Rust, Go, Ruby, PHP, Dart, Lua, Perl, R, Julia, Haskell, OCaml, F#, Elixir, Clojure, Groovy, SQL, GraphQL, Dockerfile, Makefile, TOML, INI, YAML, JSON, XML, HTML, CSS, Bash, PowerShell, Markdown).
-- Tables with zebra rows, a stronger header band, and inline formatting inside cells — `**bold**`, `*italic*`, `` `code` ``, `~~strike~~`, `[link](url)`.
+- Tables with zebra rows, a stronger header band, column alignment from the delimiter row (`:---`, `:---:`, `---:`), escaped pipes, and inline formatting inside cells — `**bold**`, `*italic*`, `` `code` ``, `~~strike~~`, `[link](url)`.
 - GitHub-style task lists (`- [ ]` / `- [x]`).
+- The HTML fragments that models and README authors write when Markdown has no spelling: `<br>`, `<small>`, `<sup>`/`<sub>`, `<u>`, `<kbd>`, `<a href>`, `<img src>`, `<b>`/`<i>`/`<s>`, comments, `<div align="center">`, and `<details>` drawn open. Anything else stays as written.
 - Maths. A `$$…$$` display is typeset properly -- fractions, radicals, big operators with limits, stretchy fences, matrices -- by a TeX layout engine reading the OpenType MATH table. Inline `$…$` stays Unicode so it flows, selects and searches with the prose around it.
 
 See [EXAMPLE.md](EXAMPLE.md) for a single document that exercises every supported feature.

@@ -37,8 +37,12 @@ final class ParserGoldenTests: XCTestCase {
                         .trimmingTrailingNewline()
                 }
                 result = s
-            case .table(let headers, let rows):
+            case .table(let headers, let rows, let alignments):
                 var s = "table \(headers.count)x\(rows.count):"
+                if !alignments.isEmpty {
+                    s += " " + alignments.map { a in "\(a)" }
+                        .joined(separator: ",")
+                }
                 s += "\n" + deeper + "h: " + cells(headers)
                 for row in rows { s += "\n" + deeper + "r: " + cells(row) }
                 result = s
@@ -78,6 +82,8 @@ final class ParserGoldenTests: XCTestCase {
             if let level = run[ScriptAttribute.self] {
                 flags.append(level > 0 ? "sup" : "sub")
             }
+            if run[SmallAttribute.self] == true { flags.append("small") }
+            if run[AlignAttribute.self] == .center { flags.append("center") }
             out += escape(text)
             if !flags.isEmpty {
                 out += "{" + flags.joined(separator: ",") + "}"

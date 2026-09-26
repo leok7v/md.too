@@ -109,6 +109,7 @@
 		7E5700000000000000000056 /* TableMetrics.swift in Sources */ = {isa = PBXBuildFile; fileRef = B5000010AAAAAAAAAAAAAAAA /* TableMetrics.swift */; };
 		7E5700000000000000000057 /* Bridges-macOS.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A2B3C4D5200000000000011 /* Bridges-macOS.swift */; };
 		7E5700000000000000000058 /* Highlight.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A2B3C4D520000000000000B /* Highlight.swift */; };
+		7E5700000000000000000027 /* SurfaceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7E5700000000000000000017 /* SurfaceTests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -175,6 +176,7 @@
 		7E5700000000000000000015 /* ParserGoldenTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ParserGoldenTests.swift; sourceTree = "<group>"; };
 		7E5700000000000000000016 /* ExportRoundTripTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExportRoundTripTests.swift; sourceTree = "<group>"; };
 		7E5700000000000000000008 /* md.too Tests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "md.too Tests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
+		7E5700000000000000000017 /* SurfaceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SurfaceTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -293,6 +295,7 @@
 				7E5700000000000000000014 /* MathCacheTests.swift */,
 				7E5700000000000000000015 /* ParserGoldenTests.swift */,
 				7E5700000000000000000016 /* ExportRoundTripTests.swift */,
+				7E5700000000000000000017 /* SurfaceTests.swift */,
 			);
 			path = tests;
 			sourceTree = "<group>";
@@ -576,6 +579,7 @@
 				7E5700000000000000000024 /* MathCacheTests.swift in Sources */,
 				7E5700000000000000000025 /* ParserGoldenTests.swift in Sources */,
 				7E5700000000000000000026 /* ExportRoundTripTests.swift in Sources */,
+				7E5700000000000000000027 /* SurfaceTests.swift in Sources */,
 				7E5700000000000000000040 /* Platform-macOS.swift in Sources */,
 				7E5700000000000000000041 /* FontRole.swift in Sources */,
 				7E5700000000000000000042 /* Environment.swift in Sources */,

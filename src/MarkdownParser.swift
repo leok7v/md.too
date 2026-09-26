@@ -17,13 +17,34 @@ enum ScriptAttribute: AttributedStringKey {
     static let name = "md.too.script"
 }
 
+// <small> has no markdown spelling either; the run is drawn at a
+// fraction of its size wherever there is a size to scale.
+
+enum SmallAttribute: AttributedStringKey {
+    typealias Value = Bool
+    static let name = "md.too.small"
+}
+
+// A paragraph inside <div align="center"> or <p align="center"> is
+// centred; the alignment rides every run of its text, since Block has
+// no room for it and a paragraph is otherwise left-aligned everywhere.
+
+enum AlignAttribute: AttributedStringKey {
+    typealias Value = Alignment
+    static let name = "md.too.align"
+}
+
+enum Alignment: Equatable, Hashable {
+    case none, left, center, right
+}
+
 enum Block: Equatable {
     case heading(level: Int, text: AttributedString)
     case paragraph(AttributedString)
     case code(language: String?, text: String)
     case quote([Block])
     case list(items: [ListItem], tight: Bool)
-    case table(headers: [String], rows: [[String]])
+    case table(headers: [String], rows: [[String]], alignments: [Alignment])
     // A $$...$$ display, carried as its TeX source. Inline $...$ stays
     // inside the paragraph's AttributedString: only a display gets a
     // block of its own, because only a display is typeset rather than
@@ -103,9 +124,15 @@ enum Markdown {
                 blocks.append(consumeIndentedCode(lines, &i))
             } else if line.trimmedOuter().isEmpty {
                 i += 1
+            } else if isCommentStart(line) {
+                skipComment(lines, &i)
             } else if let img = imageBlock(line) {
                 blocks.append(img)
                 i += 1
+            } else if centerOpener(line) != nil {
+                blocks += consumeCentered(lines, &i)
+            } else if isDetailsStart(line) {
+                blocks += consumeDetails(lines, &i)
             } else {
                 blocks.append(consumeParagraph(lines, &i))
             }
@@ -171,25 +198,30 @@ enum Markdown {
         return collapsed
     }
 
+    private static let fullRefRE = try? NSRegularExpression(
+        pattern: "(!?)\\[([^\\]\\n]+)\\]\\[([^\\]\\n]*)\\]")
+
+    private static let shortRefRE = try? NSRegularExpression(
+        pattern: "(!?)\\[([^\\]\\n]+)\\](?![\\[\\(:])")
+
     private static func substituteRefs(_ s: String) -> String {
         let refs = Markdown.currentRefs
         var result = s
         if !refs.isEmpty {
-            result = applyRefPattern(
-                result, pattern: "(!?)\\[([^\\]\\n]+)\\]\\[([^\\]\\n]*)\\]",
-                hasLabelGroup: true, refs: refs)
-            result = applyRefPattern(
-                result, pattern: "(!?)\\[([^\\]\\n]+)\\](?![\\[\\(:])",
-                hasLabelGroup: false, refs: refs)
+            result = applyRefPattern(result, fullRefRE,
+                                     hasLabelGroup: true, refs: refs)
+            result = applyRefPattern(result, shortRefRE,
+                                     hasLabelGroup: false, refs: refs)
         }
         return result
     }
 
-    private static func applyRefPattern(_ s: String, pattern: String,
+    private static func applyRefPattern(_ s: String,
+                                        _ re: NSRegularExpression?,
                                         hasLabelGroup: Bool,
                                         refs: [String: URL]) -> String {
         var result = s
-        if let re = try? NSRegularExpression(pattern: pattern) {
+        if let re {
             let ns = s as NSString
             let matches = re.matches(in: s,
                 range: NSRange(location: 0, length: ns.length))
@@ -215,13 +247,260 @@ enum Markdown {
         return result
     }
 
+    // The HTML a model writes when markdown has no spelling for the
+    // thing, plus the trivial synonyms, rewritten into markdown on the
+    // way into the inline parser: a comment is dropped, <br> is a hard
+    // break, <img> is an image, <a> a link, <b>/<i>/<s>/<code>/<kbd>
+    // their markdown twins. Only the text outside code spans is
+    // rewritten, and code blocks never reach here, so a tag inside code
+    // is shown as typed; a tag not on this list stays literal too, so no
+    // content is lost. <u>, <sup>, <sub> and <small> are consumed after
+    // the inline parse instead, because they carry an attribute markdown
+    // cannot.
+
+    private static func isCommentStart(_ line: String) -> Bool {
+        line.trimmedLeading().hasPrefix("<!--")
+    }
+
+    // A comment that opens a line is dropped through its close, however
+    // many lines that takes; what follows the close on that line stays.
+
+    private static func skipComment(_ lines: [String], _ i: inout Int) {
+        var closed = false
+        while i < lines.count, !closed {
+            if lines[i].contains("-->") { closed = true }
+            i += 1
+        }
+    }
+
+    private static func htmlLine(_ line: String) -> String {
+        var out = ""
+        for segment in codeSpanSegments(line) {
+            out += segment.code ? segment.text : htmlInline(segment.text)
+        }
+        return out
+    }
+
+    private struct TagRule {
+        let re: NSRegularExpression?
+        let template: String
+    }
+
+    private static func tagRule(_ pattern: String,
+                                _ template: String) -> TagRule {
+        TagRule(re: try? NSRegularExpression(pattern: pattern,
+                                             options: .caseInsensitive),
+                template: template)
+    }
+
+    private static let imgRule =
+        tagRule(#"<img\b[^>]*?\bsrc\s*=\s*"([^"]*)"[^>]*>"#, "![]($1)")
+
+    // Order matters: a comment goes first so its contents are never read
+    // as tags, and <img> before <a> so a linked image keeps its picture.
+
+    private static let tagRules: [TagRule] = [
+        tagRule(#"<!--.*?-->"#, ""),
+        tagRule(#"<br\s*/?>"#, "\u{2028}"),
+        imgRule,
+        tagRule(#"<img\b[^>]*?\bsrc\s*=\s*'([^']*)'[^>]*>"#, "![]($1)"),
+        tagRule(#"<a\b[^>]*?\bhref\s*=\s*"([^"]*)"[^>]*>(.*?)</a>"#,
+                "[$2]($1)"),
+        tagRule(#"<a\b[^>]*?\bhref\s*=\s*'([^']*)'[^>]*>(.*?)</a>"#,
+                "[$2]($1)"),
+        tagRule(#"<(b|strong)>(.*?)</\1>"#, "**$2**"),
+        tagRule(#"<(i|em)>(.*?)</\1>"#, "*$2*"),
+        tagRule(#"<(s|del|strike)>(.*?)</\1>"#, "~~$2~~"),
+        tagRule(#"<(code|kbd)>(.*?)</\1>"#, "`$2`"),
+    ]
+
+    private static let imgAltRE = try? NSRegularExpression(
+        pattern: #"<img\b[^>]*?\balt\s*=\s*"([^"]*)""#,
+        options: .caseInsensitive)
+
+    private static let imgSizeRE = try? NSRegularExpression(
+        pattern: #"\b(width|height)\s*=\s*"?(\d+)"?"#,
+        options: .caseInsensitive)
+
+    private static func htmlInline(_ text: String) -> String {
+        var result = text
+        if text.contains("<") {
+            result = imagesWithAttributes(result)
+            for rule in tagRules {
+                if let re = rule.re {
+                    let ns = result as NSString
+                    result = re.stringByReplacingMatches(
+                        in: result,
+                        range: NSRange(location: 0, length: ns.length),
+                        withTemplate: rule.template)
+                }
+            }
+        }
+        return result
+    }
+
+    // The alt text and the size are read off the tag before the generic
+    // rule reduces it to its source, so ![alt](src){width=.. height=..}
+    // carries what the tag carried.
+
+    private static func imagesWithAttributes(_ text: String) -> String {
+        var result = text
+        if let altRE = imgAltRE, let sizeRE = imgSizeRE {
+            let ns = text as NSString
+            let full = NSRange(location: 0, length: ns.length)
+            let tags = imgRule.re?.matches(in: text, range: full) ?? []
+            let mutable = NSMutableString(string: text)
+            for m in tags.reversed() {
+                let tag = ns.substring(with: m.range)
+                let src = ns.substring(with: m.range(at: 1))
+                let tagNS = tag as NSString
+                let tagRange = NSRange(location: 0, length: tagNS.length)
+                var alt = ""
+                if let a = altRE.firstMatch(in: tag, range: tagRange) {
+                    alt = tagNS.substring(with: a.range(at: 1))
+                }
+                var dims: [String] = []
+                for d in sizeRE.matches(in: tag, range: tagRange) {
+                    let key = tagNS.substring(with: d.range(at: 1))
+                    let value = tagNS.substring(with: d.range(at: 2))
+                    dims.append(key.lowercased() + "=" + value)
+                }
+                let suffix = dims.isEmpty
+                    ? "" : "{" + dims.joined(separator: " ") + "}"
+                mutable.replaceCharacters(
+                    in: m.range, with: "![\(alt)](\(src))" + suffix)
+            }
+            result = mutable as String
+        }
+        return result
+    }
+
+    private static let centerOpenRE = try? NSRegularExpression(
+        pattern: #"^\s*<(?:(?:div|p)\s+align\s*=\s*"?center"?|center)\s*>"#,
+        options: .caseInsensitive)
+
+    private static let centerCloseRE = try? NSRegularExpression(
+        pattern: #"</(?:div|p|center)\s*>\s*$"#, options: .caseInsensitive)
+
+    private static func centerOpener(_ line: String) -> NSRange? {
+        var result: NSRange? = nil
+        if line.contains("<"), let re = centerOpenRE {
+            let ns = line as NSString
+            result = re.firstMatch(
+                in: line, range: NSRange(location: 0, length: ns.length))?
+                .range
+        }
+        return result
+    }
+
+    private static func centerCloser(_ line: String) -> NSRange? {
+        var result: NSRange? = nil
+        if line.contains("</"), let re = centerCloseRE {
+            let ns = line as NSString
+            result = re.firstMatch(
+                in: line, range: NSRange(location: 0, length: ns.length))?
+                .range
+        }
+        return result
+    }
+
+    // A centring wrapper is unwrapped and the paragraphs and headings
+    // inside it carry the alignment on their text. The wrapper may open
+    // and close on one line, the way a README centres its badges.
+
+    private static func consumeCentered(_ lines: [String],
+                                        _ i: inout Int) -> [Block] {
+        var inner: [String] = []
+        var closed = false
+        var first = lines[i]
+        if let open = centerOpener(first) {
+            first = (first as NSString).replacingCharacters(in: open, with: "")
+        }
+        var line = first
+        while i < lines.count, !closed {
+            if let close = centerCloser(line) {
+                line = (line as NSString).replacingCharacters(in: close,
+                                                              with: "")
+                closed = true
+            }
+            if !line.trimmedOuter().isEmpty || !inner.isEmpty {
+                inner.append(line)
+            }
+            i += 1
+            if i < lines.count, !closed { line = lines[i] }
+        }
+        return parseBlocks(inner).map { block in centered(block) }
+    }
+
+    private static func centered(_ block: Block) -> Block {
+        let result: Block
+        switch block {
+            case .paragraph(var attr):
+                attr[AlignAttribute.self] = .center
+                result = .paragraph(attr)
+            case .heading(let level, var attr):
+                attr[AlignAttribute.self] = .center
+                result = .heading(level: level, text: attr)
+            default:
+                result = block
+        }
+        return result
+    }
+
+    private static let summaryRE = try? NSRegularExpression(
+        pattern: #"<summary>(.*?)</summary>"#, options: .caseInsensitive)
+
+    private static func isDetailsStart(_ line: String) -> Bool {
+        line.trimmedLeading().lowercased().hasPrefix("<details")
+    }
+
+    // A viewer has nothing to fold, so <details> is drawn open: the
+    // summary as a bold line, the body as the blocks it holds.
+
+    private static func consumeDetails(_ lines: [String],
+                                       _ i: inout Int) -> [Block] {
+        var inner: [String] = []
+        var title = ""
+        var closed = false
+        while i < lines.count, !closed {
+            var line = lines[i]
+            if let r = line.range(of: "<details", options: .caseInsensitive),
+               let end = line[r.lowerBound...].firstIndex(of: ">") {
+                line = String(line[line.index(after: end)...])
+            }
+            if let re = summaryRE {
+                let ns = line as NSString
+                let full = NSRange(location: 0, length: ns.length)
+                if let m = re.firstMatch(in: line, range: full) {
+                    title = ns.substring(with: m.range(at: 1))
+                    line = ns.replacingCharacters(in: m.range, with: "")
+                }
+            }
+            if let r = line.range(of: "</details>", options: .caseInsensitive) {
+                line = String(line[..<r.lowerBound])
+                closed = true
+            }
+            if !line.trimmedOuter().isEmpty || !inner.isEmpty {
+                inner.append(line)
+            }
+            i += 1
+        }
+        var out: [Block] = []
+        if !title.trimmedOuter().isEmpty {
+            out.append(.paragraph(inline("**" + title.trimmedOuter() + "**")))
+        }
+        out += parseBlocks(inner)
+        return out
+    }
+
     private static func isHeading(_ s: String) -> Bool {
         var result = false
         let t = s.trimmedOuter()
         let n = t.prefix { c in c == "#" }.count
         if n >= 1 && n <= 6 {
             let rest = t.dropFirst(n)
-            result = rest.hasPrefix(" ") || rest.isEmpty
+            result = rest.hasPrefix(" ") || rest.hasPrefix("\t") ||
+                     rest.isEmpty
         }
         return result
     }
@@ -359,7 +638,9 @@ enum Markdown {
             if isQuoteStart(line) {
                 var t = line.trimmedLeading()
                 t = String(t.dropFirst())
-                if t.hasPrefix(" ") { t = String(t.dropFirst()) }
+                if t.hasPrefix(" ") || t.hasPrefix("\t") {
+                    t = String(t.dropFirst())
+                }
                 inner.append(t)
                 i += 1
             } else if !line.trimmedOuter().isEmpty,
@@ -404,19 +685,26 @@ enum Markdown {
         return result
     }
 
+    // A tab after the marker counts as the one space; the content then
+    // sits at the next tab stop, which is where the continuation lines
+    // of a tab-indented list land as well.
+
     private static func afterMarker(_ tail: Substring, leading: Int,
                                     markerWidth: Int, label: String,
                                     sig: Character)
         -> (label: String, sig: Character, offset: Int, rest: String)? {
         var result: (String, Character, Int, String)? = nil
         let spaces = tail.prefix { c in c == " " }.count
-        let blankRest = tail.allSatisfy { c in c == " " }
+        let blankRest = tail.allSatisfy { c in c == " " || c == "\t" }
+        let column = leading + markerWidth
         if blankRest {
-            result = (label, sig, leading + markerWidth + 1, "")
+            result = (label, sig, column + 1, "")
+        } else if tail.hasPrefix("\t") {
+            result = (label, sig, column + 4 - column % 4,
+                      String(tail.dropFirst()))
         } else if spaces >= 1 {
             let n = spaces >= 5 ? 1 : spaces
-            result = (label, sig, leading + markerWidth + n,
-                      String(tail.dropFirst(n)))
+            result = (label, sig, column + n, String(tail.dropFirst(n)))
         }
         return result
     }
@@ -453,10 +741,14 @@ enum Markdown {
     private static func stripTaskMarker(_ s: String)
                                         -> (checked: Bool?, rest: String) {
         var result: (Bool?, String) = (nil, s)
-        if s.hasPrefix("[ ] ") {
-            result = (false, String(s.dropFirst(4)))
-        } else if s.hasPrefix("[x] ") || s.hasPrefix("[X] ") {
-            result = (true, String(s.dropFirst(4)))
+        let boxes: [(String, Bool)] = [("[ ]", false), ("[x]", true),
+                                       ("[X]", true)]
+        for (box, checked) in boxes where result.0 == nil {
+            if s == box {
+                result = (checked, "")
+            } else if s.hasPrefix(box + " ") || s.hasPrefix(box + "\t") {
+                result = (checked, String(s.dropFirst(box.count + 1)))
+            }
         }
         return result
     }
@@ -565,11 +857,33 @@ enum Markdown {
         return t.contains("|") && !t.isEmpty
     }
 
+    // A well-formed delimiter cell: dashes, optionally colon-anchored.
+
+    private static func isAlignmentCell(_ cell: String) -> Bool {
+        let t = cell.trimmingCharacters(in: .whitespaces)
+        return t.contains("-") && t.allSatisfy { ch in "-: ".contains(ch) }
+    }
+
+    // A cell that is malformed but still clearly punctuation rather than
+    // content.
+
+    private static func isJunkCell(_ cell: String) -> Bool {
+        cell.allSatisfy { ch in !ch.isLetter && !ch.isNumber }
+    }
+
+    // The delimiter row, read tolerantly: one good cell and no cell
+    // carrying content is enough, or one stray character costs the whole
+    // table.
+
     private static func isTableSeparator(_ s: String) -> Bool {
         var result = false
         let t = s.trimmedOuter()
         if t.contains("|"), t.contains("-") {
-            result = t.allSatisfy { ch in "-:| \t".contains(ch) }
+            let cells = parseRow(t)
+            result = cells.contains { cell in isAlignmentCell(cell) } &&
+                     cells.allSatisfy { cell in
+                         isAlignmentCell(cell) || isJunkCell(cell)
+                     }
         }
         return result
     }
@@ -587,25 +901,70 @@ enum Markdown {
                                      _ i: inout Int) -> Block {
         var headers: [String] = []
         var rows: [[String]] = []
+        var alignments: [Alignment] = []
         if i < lines.count, isTableRow(lines[i]) {
             headers = parseRow(lines[i])
             i += 1
         }
         if i < lines.count, isTableSeparator(lines[i]) {
+            alignments = parseAlignments(lines[i])
             i += 1
         }
         while i < lines.count, isTableRow(lines[i]) {
             rows.append(parseRow(lines[i]))
             i += 1
         }
-        return .table(headers: headers, rows: rows)
+        return .table(headers: headers, rows: rows, alignments: alignments)
     }
 
+    // A pipe escaped as \| is a character of its cell; one leading and
+    // one trailing pipe are the row's frame and any other is a divider.
+
     private static func parseRow(_ s: String) -> [String] {
-        let pipes = CharacterSet(charactersIn: "|")
-        let t = s.trimmedOuter().trimmingCharacters(in: pipes)
-        return t.split(separator: "|", omittingEmptySubsequences: false)
-                .map { p in p.trimmingCharacters(in: .whitespaces) }
+        let t = s.trimmedOuter()
+        var cells: [String] = []
+        var cell = ""
+        var escaping = false
+        for ch in t {
+            if escaping {
+                if ch != "|" { cell.append("\\") }
+                cell.append(ch)
+                escaping = false
+            } else if ch == "\\" {
+                escaping = true
+            } else if ch == "|" {
+                cells.append(cell)
+                cell = ""
+            } else {
+                cell.append(ch)
+            }
+        }
+        if escaping { cell.append("\\") }
+        cells.append(cell)
+        if t.hasPrefix("|"), !cells.isEmpty { cells.removeFirst() }
+        if t.hasSuffix("|"), !t.hasSuffix("\\|"), !cells.isEmpty {
+            cells.removeLast()
+        }
+        return cells.map { p in p.trimmingCharacters(in: .whitespaces) }
+    }
+
+    private static func parseAlignments(_ s: String) -> [Alignment] {
+        parseRow(s).map { cell in
+            let t = cell.trimmingCharacters(in: .whitespaces)
+            let left = t.hasPrefix(":")
+            let right = t.hasSuffix(":")
+            let a: Alignment
+            if left && right {
+                a = .center
+            } else if right {
+                a = .right
+            } else if left {
+                a = .left
+            } else {
+                a = .none
+            }
+            return a
+        }
     }
 
     private static let imagePattern =
@@ -618,7 +977,7 @@ enum Markdown {
     private static func imageBlock(_ line: String) -> Block? {
         var result: Block? = nil
         if let re = imageLineRegex {
-            let trimmed = line.trimmedOuter()
+            let trimmed = htmlLine(line).trimmedOuter()
             let ns = trimmed as NSString
             let range = NSRange(location: 0, length: ns.length)
             if let m = re.firstMatch(in: trimmed,
@@ -642,13 +1001,15 @@ enum Markdown {
         return result
     }
 
+    private static let dimensionRE = try? NSRegularExpression(
+        pattern: #"(width|height)\s*=\s*(\d+(?:\.\d+)?)(?:px)?"#,
+        options: .caseInsensitive)
+
     private static func parseDimensions(_ attrs: String)
                                         -> (CGFloat?, CGFloat?) {
         var width: CGFloat?
         var height: CGFloat?
-        let pat = #"(width|height)\s*=\s*(\d+(?:\.\d+)?)(?:px)?"#
-        if let re = try? NSRegularExpression(pattern: pat,
-                                             options: .caseInsensitive) {
+        if let re = dimensionRE {
             let ns = attrs as NSString
             let full = NSRange(location: 0, length: ns.length)
             re.enumerateMatches(in: attrs,
@@ -671,6 +1032,11 @@ enum Markdown {
         return (width, height)
     }
 
+    // An indented line cannot interrupt a paragraph: it is the
+    // paragraph's continuation, as in CommonMark, and only starts a code
+    // block after a blank line. Leading whitespace on any line of a
+    // paragraph is not content, so it is dropped before the lines join.
+
     private static func consumeParagraph(_ lines: [String],
                                          _ i: inout Int) -> Block {
         var body: [String] = []
@@ -681,12 +1047,13 @@ enum Markdown {
             let other = isHeading(line) || isHR(line) || isFence(line) ||
                         isMathFence(line) ||
                         isTableStart(lines, i) || isQuoteStart(line) ||
-                        isListStart(line) || isIndentedCode(line) ||
-                        imageBlock(line) != nil
+                        isListStart(line) || imageBlock(line) != nil ||
+                        centerOpener(line) != nil ||
+                        isDetailsStart(line) || isCommentStart(line)
             if blank || other {
                 done = true
             } else {
-                body.append(line)
+                body.append(line.trimmedLeading())
                 i += 1
             }
         }
@@ -760,22 +1127,53 @@ enum Markdown {
         return result
     }
 
+    // Each maths span becomes a private-use sentinel, the WHOLE line is
+    // markdown-parsed once so emphasis wrapping maths (`**$x$**`) still
+    // pairs across the span, then the sentinels are swapped for the
+    // rendered runs. Reference substitution and the maths split see only
+    // the text outside code spans, so `$5 and $6` in backticks stays
+    // what it says.
+
     private static func inline(_ raw: String) -> AttributedString {
-        let withRefs = substituteRefs(raw)
-        let normalized = normalizeBreaks(withRefs)
-        let segments = TeX.split(normalized)
-        var out = AttributedString()
-        for seg in segments {
-            switch seg {
-                case .text(let s): out.append(parseInlineMarkdown(s))
-                case .math(let s, let display):
-                    out.append(TeX.render(s, display: display))
+        var stitched = ""
+        var maths: [TeX.Segment] = []
+        for segment in codeSpanSegments(raw) {
+            if segment.code {
+                stitched += segment.text
+            } else {
+                let withRefs = substituteRefs(htmlInline(segment.text))
+                for piece in TeX.split(withRefs) {
+                    switch piece {
+                        case .text(let s): stitched += s
+                        case .math:
+                            let mark = sentinel(maths.count)
+                            stitched.unicodeScalars.append(mark)
+                            maths.append(piece)
+                    }
+                }
             }
         }
-        applyUnderlineTags(&out)
-        applyScriptTags(&out, tag: "sup", level: 1)
-        applyScriptTags(&out, tag: "sub", level: -1)
+        var out = parseInlineMarkdown(normalizeBreaks(stitched))
+        for (index, piece) in maths.enumerated() {
+            if case .math(let s, let display) = piece,
+               let r = out.range(of: String(sentinel(index))) {
+                out.replaceSubrange(r, with: TeX.render(s, display: display))
+            }
+        }
+        applyTag(&out, "u") { sub in sub.underlineStyle = .single }
+        applyTag(&out, "sup") { sub in sub[ScriptAttribute.self] = 1 }
+        applyTag(&out, "sub") { sub in sub[ScriptAttribute.self] = -1 }
+        applyTag(&out, "small") { sub in sub[SmallAttribute.self] = true }
         return out
+    }
+
+    // Plane 16 private use, not the BMP block: icon fonts put their
+    // glyphs at U+E000 and a README that shows one would have it swapped
+    // for a formula. Earlier sentinels are gone by the time an index
+    // wraps, so the wrap is safe.
+
+    private static func sentinel(_ index: Int) -> Unicode.Scalar {
+        Unicode.Scalar(0x100000 + UInt32(index % 0xFFFD)) ?? " "
     }
 
     private static func parseInlineMarkdown(_ s: String)
@@ -790,6 +1188,10 @@ enum Markdown {
         return result
     }
 
+    // A hard break is a line separator inside the paragraph, so the
+    // paragraph stays one paragraph and keeps its spacing; a literal
+    // newline would have made TextKit read every verse as its own.
+
     private static func normalizeBreaks(_ s: String) -> String {
         let lines = s
             .split(separator: "\n", omittingEmptySubsequences: false)
@@ -800,7 +1202,7 @@ enum Markdown {
             let hardBreak = line.hasSuffix("  ")
             let trimmed = hardBreak ? String(line.dropLast(2)) : line
             if hardBreak {
-                out.append(trimmed + "\n")
+                out.append(trimmed + "\u{2028}")
             } else if last {
                 out.append(trimmed)
             } else {
@@ -810,35 +1212,86 @@ enum Markdown {
         return out.joined()
     }
 
-    private static func applyUnderlineTags(_ a: inout AttributedString) {
-        while let open = a.range(of: "<u>", options: .caseInsensitive) {
-            if let close = a[open.upperBound...].range(
-                of: "</u>", options: .caseInsensitive) {
-                var sub = a[open.upperBound..<close.lowerBound]
-                sub.underlineStyle = .single
-                a.replaceSubrange(open.lowerBound..<close.upperBound, with: sub)
+    // The runs of a line inside and outside backtick code spans, by the
+    // CommonMark rule: a run of N backticks opens a span that the next
+    // run of exactly N closes, and an opener with no closer is text.
+
+    static func codeSpanSegments(_ line: String)
+        -> [(text: String, code: Bool)] {
+        var out: [(text: String, code: Bool)] = []
+        let chars = Array(line)
+        var text = ""
+        var i = 0
+        while i < chars.count {
+            if chars[i] == "`" {
+                var n = 0
+                while i + n < chars.count, chars[i + n] == "`" { n += 1 }
+                let close = closingRun(chars, from: i + n, length: n)
+                if let close {
+                    if !text.isEmpty { out.append((text, false)) }
+                    text = ""
+                    out.append((String(chars[i..<(close + n)]), true))
+                    i = close + n
+                } else {
+                    text += String(chars[i..<(i + n)])
+                    i += n
+                }
             } else {
-                a.removeSubrange(open)
+                text.append(chars[i])
+                i += 1
             }
         }
+        if !text.isEmpty { out.append((text, false)) }
+        return out
     }
 
-    // Same shape as applyUnderlineTags: an unclosed opener is dropped
-    // rather than left on screen, since a stray "<sup>" is markup the
-    // reader never wrote and never wants to see.
+    private static func closingRun(_ chars: [Character], from start: Int,
+                                   length: Int) -> Int? {
+        var result: Int? = nil
+        var i = start
+        while i < chars.count, result == nil {
+            if chars[i] == "`" {
+                var n = 0
+                while i + n < chars.count, chars[i + n] == "`" { n += 1 }
+                if n == length { result = i }
+                i += n
+            } else {
+                i += 1
+            }
+        }
+        return result
+    }
 
-    private static func applyScriptTags(_ a: inout AttributedString,
-                                        tag: String, level: Int) {
+    // An opener inside a code span is the span's own text and is left
+    // alone; one outside styles what it wraps, and an unclosed one is
+    // dropped rather than left on screen, since a stray "<sup>" is
+    // markup the reader never wrote and never wants to see. The search
+    // restarts after each edit because the indices it held are stale.
+
+    private static func applyTag(_ a: inout AttributedString,
+                                 _ tag: String,
+                                 style: (inout AttributedSubstring) -> Void) {
         let open = "<\(tag)>"
         let close = "</\(tag)>"
-        while let o = a.range(of: open, options: .caseInsensitive) {
-            if let c = a[o.upperBound...].range(of: close,
-                                                options: .caseInsensitive) {
-                var sub = a[o.upperBound..<c.lowerBound]
-                sub[ScriptAttribute.self] = level
-                a.replaceSubrange(o.lowerBound..<c.upperBound, with: sub)
+        var from = a.startIndex
+        var searching = true
+        while searching {
+            if let o = a[from...].range(of: open, options: .caseInsensitive) {
+                let intent = a.runs[o.lowerBound].inlinePresentationIntent
+                if intent?.contains(.code) == true {
+                    from = o.upperBound
+                } else if let c = a[o.upperBound...].range(
+                    of: close, options: .caseInsensitive) {
+                    var sub = a[o.upperBound..<c.lowerBound]
+                    style(&sub)
+                    a.replaceSubrange(o.lowerBound..<c.upperBound, with: sub)
+                    from = a.startIndex
+                } else {
+                    a.removeSubrange(o)
+                    from = a.startIndex
+                }
             } else {
-                a.removeSubrange(o)
+                searching = false
             }
         }
     }

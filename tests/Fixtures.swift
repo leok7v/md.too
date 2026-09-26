@@ -19,9 +19,12 @@ enum Fixtures {
             .appendingPathComponent("EXAMPLE.md")
         let edge = root.appendingPathComponent("fixtures")
             .appendingPathComponent("edge.md")
+        let html = root.appendingPathComponent("fixtures")
+            .appendingPathComponent("html.md")
         var out: [Fixture] = []
         out += try sections(of: example, prefix: "example")
         out += try sections(of: edge, prefix: "edge")
+        out += try sections(of: html, prefix: "html")
         return out
     }
 

@@ -69,8 +69,9 @@ final class PDFRenderer {
             case .quote(let blocks): drawQuote(blocks)
             case .list(let items, let tight):
                 drawList(items, tight: tight)
-            case .table(let headers, let rows):
-                drawTable(headers: headers, rows: rows)
+            case .table(let headers, let rows, let alignments):
+                drawTable(headers: headers, rows: rows,
+                          alignments: alignments)
             case .math(let tex): drawMath(tex)
             case .rule: drawRule()
             case .image(let alt, let url, let width, _):
@@ -160,6 +161,8 @@ final class PDFRenderer {
             }
         }
         applyScriptRuns(m, from: attr)
+        applySmallRuns(m, from: attr)
+        applyParagraphAlignment(m, from: attr)
         flow(m)
     }
 
@@ -311,13 +314,15 @@ final class PDFRenderer {
         }
     }
 
-    private func drawTable(headers: [String], rows: [[String]]) {
+    private func drawTable(headers: [String], rows: [[String]],
+                           alignments: [Alignment]) {
         let cols = max(headers.count, rows.map(\.count).max() ?? 0)
         if cols > 0 {
             let saved = tableScale
             tableScale = fittingScale(headers: headers, rows: rows,
                                       cols: cols)
-            drawTableImpl(headers: headers, rows: rows, cols: cols)
+            drawTableImpl(headers: headers, rows: rows, cols: cols,
+                          alignments: alignments)
             tableScale = saved
         }
     }
@@ -435,7 +440,7 @@ final class PDFRenderer {
     }
 
     private func drawTableImpl(headers: [String], rows: [[String]],
-                                  cols: Int) {
+                               cols: Int, alignments: [Alignment]) {
         // Horizontal inset only. The gutter between two columns is the
         // previous cell's right margin plus the next cell's left one, so
         // half an average character on each side buys a full character of
@@ -470,7 +475,9 @@ final class PDFRenderer {
         }
         func drawRow(_ cells: [String], bold: Bool, shade: CGColor?) {
             let built = (0..<cols).map { c in
-                cellContent(c < cells.count ? cells[c] : "", bold: bold)
+                cellContent(c < cells.count ? cells[c] : "", bold: bold,
+                            alignment: c < alignments.count
+                                ? alignments[c] : .none)
             }
             var rowH: CGFloat = scaledBodySize * 1.3
             for c in 0..<cols {
@@ -551,13 +558,15 @@ final class PDFRenderer {
 
     // Built once per cell, for the height pass and the draw alike.
 
-    private func cellContent(_ txt: String, bold: Bool) -> CellContent {
+    private func cellContent(_ txt: String, bold: Bool,
+                             alignment: Alignment) -> CellContent {
         var result: CellContent
         if let info = ImagePrefetch.imageInCell(txt),
            let cg = images[info.0] {
             result = .picture(cg, info.1, info.2)
         } else {
-            result = .text(cellAttributed(txt, bold: bold))
+            result = .text(cellAttributed(txt, bold: bold,
+                                          alignment: alignment))
         }
         return result
     }
@@ -625,8 +634,9 @@ final class PDFRenderer {
         return result
     }
 
-    private func cellAttributed(_ text: String,
-                                bold: Bool) -> NSAttributedString {
+    private func cellAttributed(_ text: String, bold: Bool,
+                                alignment: Alignment)
+        -> NSAttributedString {
         let parsed = Markdown.parseCell(text)
         var attr = AttributedString(text)
         if let first = parsed.first, case .paragraph(let a) = first {
@@ -634,6 +644,12 @@ final class PDFRenderer {
         }
         let base = bold ? bodyFontBold() : bodyFont()
         let baseSize = CTFontGetSize(base)
+        let para = NSMutableParagraphStyle()
+        switch alignment {
+            case .center: para.alignment = .center
+            case .right: para.alignment = .right
+            case .left, .none: para.alignment = .natural
+        }
         let m = NSMutableAttributedString()
         for run in attr.runs {
             let intent = run.inlinePresentationIntent ?? []
@@ -642,7 +658,11 @@ final class PDFRenderer {
                                         additionalBold: bold)
             var attrs: [NSAttributedString.Key: Any] = [
                 .foregroundColor: textColor,
+                .paragraphStyle: para,
             ]
+            if run[SmallAttribute.self] == true {
+                runFont = smallRunFont(base: runFont)
+            }
             if let level = run[ScriptAttribute.self] {
                 let script = scriptRunFont(level, base: runFont)
                 runFont = script.font
@@ -666,7 +686,7 @@ final class PDFRenderer {
 
 
     private func cellRenderedWidth(_ text: String, bold: Bool) -> CGFloat {
-        let attr = cellAttributed(text, bold: bold)
+        let attr = cellAttributed(text, bold: bold, alignment: .none)
         let line = CTLineCreateWithAttributedString(attr)
         return CTLineGetBoundsWithOptions(line, []).width
     }

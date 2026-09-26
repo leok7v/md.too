@@ -121,7 +121,7 @@ enum DocumentText {
                                    seen: [URL: ObjectIdentifier],
                                    cache: RenderCache?) -> TableCells? {
         var result: TableCells? = nil
-        if case .table(let headers, let rows) = block {
+        if case .table(let headers, let rows, let alignments) = block {
             let bodySize = FontRole.body.platformFont.pointSize
             var known = cache?.tables[i]
             let stale = known?.block != block ||
@@ -130,6 +130,7 @@ enum DocumentText {
                 known = RenderCache.Table(
                     block: block, bodySize: bodySize, images: seen,
                     cells: tableCells(headers: headers, rows: rows,
+                                      alignments: alignments,
                                       images: images))
                 cache?.tables[i] = known
             }
@@ -197,7 +198,7 @@ enum DocumentText {
     private static func minimumWidth(ofBlock block: Block) -> CGFloat {
         var result: CGFloat = 0
         switch block {
-            case .table(let headers, let rows):
+            case .table(let headers, let rows, _):
                 result = tableMinimumWidth(headers: headers, rows: rows)
             case .math(let tex):
                 result = mathMinimumWidth(tex)
@@ -244,12 +245,14 @@ enum DocumentText {
     static func tableMinimumWidth(headers: [String],
                                   rows: [[String]]) -> CGFloat {
         tableMinimumWidth(tableCells(headers: headers, rows: rows,
-                                     images: [:]))
+                                     alignments: [], images: [:]))
     }
 
-    static func table(headers: [String], rows: [[String]], id: String,
+    static func table(headers: [String], rows: [[String]],
+                      alignments: [Alignment], id: String,
                       images: [URL: DocumentImage]) -> NSAttributedString {
-        table(tableCells(headers: headers, rows: rows, images: images),
+        table(tableCells(headers: headers, rows: rows,
+                         alignments: alignments, images: images),
               id: id)
     }
 
@@ -261,13 +264,21 @@ enum DocumentText {
     struct TableCells {
         let headers: [String]
         let rows: [[String]]
+        let alignments: [Alignment]
         let cols: Int
         let header: [TableCell]
         let body: [[TableCell]]
         let minimums: [CGFloat]
+
+        // The column's alignment, or leading where the row said nothing.
+
+        func alignment(_ col: Int) -> Alignment {
+            col < alignments.count ? alignments[col] : .none
+        }
     }
 
     static func tableCells(headers: [String], rows: [[String]],
+                           alignments: [Alignment],
                            images: [URL: DocumentImage]) -> TableCells {
         let body = FontRole.body.platformFont
         let bold = boldFont(of: body)
@@ -284,7 +295,8 @@ enum DocumentText {
                 if cell.minimum > minimums[c] { minimums[c] = cell.minimum }
             }
         }
-        return TableCells(headers: headers, rows: rows, cols: cols,
+        return TableCells(headers: headers, rows: rows,
+                          alignments: alignments, cols: cols,
                           header: header, body: built,
                           minimums: minimums.map { w in ceil(w) })
     }
@@ -383,8 +395,9 @@ enum DocumentText {
             case .list(let items, let tight):
                 result = list(items: items, tight: tight, depth: 0, id: id,
                               images: images)
-            case .table(let headers, let rows):
-                result = table(headers: headers, rows: rows, id: id,
+            case .table(let headers, let rows, let alignments):
+                result = table(headers: headers, rows: rows,
+                               alignments: alignments, id: id,
                                images: images)
             case .math(let tex):
                 result = math(tex, id: id)
@@ -627,7 +640,9 @@ enum DocumentText {
         -> NSAttributedString {
         let m = NSMutableAttributedString()
         translateInline(attr, base: FontRole.body.platformFont, into: m)
-        m.addAttribute(.paragraphStyle, value: blockParagraph(),
+        let para = blockParagraph()
+        para.alignment = textAlignment(attr)
+        m.addAttribute(.paragraphStyle, value: para,
                        range: NSRange(location: 0, length: m.length))
         m.append(NSAttributedString(string: "\n"))
         return m
@@ -641,10 +656,16 @@ enum DocumentText {
                               into: m)
         let para = blockParagraph()
         para.paragraphSpacingBefore = blockSpacing
+        para.alignment = textAlignment(text)
         m.addAttribute(.paragraphStyle, value: para,
                        range: NSRange(location: 0, length: m.length))
         m.append(NSAttributedString(string: "\n"))
         return m
+    }
+
+    private static func textAlignment(_ attr: AttributedString)
+        -> NSTextAlignment {
+        attr.runs.first?[AlignAttribute.self] == .center ? .center : .natural
     }
 
     private static func rule() -> NSAttributedString {
@@ -668,6 +689,9 @@ enum DocumentText {
             var attrs: [NSAttributedString.Key: Any] = [
                 .foregroundColor: platformDefaultTextColor,
             ]
+            if run[SmallAttribute.self] == true {
+                runFont = smallRunFont(base: runFont)
+            }
             if let level = run[ScriptAttribute.self] {
                 let script = scriptRunFont(level, base: runFont)
                 runFont = script.font
@@ -676,6 +700,9 @@ enum DocumentText {
             attrs[.font] = runFont
             if intent.contains(.strikethrough) {
                 attrs[.strikethroughStyle] = NSUnderlineStyle.single.rawValue
+            }
+            if run.underlineStyle != nil {
+                attrs[.underlineStyle] = NSUnderlineStyle.single.rawValue
             }
             if let url = run.link { attrs[.link] = url }
             m.append(NSAttributedString(string: segment, attributes: attrs))
