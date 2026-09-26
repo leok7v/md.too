@@ -110,6 +110,9 @@
 		7E5700000000000000000057 /* Bridges-macOS.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A2B3C4D5200000000000011 /* Bridges-macOS.swift */; };
 		7E5700000000000000000058 /* Highlight.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A2B3C4D520000000000000B /* Highlight.swift */; };
 		7E5700000000000000000027 /* SurfaceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7E5700000000000000000017 /* SurfaceTests.swift */; };
+		57E0000000000000000000A1 /* Style.swift in Sources */ = {isa = PBXBuildFile; fileRef = 57E0000000000000000000A0 /* Style.swift */; };
+		57E0000000000000000000A2 /* Style.swift in Sources */ = {isa = PBXBuildFile; fileRef = 57E0000000000000000000A0 /* Style.swift */; };
+		57E0000000000000000000A3 /* Style.swift in Sources */ = {isa = PBXBuildFile; fileRef = 57E0000000000000000000A0 /* Style.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -177,6 +180,7 @@
 		7E5700000000000000000016 /* ExportRoundTripTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExportRoundTripTests.swift; sourceTree = "<group>"; };
 		7E5700000000000000000008 /* md.too Tests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "md.too Tests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
 		7E5700000000000000000017 /* SurfaceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SurfaceTests.swift; sourceTree = "<group>"; };
+		57E0000000000000000000A0 /* Style.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Style.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -263,6 +267,7 @@
 				1A2B3C4D5200000000000013 /* Platform-macOS.swift */,
 				1A2B3C4D5200000000000010 /* QuickLook.swift */,
 				1A2B3C4D520000000000001C /* SelectableText.swift */,
+				57E0000000000000000000A0 /* Style.swift */,
 				B5000010AAAAAAAAAAAAAAAA /* TableMetrics.swift */,
 				B31730822FD2283E00C6B7F0 /* TeX.swift */,
 				B31730902FD2283E00C6B7F0 /* KaTeX.swift */,
@@ -513,6 +518,7 @@
 			files = (
 				1A2B3C4D5300000000000014 /* Platform-macOS.swift in Sources */,
 				1A2B3C4D5300000000000017 /* FontRole.swift in Sources */,
+				57E0000000000000000000A1 /* Style.swift in Sources */,
 				1A2B3C4D530000000000001A /* Environment.swift in Sources */,
 				1A2B3C4D530000000000001D /* App-macOS.swift in Sources */,
 				1A2B3C4D530000000000001F /* FileWatcher.swift in Sources */,
@@ -551,6 +557,7 @@
 			files = (
 				1A2B3C4D5300000000000016 /* Platform-macOS.swift in Sources */,
 				1A2B3C4D5300000000000019 /* FontRole.swift in Sources */,
+				57E0000000000000000000A2 /* Style.swift in Sources */,
 				FA00000000000000000000A3 /* Find.swift in Sources */,
 				1A2B3C4D530000000000001C /* Environment.swift in Sources */,
 				1A2B3C4D5300000000000003 /* MarkdownParser.swift in Sources */,
@@ -582,6 +589,7 @@
 				7E5700000000000000000027 /* SurfaceTests.swift in Sources */,
 				7E5700000000000000000040 /* Platform-macOS.swift in Sources */,
 				7E5700000000000000000041 /* FontRole.swift in Sources */,
+				57E0000000000000000000A3 /* Style.swift in Sources */,
 				7E5700000000000000000042 /* Environment.swift in Sources */,
 				7E5700000000000000000043 /* FileWatcher.swift in Sources */,
 				7E5700000000000000000044 /* Find.swift in Sources */,

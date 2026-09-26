@@ -84,18 +84,23 @@ struct MarkdownView: View, Equatable {
     // is the price of a single selectable surface. A document whose
     // tables fit asks for nothing and stays aligned to the window.
 
+    // The style is built from the zoom this view holds, so the cache
+    // key and the dependency SwiftUI re-renders on are one value.
+
     private var documentTextView: some View {
         let blocks = Markdown.parse(displayText)
+        let style = MarkdownStyle.at(zoom: Zoom.scale(zoom))
         let fits = max(viewport - 40, 0)
         let need = DocumentText.minimumWidth(of: blocks,
                                              images: documentImages,
-                                             cache: cache)
+                                             cache: cache, style: style)
         let width = max(fits, need)
         let urls = ImagePrefetch.collectURLs(in: blocks)
         return ScrollView(.horizontal, showsIndicators: need > fits) {
             SelectableText(
                 nsAttributed: DocumentText.attributed(
-                    from: blocks, images: documentImages, cache: cache),
+                    from: blocks, images: documentImages, cache: cache,
+                    style: style),
                 role: .body, find: find)
                 .frame(width: viewport > 0 ? width : nil,
                        alignment: .leading)

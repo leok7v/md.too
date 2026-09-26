@@ -102,7 +102,7 @@ A short loop through [EXAMPLE.md](EXAMPLE.md) on each platform — parsing, synt
 
 ## Source code
 
-[`src/`](src) is the whole codebase: 31 hand-written Swift files plus a bundled [`highlights.ini`](src/highlights.ini). No SPM packages, no CocoaPods, no vendored sources. Every file depends only on files in lower layers — the dependency graph is a tree, not a web, and zero `#if os(...)` walls remain anywhere in the source.
+[`src/`](src) is the whole codebase: 33 hand-written Swift files plus a bundled [`highlights.ini`](src/highlights.ini). No SPM packages, no CocoaPods, no vendored sources. Every file depends only on files in lower layers — the dependency graph is a tree, not a web, and zero `#if os(...)` walls remain anywhere in the source.
 
 The layout is layered. A given file references only symbols from files in layers below it, so reading top-down or bottom-up never requires holding a cycle in your head.
 
@@ -116,7 +116,8 @@ The layout is layered. A given file references only symbols from files in layers
 
 **Layer 1 — parser, fonts, highlighter:**
 
-- [`FontRole.swift`](src/FontRole.swift) — `FontRole` enum mapping `.body` / `.heading(n)` / `.mono` to a `PlatformFont`.
+- [`Style.swift`](src/Style.swift) — `MarkdownStyle`, the one value every size and spacing derives from: body, code and six heading sizes, block and paragraph spacing, list indent, code padding, all as fractions of the body size so zoom and Dynamic Type move the page together.
+- [`FontRole.swift`](src/FontRole.swift) — `FontRole` enum mapping `.body` / `.heading(n)` / `.mono` to a `PlatformFont` through the style.
 - [`MarkdownParser.swift`](src/MarkdownParser.swift) — `Block` enum, `ListItem`, and the block parser with CommonMark container model + link-reference rewrite. Pure data; no SwiftUI.
 - [`Highlight.swift`](src/Highlight.swift) — regex syntax highlighter driven by [`highlights.ini`](src/highlights.ini).
 

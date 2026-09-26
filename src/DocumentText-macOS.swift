@@ -116,11 +116,54 @@ func mathPDF(_ layout: MathLayout, dark: Bool,
     return result
 }
 
+// A horizontal rule as a cell that asks TextKit for the width of the
+// line it sits on and strokes a hairline across it, so the rule spans
+// the column at any width and follows the separator colour.
+
+final class RuleAttachmentCell: NSTextAttachmentCell {
+
+    private let height: CGFloat
+
+    init(height: CGFloat) {
+        self.height = height
+        super.init()
+    }
+
+    required init(coder: NSCoder) {
+        fatalError("RuleAttachmentCell is not decodable")
+    }
+
+    override func cellSize() -> NSSize {
+        NSSize(width: 1, height: height)
+    }
+
+    override func cellFrame(for textContainer: NSTextContainer,
+                            proposedLineFragment lineFrag: NSRect,
+                            glyphPosition position: NSPoint,
+                            characterIndex: Int) -> NSRect {
+        NSRect(x: 0, y: 0, width: max(lineFrag.width - position.x, 1),
+               height: height)
+    }
+
+    override func draw(withFrame cellFrame: NSRect, in controlView: NSView?) {
+        NSColor.separatorColor.setFill()
+        NSRect(x: cellFrame.minX, y: cellFrame.midY - 0.5,
+               width: cellFrame.width, height: 1).fill()
+    }
+
+}
+
 extension DocumentText {
 
     static func mathAttachment(_ layout: MathLayout) -> NSTextAttachment {
         let attachment = NSTextAttachment()
         attachment.attachmentCell = MathAttachmentCell(layout: layout)
+        return attachment
+    }
+
+    static func ruleAttachment(height: CGFloat) -> NSTextAttachment {
+        let attachment = NSTextAttachment()
+        attachment.attachmentCell = RuleAttachmentCell(height: height)
         return attachment
     }
 
@@ -156,7 +199,8 @@ extension DocumentText {
         max(100 - CGFloat(cols) * cellPad * 2, 50)
     }
 
-    static func table(_ cells: TableCells, id: String) -> NSAttributedString {
+    static func table(_ cells: TableCells, id: String,
+                      style: MarkdownStyle) -> NSAttributedString {
         let m = NSMutableAttributedString()
         let cols = cells.cols
         if cols > 0 {
@@ -238,7 +282,7 @@ extension DocumentText {
                                  atomicId: String)
         -> NSAttributedString {
         let m = NSMutableAttributedString()
-        let body = FontRole.body.platformFont
+        let body = layout.style.bodyFont
         let base = bold ? boldFont(of: body) : body
         for col in 0..<cols {
             let text = col < cells.count ? cells[col].text

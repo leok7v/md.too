@@ -64,7 +64,15 @@ extension DocumentText {
         cells.cols > 0 ? tabStopExtent : 0
     }
 
-    static func table(_ cells: TableCells, id: String) -> NSAttributedString {
+    // A horizontal rule as an attachment that sizes itself to the line
+    // it sits on and draws a hairline across it.
+
+    static func ruleAttachment(height: CGFloat) -> NSTextAttachment {
+        RuleAttachment(height: height)
+    }
+
+    static func table(_ cells: TableCells, id: String,
+                      style: MarkdownStyle) -> NSAttributedString {
         let m = NSMutableAttributedString()
         if cells.cols > 0 {
             let atomicId = id
@@ -81,7 +89,7 @@ extension DocumentText {
             }
             if !cells.header.isEmpty {
                 m.append(tableRowTabStops(cells: cells.header, stops: stops,
-                                          bold: true,
+                                          style: style, bold: true,
                                           tint: platformWhite(0.5, alpha: 0.14),
                                           atomicId: atomicId))
             }
@@ -89,7 +97,8 @@ extension DocumentText {
                 let tint: PlatformColor = idx % 2 == 1
                     ? platformWhite(0.5, alpha: 0.07) : platformClearColor
                 m.append(tableRowTabStops(cells: row, stops: stops,
-                                          bold: false, tint: tint,
+                                          style: style, bold: false,
+                                          tint: tint,
                                           atomicId: atomicId))
             }
             // One contiguous atomic kind / id / copy over the whole table,
@@ -125,6 +134,7 @@ extension DocumentText {
 
     private static func tableRowTabStops(cells: [TableCell],
                                          stops: [NSTextTab],
+                                         style: MarkdownStyle,
                                          bold: Bool,
                                          tint: PlatformColor,
                                          atomicId: String)
@@ -132,7 +142,7 @@ extension DocumentText {
         let para = NSMutableParagraphStyle()
         para.tabStops = stops
         para.lineBreakMode = .byTruncatingTail
-        let body = FontRole.body.platformFont
+        let body = style.bodyFont
         let base = bold ? boldFont(of: body) : body
         let m = NSMutableAttributedString()
         for (i, cell) in cells.enumerated() {
@@ -151,6 +161,53 @@ extension DocumentText {
                        value: AtomicKind.table.rawValue, range: full)
         m.addAttribute(atomicIdKey, value: atomicId, range: full)
         return m
+    }
+
+}
+
+// TextKit 1 asks for the image on every draw when none is stored, so
+// the last one is kept by the width and appearance it was drawn for.
+
+final class RuleAttachment: NSTextAttachment {
+
+    private let height: CGFloat
+    private var cachedWidth: CGFloat = 0
+    private var cachedStyle: UIUserInterfaceStyle = .unspecified
+    private var cached: UIImage? = nil
+
+    init(height: CGFloat) {
+        self.height = height
+        super.init(data: nil, ofType: nil)
+    }
+
+    required init?(coder: NSCoder) {
+        fatalError("RuleAttachment is not decodable")
+    }
+
+    override func attachmentBounds(for textContainer: NSTextContainer?,
+                                   proposedLineFragment lineFrag: CGRect,
+                                   glyphPosition position: CGPoint,
+                                   characterIndex: Int) -> CGRect {
+        CGRect(x: 0, y: 0, width: max(lineFrag.width - position.x, 1),
+               height: height)
+    }
+
+    override func image(forBounds imageBounds: CGRect,
+                        textContainer: NSTextContainer?,
+                        characterIndex: Int) -> UIImage? {
+        let appearance = UITraitCollection.current.userInterfaceStyle
+        if cached == nil || cachedWidth != imageBounds.width ||
+           cachedStyle != appearance {
+            let renderer = UIGraphicsImageRenderer(size: imageBounds.size)
+            cached = renderer.image { ctx in
+                UIColor.separator.setFill()
+                ctx.fill(CGRect(x: 0, y: imageBounds.height / 2 - 0.5,
+                                width: imageBounds.width, height: 1))
+            }
+            cachedWidth = imageBounds.width
+            cachedStyle = appearance
+        }
+        return cached
     }
 
 }

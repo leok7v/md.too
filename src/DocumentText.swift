@@ -4,12 +4,13 @@ enum DocumentText {
 
     // Blocks separate by paragraph spacing, not by a blank line: a blank
     // line is a full line height and list items are a few points apart, so
-    // the two scales never agreed.
-    static let blockSpacing: CGFloat = 6
+    // the two scales never agreed. The spacing is the style's, a fraction
+    // of the body size, so it grows with the text.
 
-    static func blockParagraph() -> NSMutableParagraphStyle {
+    static func blockParagraph(_ style: MarkdownStyle)
+        -> NSMutableParagraphStyle {
         let para = NSMutableParagraphStyle()
-        para.paragraphSpacing = blockSpacing
+        para.paragraphSpacing = style.blockSpacing
         return para
     }
 
@@ -21,20 +22,20 @@ enum DocumentText {
     final class RenderCache {
         struct Entry {
             let block: Block
-            let bodySize: CGFloat
+            let style: MarkdownStyle
             let images: [URL: ObjectIdentifier]
             let text: NSAttributedString
         }
 
         struct Minimum {
             let block: Block
-            let bodySize: CGFloat
+            let style: MarkdownStyle
             let width: CGFloat
         }
 
         struct Table {
             let block: Block
-            let bodySize: CGFloat
+            let style: MarkdownStyle
             let images: [URL: ObjectIdentifier]
             let cells: TableCells
         }
@@ -46,21 +47,22 @@ enum DocumentText {
 
     static func attributed(from blocks: [Block],
                            images: [URL: DocumentImage] = [:],
-                           cache: RenderCache? = nil)
+                           cache: RenderCache? = nil,
+                           style: MarkdownStyle = .current)
         -> NSAttributedString {
         let m = NSMutableAttributedString()
-        let bodySize = FontRole.body.platformFont.pointSize
         let seen = images.mapValues { image in ObjectIdentifier(image) }
         var live: [Int: RenderCache.Entry] = [:]
         for (i, block) in blocks.enumerated() {
             var entry = cache?.entries[i]
             let stale = entry?.block != block ||
-                        entry?.bodySize != bodySize || entry?.images != seen
+                        entry?.style != style || entry?.images != seen
             if stale {
                 entry = RenderCache.Entry(
-                    block: block, bodySize: bodySize, images: seen,
-                    text: completed(render(block, at: i, images: images,
-                                           seen: seen, cache: cache)))
+                    block: block, style: style, images: seen,
+                    text: completed(render(block, at: i, style: style,
+                                           images: images, seen: seen,
+                                           cache: cache), style: style))
             }
             if let entry {
                 live[i] = entry
@@ -80,11 +82,12 @@ enum DocumentText {
     // takes the string as it is: the separators and the attachments the
     // builders append bare would otherwise fall to TextKit's defaults.
 
-    private static func completed(_ text: NSAttributedString)
+    private static func completed(_ text: NSAttributedString,
+                                  style: MarkdownStyle)
         -> NSAttributedString {
         let m = NSMutableAttributedString(attributedString: text)
         let full = NSRange(location: 0, length: m.length)
-        let base = FontRole.body.platformFont
+        let base = style.bodyFont
         m.enumerateAttribute(.font, in: full, options: []) { value, r, _ in
             if value == nil { m.addAttribute(.font, value: base, range: r) }
         }
@@ -103,35 +106,37 @@ enum DocumentText {
     // its own on the way through render(_:id:images:).
 
     private static func render(_ block: Block, at i: Int,
+                               style: MarkdownStyle,
                                images: [URL: DocumentImage],
                                seen: [URL: ObjectIdentifier],
                                cache: RenderCache?) -> NSAttributedString {
         let result: NSAttributedString
-        if let cells = tableCells(of: block, at: i, images: images,
-                                  seen: seen, cache: cache) {
-            result = table(cells, id: String(i))
+        if let cells = tableCells(of: block, at: i, style: style,
+                                  images: images, seen: seen, cache: cache) {
+            result = table(cells, id: String(i), style: style)
         } else {
-            result = render(block, id: String(i), images: images)
+            result = render(block, id: String(i), style: style,
+                            images: images)
         }
         return result
     }
 
     private static func tableCells(of block: Block, at i: Int,
+                                   style: MarkdownStyle,
                                    images: [URL: DocumentImage],
                                    seen: [URL: ObjectIdentifier],
                                    cache: RenderCache?) -> TableCells? {
         var result: TableCells? = nil
         if case .table(let headers, let rows, let alignments) = block {
-            let bodySize = FontRole.body.platformFont.pointSize
             var known = cache?.tables[i]
             let stale = known?.block != block ||
-                        known?.bodySize != bodySize || known?.images != seen
+                        known?.style != style || known?.images != seen
             if stale {
                 known = RenderCache.Table(
-                    block: block, bodySize: bodySize, images: seen,
+                    block: block, style: style, images: seen,
                     cells: tableCells(headers: headers, rows: rows,
                                       alignments: alignments,
-                                      images: images))
+                                      style: style, images: images))
                 cache?.tables[i] = known
             }
             result = known?.cells
@@ -149,19 +154,20 @@ enum DocumentText {
 
     static func minimumWidth(of blocks: [Block],
                              images: [URL: DocumentImage] = [:],
-                             cache: RenderCache? = nil) -> CGFloat {
+                             cache: RenderCache? = nil,
+                             style: MarkdownStyle = .current) -> CGFloat {
         var widest: CGFloat = 0
-        let bodySize = FontRole.body.platformFont.pointSize
         let seen = images.mapValues { image in ObjectIdentifier(image) }
         var live: [Int: RenderCache.Minimum] = [:]
         for (i, block) in blocks.enumerated() {
             var known = cache?.minimums[i]
-            let stale = known?.block != block || known?.bodySize != bodySize
+            let stale = known?.block != block || known?.style != style
             if stale {
                 known = RenderCache.Minimum(
-                    block: block, bodySize: bodySize,
-                    width: minimumWidth(of: block, at: i, images: images,
-                                        seen: seen, cache: cache))
+                    block: block, style: style,
+                    width: minimumWidth(of: block, at: i, style: style,
+                                        images: images, seen: seen,
+                                        cache: cache))
             }
             if let known {
                 live[i] = known
@@ -173,40 +179,48 @@ enum DocumentText {
     }
 
     private static func minimumWidth(of block: Block, at i: Int,
+                                     style: MarkdownStyle,
                                      images: [URL: DocumentImage],
                                      seen: [URL: ObjectIdentifier],
                                      cache: RenderCache?) -> CGFloat {
         let result: CGFloat
-        if let cells = tableCells(of: block, at: i, images: images,
-                                  seen: seen, cache: cache) {
+        if let cells = tableCells(of: block, at: i, style: style,
+                                  images: images, seen: seen, cache: cache) {
             result = tableMinimumWidth(cells)
         } else {
-            result = minimumWidth(ofBlock: block)
+            result = minimumWidth(ofBlock: block, style: style)
         }
         return result
     }
 
-    private static func widestMinimum(in blocks: [Block]) -> CGFloat {
+    private static func widestMinimum(in blocks: [Block],
+                                      style: MarkdownStyle) -> CGFloat {
         var widest: CGFloat = 0
         for block in blocks {
-            let w = minimumWidth(ofBlock: block)
+            let w = minimumWidth(ofBlock: block, style: style)
             if w > widest { widest = w }
         }
         return widest
     }
 
-    private static func minimumWidth(ofBlock block: Block) -> CGFloat {
+    private static func minimumWidth(ofBlock block: Block,
+                                     style: MarkdownStyle) -> CGFloat {
         var result: CGFloat = 0
         switch block {
-            case .table(let headers, let rows, _):
-                result = tableMinimumWidth(headers: headers, rows: rows)
+            case .table(let headers, let rows, let alignments):
+                result = tableMinimumWidth(headers: headers, rows: rows,
+                                           alignments: alignments,
+                                           style: style)
             case .math(let tex):
-                result = mathMinimumWidth(tex)
+                result = mathMinimumWidth(tex, style: style)
             case .quote(let inner):
-                result = indented(widestMinimum(in: inner), by: 18)
+                result = indented(widestMinimum(in: inner, style: style),
+                                  by: style.quoteIndent)
             case .list(let items, _):
                 for item in items {
-                    let w = indented(widestMinimum(in: item.blocks), by: 20)
+                    let w = indented(widestMinimum(in: item.blocks,
+                                                   style: style),
+                                     by: style.listIndent)
                     if w > result { result = w }
                 }
             default:
@@ -224,9 +238,9 @@ enum DocumentText {
     // right costs the same on the left; without it, a formula that
     // exactly fills the surface leaves the button sitting on top of it.
 
-    private static func mathMinimumWidth(_ tex: String) -> CGFloat {
-        let base = FontRole.body.platformFont
-        let size = TeX.displaySize(body: base.pointSize)
+    private static func mathMinimumWidth(_ tex: String,
+                                         style: MarkdownStyle) -> CGFloat {
+        let size = TeX.displaySize(body: style.bodySize)
         var result: CGFloat = 0
         if let layout = TeX.layout(tex, size: size) {
             result = ceil(layout.width) + 8 + copyButtonGutter * 2
@@ -242,18 +256,22 @@ enum DocumentText {
         inner > 0 ? inner + amount : 0
     }
 
-    static func tableMinimumWidth(headers: [String],
-                                  rows: [[String]]) -> CGFloat {
+    static func tableMinimumWidth(headers: [String], rows: [[String]],
+                                  alignments: [Alignment],
+                                  style: MarkdownStyle) -> CGFloat {
         tableMinimumWidth(tableCells(headers: headers, rows: rows,
-                                     alignments: [], images: [:]))
+                                     alignments: alignments,
+                                     style: style, images: [:]))
     }
 
     static func table(headers: [String], rows: [[String]],
                       alignments: [Alignment], id: String,
+                      style: MarkdownStyle,
                       images: [URL: DocumentImage]) -> NSAttributedString {
         table(tableCells(headers: headers, rows: rows,
-                         alignments: alignments, images: images),
-              id: id)
+                         alignments: alignments, style: style,
+                         images: images),
+              id: id, style: style)
     }
 
     struct TableCell {
@@ -265,6 +283,7 @@ enum DocumentText {
         let headers: [String]
         let rows: [[String]]
         let alignments: [Alignment]
+        let style: MarkdownStyle
         let cols: Int
         let header: [TableCell]
         let body: [[TableCell]]
@@ -278,9 +297,9 @@ enum DocumentText {
     }
 
     static func tableCells(headers: [String], rows: [[String]],
-                           alignments: [Alignment],
+                           alignments: [Alignment], style: MarkdownStyle,
                            images: [URL: DocumentImage]) -> TableCells {
-        let body = FontRole.body.platformFont
+        let body = style.bodyFont
         let bold = boldFont(of: body)
         let cols = max(headers.count, rows.map { r in r.count }.max() ?? 0)
         let header = headers.map { cell in
@@ -296,7 +315,7 @@ enum DocumentText {
             }
         }
         return TableCells(headers: headers, rows: rows,
-                          alignments: alignments, cols: cols,
+                          alignments: alignments, style: style, cols: cols,
                           header: header, body: built,
                           minimums: minimums.map { w in ceil(w) })
     }
@@ -380,32 +399,34 @@ enum DocumentText {
     }
 
     private static func render(_ block: Block, id: String,
+                               style: MarkdownStyle,
                                images: [URL: DocumentImage])
                                -> NSAttributedString {
         var result: NSAttributedString
         switch block {
             case .paragraph(let attr):
-                result = paragraph(attr)
+                result = paragraph(attr, style: style)
             case .heading(let level, let attr):
-                result = heading(level: level, text: attr)
+                result = heading(level: level, text: attr, style: style)
             case .code(let lang, let text):
-                result = code(language: lang, text: text, id: id)
+                result = code(language: lang, text: text, id: id,
+                              style: style)
             case .quote(let inner):
-                result = quote(inner, id: id, images: images)
+                result = quote(inner, id: id, style: style, images: images)
             case .list(let items, let tight):
                 result = list(items: items, tight: tight, depth: 0, id: id,
-                              images: images)
+                              style: style, images: images)
             case .table(let headers, let rows, let alignments):
                 result = table(headers: headers, rows: rows,
                                alignments: alignments, id: id,
-                               images: images)
+                               style: style, images: images)
             case .math(let tex):
-                result = math(tex, id: id)
+                result = math(tex, id: id, style: style)
             case .rule:
-                result = rule()
+                result = rule(style: style)
             case .image(let alt, let url, let w, let h):
                 result = image(alt: alt, url: url, width: w, height: h,
-                               id: id, images: images)
+                               id: id, style: style, images: images)
         }
         return result
     }
@@ -416,10 +437,11 @@ enum DocumentText {
     // hand over. Same contract as a code fence or a table, so the copy
     // overlay needs nothing new.
 
-    private static func math(_ tex: String, id: String) -> NSAttributedString {
-        let base = FontRole.body.platformFont
+    private static func math(_ tex: String, id: String,
+                             style: MarkdownStyle) -> NSAttributedString {
+        let base = style.bodyFont
         let m = NSMutableAttributedString()
-        let size = TeX.displaySize(body: base.pointSize)
+        let size = TeX.displaySize(body: style.bodySize)
         if let layout = TeX.layout(tex, size: size) {
             m.append(NSAttributedString(attachment: mathAttachment(layout)))
         } else {
@@ -434,19 +456,21 @@ enum DocumentText {
         m.append(NSAttributedString(string: "\n"))
         let para = NSMutableParagraphStyle()
         para.alignment = .center
-        para.paragraphSpacing = 6
-        para.paragraphSpacingBefore = 6
+        para.paragraphSpacing = style.blockSpacing
+        para.paragraphSpacingBefore = style.blockSpacing
         m.addAttribute(.paragraphStyle, value: para,
                        range: NSRange(location: 0, length: m.length))
         return m
     }
 
     private static func quote(_ blocks: [Block], id: String,
+                              style: MarkdownStyle,
                               images: [URL: DocumentImage])
                               -> NSAttributedString {
         let m = NSMutableAttributedString()
         for (i, inner) in blocks.enumerated() {
-            m.append(render(inner, id: id + "." + String(i), images: images))
+            m.append(render(inner, id: id + "." + String(i), style: style,
+                            images: images))
         }
         let full = NSRange(location: 0, length: m.length)
         m.enumerateAttribute(.paragraphStyle,
@@ -455,8 +479,8 @@ enum DocumentText {
             if let existing = value as? NSParagraphStyle {
                 merged.setParagraphStyle(existing)
             }
-            merged.headIndent += 18
-            merged.firstLineHeadIndent += 18
+            merged.headIndent += style.quoteIndent
+            merged.firstLineHeadIndent += style.quoteIndent
             m.addAttribute(.paragraphStyle, value: merged, range: range)
         }
         m.addAttribute(.backgroundColor,
@@ -466,30 +490,36 @@ enum DocumentText {
     }
 
     private static func list(items: [ListItem], tight: Bool, depth: Int,
-                             id: String, images: [URL: DocumentImage])
+                             id: String, style: MarkdownStyle,
+                             images: [URL: DocumentImage])
         -> NSAttributedString {
         let m = NSMutableAttributedString()
-        let indent = CGFloat(depth + 1) * 20
+        let indent = CGFloat(depth + 1) * style.listIndent
         for (idx, item) in items.enumerated() {
             let para = NSMutableParagraphStyle()
             para.headIndent = indent
-            para.firstLineHeadIndent = indent - 20
+            para.firstLineHeadIndent = indent - style.listIndent
             para.tabStops = [NSTextTab(textAlignment: .left,
                                        location: indent)]
-            para.paragraphSpacing = tight ? 2 : 8
-            para.paragraphSpacingBefore = tight ? 2 : 4
+            // Only between items: TextKit adds spacing-before to the
+            // previous paragraph's spacing-after, so a first item with
+            // one would sit twice as far under the block above it.
+            para.paragraphSpacing = style.itemSpacing(tight: tight)
+            para.paragraphSpacingBefore = idx == 0
+                ? 0 : style.itemSpacing(tight: tight)
             if idx == items.count - 1, depth == 0 {
-                para.paragraphSpacing = blockSpacing
+                para.paragraphSpacing = style.blockSpacing
             }
             m.append(listItem(item, para: para, tight: tight,
                               depth: depth, id: id + "." + String(idx),
-                              images: images))
+                              style: style, images: images))
         }
         return m
     }
 
     private static func listItem(_ item: ListItem, para: NSParagraphStyle,
                                  tight: Bool, depth: Int, id: String,
+                                 style: MarkdownStyle,
                                  images: [URL: DocumentImage])
         -> NSAttributedString {
         let marker: String
@@ -499,7 +529,7 @@ enum DocumentText {
             marker = item.marker
         }
         let prefix: [NSAttributedString.Key: Any] = [
-            .font: FontRole.body.platformFont,
+            .font: style.bodyFont,
             .foregroundColor: platformSecondaryColor,
             .paragraphStyle: para,
         ]
@@ -510,8 +540,7 @@ enum DocumentText {
             switch first {
                 case .paragraph(let attr):
                     let body = NSMutableAttributedString()
-                    translateInline(attr, base: FontRole.body.platformFont,
-                                          into: body)
+                    translateInline(attr, base: style.bodyFont, into: body)
                     let r = NSRange(location: 0, length: body.length)
                     body.addAttribute(.paragraphStyle, value: para,
                                       range: r)
@@ -520,14 +549,15 @@ enum DocumentText {
                 case .list(let inner, let innerTight):
                     line.append(list(items: inner, tight: innerTight,
                                      depth: depth + 1, id: id + ".0",
-                                     images: images))
+                                     style: style, images: images))
                     headHandled = true
                 default:
                     break
             }
         }
         if !headHandled, let first = item.blocks.first {
-            line.append(render(first, id: id + ".0", images: images))
+            line.append(render(first, id: id + ".0", style: style,
+                               images: images))
         }
         line.append(NSAttributedString(string: "\n"))
         let contIndent = para.headIndent
@@ -536,10 +566,10 @@ enum DocumentText {
             if case .list(let inner, let innerTight) = rest {
                 line.append(list(items: inner, tight: innerTight,
                                  depth: depth + 1, id: restId,
-                                 images: images))
+                                 style: style, images: images))
             } else {
                 let rendered = NSMutableAttributedString(
-                    attributedString: render(rest, id: restId,
+                    attributedString: render(rest, id: restId, style: style,
                                              images: images))
                 let full = NSRange(location: 0, length: rendered.length)
                 rendered.enumerateAttribute(.paragraphStyle, in: full,
@@ -561,6 +591,7 @@ enum DocumentText {
 
     private static func image(alt: String, url: URL, width: CGFloat?,
                               height: CGFloat?, id: String,
+                              style: MarkdownStyle,
                               images: [URL: DocumentImage])
                               -> NSAttributedString {
         var result: NSAttributedString
@@ -574,14 +605,14 @@ enum DocumentText {
             m.addAttribute(atomicKindKey,
                            value: AtomicKind.image.rawValue, range: full)
             m.addAttribute(atomicIdKey, value: id, range: full)
-            m.addAttribute(.paragraphStyle, value: blockParagraph(),
+            m.addAttribute(.paragraphStyle, value: blockParagraph(style),
                            range: full)
             m.append(NSAttributedString(string: "\n"))
             result = m
         } else {
             let label = alt.isEmpty ? url.absoluteString : alt
             let attrs: [NSAttributedString.Key: Any] = [
-                .font: FontRole.body.platformFont,
+                .font: style.bodyFont,
                 .foregroundColor: platformSecondaryColor,
                 atomicKindKey: AtomicKind.image.rawValue,
                 atomicIdKey: id,
@@ -603,9 +634,9 @@ enum DocumentText {
         return CGRect(x: 0, y: 0, width: fit.width, height: fit.height)
     }
 
-    private static func code(language: String?, text: String, id: String)
-                                    -> NSAttributedString {
-        let baseFont = monospaceFont()
+    private static func code(language: String?, text: String, id: String,
+                             style: MarkdownStyle) -> NSAttributedString {
+        let baseFont = style.codeFont
         let highlighted = Highlight.attribute(text, language: language,
                                               baseFont: baseFont)
         let m = NSMutableAttributedString(attributedString: highlighted)
@@ -628,19 +659,12 @@ enum DocumentText {
         return m
     }
 
-    // A point under body, and zoomed with it -- the one size here that
-    // does not come from FontRole, so it applies the multiplier itself.
-    private static func monospaceFont() -> PlatformFont {
-        let bodySize = PlatformFont.preferredFont(forTextStyle: .body)
-            .pointSize
-        return monoFont(at: (bodySize - 1) * Zoom.current)
-    }
-
-    private static func paragraph(_ attr: AttributedString)
+    private static func paragraph(_ attr: AttributedString,
+                                  style: MarkdownStyle)
         -> NSAttributedString {
         let m = NSMutableAttributedString()
-        translateInline(attr, base: FontRole.body.platformFont, into: m)
-        let para = blockParagraph()
+        translateInline(attr, base: style.bodyFont, into: m)
+        let para = blockParagraph(style)
         para.alignment = textAlignment(attr)
         m.addAttribute(.paragraphStyle, value: para,
                        range: NSRange(location: 0, length: m.length))
@@ -648,14 +672,14 @@ enum DocumentText {
         return m
     }
 
-    private static func heading(level: Int,
-                                text: AttributedString)
+    private static func heading(level: Int, text: AttributedString,
+                                style: MarkdownStyle)
         -> NSAttributedString {
         let m = NSMutableAttributedString()
-        translateInline(text, base: FontRole.heading(level).platformFont,
-                              into: m)
-        let para = blockParagraph()
-        para.paragraphSpacingBefore = blockSpacing
+        translateInline(text, base: style.headingFont(level), into: m)
+        let para = blockParagraph(style)
+        para.paragraphSpacingBefore = style.headingSpacingBefore(level)
+        para.paragraphSpacing = style.headingSpacingAfter(level)
         para.alignment = textAlignment(text)
         m.addAttribute(.paragraphStyle, value: para,
                        range: NSRange(location: 0, length: m.length))
@@ -668,15 +692,20 @@ enum DocumentText {
         attr.runs.first?[AlignAttribute.self] == .center ? .center : .natural
     }
 
-    private static func rule() -> NSAttributedString {
-        let attrs: [NSAttributedString.Key: Any] = [
-            .font: FontRole.body.platformFont,
-            .foregroundColor: platformSecondaryColor,
-        ]
-        return NSAttributedString(
-            string: "\u{2500}\u{2500}\u{2500}\u{2500}" +
-                    "\u{2500}\u{2500}\u{2500}\u{2500}\n\n",
-            attributes: attrs)
+    // A drawn line the width of the column, not a run of box-drawing
+    // glyphs: the attachment asks TextKit for its line's width and
+    // draws a hairline across it. Copy gives back the "---" it was.
+
+    private static func rule(style: MarkdownStyle) -> NSAttributedString {
+        let m = NSMutableAttributedString(
+            attachment: ruleAttachment(height: style.blockSpacing * 2))
+        let full = NSRange(location: 0, length: m.length)
+        m.addAttribute(.font, value: style.bodyFont, range: full)
+        m.addAttribute(atomicCopyKey, value: "---", range: full)
+        m.addAttribute(.paragraphStyle, value: blockParagraph(style),
+                       range: full)
+        m.append(NSAttributedString(string: "\n"))
+        return m
     }
 
     private static func translateInline(_ attr: AttributedString,
