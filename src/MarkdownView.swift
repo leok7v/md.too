@@ -81,13 +81,13 @@ struct MarkdownView: View, Equatable {
 
     // One text view holds the document. Its width is the reading column
     // when the window is wider, or the window when it is not, or the
-    // width the widest block needs when that is more; the view is
-    // centred in the viewport and scrolls sideways past it. When a block
-    // pushes the surface past the column, the prose keeps the column:
-    // centred inside the surface while the surface fits the window, at
-    // the leading edge once it scrolls, so it is on screen at rest. A
-    // window narrower than the column has no column, so the only number
-    // the string ever takes from the window is whether it fits, and a
+    // width the widest block needs when that is more. The column sits
+    // centred in the viewport and the surface starts where the column
+    // starts, so a block wider than the column begins at the prose's
+    // left edge and runs right, past the viewport if it must, and the
+    // prose is on screen at rest whatever the block did. A window
+    // narrower than the column has no column, so the only number the
+    // string ever takes from the window is whether it fits, and a
     // resize moves the view without rebuilding the string.
 
     // The style is built from the zoom this view holds, so the cache
@@ -104,10 +104,9 @@ struct MarkdownView: View, Equatable {
         let columned = readingColumn && fits >= style.columnWidth
         let measure = columned ? style.columnWidth : fits
         let width = max(measure, need)
+        let lead = columned ? ((fits - measure) / 2).rounded() : 0
         let column: DocumentText.Column? = columned && width > measure
-            ? DocumentText.Column(
-                inset: width > fits ? 0 : ((width - measure) / 2).rounded(),
-                width: measure, surface: width)
+            ? DocumentText.Column(inset: 0, width: measure, surface: width)
             : nil
         let urls = ImagePrefetch.collectURLs(in: blocks)
         let surface = traced("surface") {
@@ -115,12 +114,14 @@ struct MarkdownView: View, Equatable {
                                     cache: cache, style: style,
                                     budget: measure, column: column)
         }
-        return ScrollView(.horizontal, showsIndicators: width > fits) {
+        return ScrollView(.horizontal,
+                          showsIndicators: lead + width > fits) {
             SelectableText(nsAttributed: surface, role: .body, find: find)
                 .frame(width: viewport > 0 ? width : nil,
                        alignment: .leading)
-                .frame(width: viewport > 0 ? max(fits, width) : nil,
-                       alignment: .center)
+                .padding(.leading, lead)
+                .frame(width: viewport > 0 ? max(fits, lead + width) : nil,
+                       alignment: .leading)
         }
         // Keyed on the image URLs, not the text: a reload that touched
         // no image fetches nothing.
