@@ -130,7 +130,7 @@ list tight:
   item • [x]:
     paragraph: externalize syntax data so adding a language is one line,|
   item • [x]:
-    paragraph: keep the source under 2,500 lines,|
+    paragraph: keep the source under 12,000 lines, a TeX engine included, every one of them ours,|
   item • [x]:
     paragraph: decide whether tables should support inline images (yes, image only cells).|
   item • [ ]:
@@ -241,12 +241,12 @@ paragraph: A popular Electron-based editor uses ~240 MB on disk and ~400 MB of m
 math: \\frac\{M_\\text\{electron\}\}\{M_\\text\{this\}\} \\approx 100
 paragraph: A 100× memory premium for HTML rendering of plain Markdown is a choice. Reasonable people make it. We chose differently.|
 heading 3: The supply-chain axis|
-paragraph: The most popular JavaScript Markdown library, |marked{c}|, lists about 636 transitive packages and ~39,000 lines of code on its public dependency graph. Doing the same job in a tiny Swift codebase with zero dependencies turned out to work.|
+paragraph: The most popular JavaScript Markdown library, |marked{c}|, lists about 636 transitive packages and ~39,000 lines of code on its public dependency graph. Doing the same job, plus a TeX layout engine and a PDF composer, in twelve thousand lines of Swift with zero dependencies turned out to work.|
 paragraph: Pick a rough industry defect rate of |δ ≈ 15{math=$\\delta \\approx 15$}| bugs per 1,000 lines. The "code a user runs" is the app plus every dep:|
 table 3x2: left,right,right
   h: [Stack] [Lines] [Expected defects]
   r: [TypeScript with `marked`] [~3.2 M] [~48,000]
-  r: [This app, zero dependencies] [~2,000] [~30]
+  r: [This app, zero dependencies] [~12,000] [~180]
 paragraph: Now the CVE side. If each dependency has a 1-in-200 chance of harboring a fresh CVE in a year, the odds |at least one{i}| dep in a tree of |N{math=$N$}| does is|
 math: P = 1 - (1 - 0.005)^N
 paragraph: For 636 deps that is ~96%. For 0 deps it is 0%. Every package you don't pull in is a CVE you don't have to read on a Saturday night.|

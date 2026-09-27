@@ -281,7 +281,7 @@
 </li>
 <li><span style="margin-right:0.4em">&#9745;</span><p>externalize syntax data so adding a language is one line,</p>
 </li>
-<li><span style="margin-right:0.4em">&#9745;</span><p>keep the source under 2,500 lines,</p>
+<li><span style="margin-right:0.4em">&#9745;</span><p>keep the source under 12,000 lines, a TeX engine included, every one of them ours,</p>
 </li>
 <li><span style="margin-right:0.4em">&#9745;</span><p>decide whether tables should support inline images (yes, image only cells).</p>
 </li>
@@ -576,7 +576,7 @@ for (int i = 0; i &lt; 10; ++i) x += i;</code></pre>
 <p style="text-align:center;font-style:italic;margin:0.8em 0;">M(electron)⁄M(this) ≈ 100</p>
 <p>A 100× memory premium for HTML rendering of plain Markdown is a choice. Reasonable people make it. We chose differently.</p>
 <h3>The supply-chain axis</h3>
-<p>The most popular JavaScript Markdown library, <code style="background:rgba(128,128,128,0.14);padding:1px 4px;border-radius:3px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:0.92em;">marked</code>, lists about 636 transitive packages and ~39,000 lines of code on its public dependency graph. Doing the same job in a tiny Swift codebase with zero dependencies turned out to work.</p>
+<p>The most popular JavaScript Markdown library, <code style="background:rgba(128,128,128,0.14);padding:1px 4px;border-radius:3px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:0.92em;">marked</code>, lists about 636 transitive packages and ~39,000 lines of code on its public dependency graph. Doing the same job, plus a TeX layout engine and a PDF composer, in twelve thousand lines of Swift with zero dependencies turned out to work.</p>
 <p>Pick a rough industry defect rate of δ ≈ 15 bugs per 1,000 lines. The "code a user runs" is the app plus every dep:</p>
 <table style="border-collapse:collapse;margin:0.5em 0;">
 <thead><tr style="background:rgba(128,128,128,0.14);">
@@ -592,8 +592,8 @@ for (int i = 0; i &lt; 10; ++i) x += i;</code></pre>
 </tr>
 <tr style="background:rgba(128,128,128,0.07);">
 <td style="padding:6px 14px;border-bottom:1px solid rgba(128,128,128,0.12);border-right:1px solid rgba(128,128,128,0.20);">This app, zero dependencies</td>
-<td style="padding:6px 14px;border-bottom:1px solid rgba(128,128,128,0.12);border-right:1px solid rgba(128,128,128,0.20);text-align:right;">~2,000</td>
-<td style="padding:6px 14px;border-bottom:1px solid rgba(128,128,128,0.12);text-align:right;">~30</td>
+<td style="padding:6px 14px;border-bottom:1px solid rgba(128,128,128,0.12);border-right:1px solid rgba(128,128,128,0.20);text-align:right;">~12,000</td>
+<td style="padding:6px 14px;border-bottom:1px solid rgba(128,128,128,0.12);text-align:right;">~180</td>
 </tr>
 </tbody>
 </table>

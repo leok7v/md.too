@@ -191,7 +191,7 @@ on its own rather than crushing every cell to a sliver:
 * [x] write a parser that fits in a tiny Swift codebase,
 * [x] make the Quick Look extension feel like the rest of the app,
 * [x] externalize syntax data so adding a language is one line,
-* [x] keep the source under 2,500 lines,
+* [x] keep the source under 12,000 lines, a TeX engine included, every one of them ours,
 * [x] decide whether tables should support inline images (yes, image only cells).
 * [ ] a Find that reads past accents, so "cafe" finds the café (done, still ticking as we type this),
 * [ ] an iOS control for the reading column,
@@ -555,14 +555,14 @@ A 100× memory premium for HTML rendering of plain Markdown is a choice. Reasona
 
 ### The supply-chain axis
 
-The most popular JavaScript Markdown library, `marked`, lists about 636 transitive packages and ~39,000 lines of code on its public dependency graph. Doing the same job in a tiny Swift codebase with zero dependencies turned out to work.
+The most popular JavaScript Markdown library, `marked`, lists about 636 transitive packages and ~39,000 lines of code on its public dependency graph. Doing the same job, plus a TeX layout engine and a PDF composer, in twelve thousand lines of Swift with zero dependencies turned out to work.
 
 Pick a rough industry defect rate of $\delta \approx 15$ bugs per 1,000 lines. The "code a user runs" is the app plus every dep:
 
 | Stack                          | Lines    | Expected defects |
 |:-------------------------------|---------:|-----------------:|
 | TypeScript with `marked`       | ~3.2 M   | ~48,000          |
-| This app, zero dependencies    | ~2,000   | ~30              |
+| This app, zero dependencies    | ~12,000  | ~180             |
 
 Now the CVE side. If each dependency has a 1-in-200 chance of harboring a fresh CVE in a year, the odds *at least one* dep in a tree of $N$ does is
 
