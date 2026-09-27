@@ -19,6 +19,10 @@ struct MarkdownStyle: Equatable {
     var quoteIndent: CGFloat
     var codePadding: CGFloat
     var cornerRadius: CGFloat
+    // The measure prose is read at when the window is wider: about
+    // eighty characters, a little past a book page, in ems so it
+    // follows the text size.
+    var columnWidth: CGFloat
     // Inline $...$ drawn by the typesetter as an attachment on the
     // baseline, or left as the Unicode spelling that flows and searches
     // as text. On here; a host whose text must stay text turns it off.
@@ -42,6 +46,7 @@ struct MarkdownStyle: Equatable {
         quoteIndent = (bodySize * 1.4).rounded()
         codePadding = (bodySize * 0.8).rounded()
         cornerRadius = 6
+        columnWidth = (bodySize * 42).rounded()
         typesetInlineMath = true
     }
 

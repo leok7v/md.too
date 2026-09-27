@@ -16,6 +16,18 @@ enum DocumentText {
 
     typealias DocumentImage = PlatformImage
 
+    // Where prose sits on a surface wider than its measure: `inset`
+    // points in from the leading edge and `width` points across. Nil
+    // means the whole surface is the measure. Tables ignore it and take
+    // the surface, which is what lets a wide table break out of the
+    // column while the paragraphs around it keep their line length.
+    // Both numbers come from the document and the style, never from the
+    // viewport, so a window resize leaves the string alone.
+    struct Column: Equatable {
+        let inset: CGFloat
+        let width: CGFloat
+    }
+
     // Keyed by the block's position, so a block that did not change keeps
     // the text it was built into, atomic id included, and the splice into
     // the text view stays O(delta).
@@ -23,7 +35,11 @@ enum DocumentText {
         struct Entry {
             let block: Block
             let style: MarkdownStyle
+            let column: Column?
             let images: [URL: ObjectIdentifier]
+            // The block as rendered, and the same moved into the column;
+            // a column change re-stamps the first, it does not render.
+            let plain: NSAttributedString
             let text: NSAttributedString
         }
 
@@ -48,7 +64,8 @@ enum DocumentText {
     static func attributed(from blocks: [Block],
                            images: [URL: DocumentImage] = [:],
                            cache: RenderCache? = nil,
-                           style: MarkdownStyle = .current)
+                           style: MarkdownStyle = .current,
+                           column: Column? = nil)
         -> NSAttributedString {
         let m = NSMutableAttributedString()
         let seen = images.mapValues { image in ObjectIdentifier(image) }
@@ -57,12 +74,21 @@ enum DocumentText {
             var entry = cache?.entries[i]
             let stale = entry?.block != block ||
                         entry?.style != style || entry?.images != seen
-            if stale {
+            if stale || entry?.column != column {
+                let plain = stale
+                    ? completed(render(block, at: i, style: style,
+                                       images: images, seen: seen,
+                                       cache: cache), style: style)
+                    : entry?.plain ?? NSAttributedString()
+                let wide = column.map { c in
+                    minimumWidth(of: block, at: i, style: style,
+                                 images: images, seen: seen,
+                                 cache: cache) > c.width
+                } ?? false
                 entry = RenderCache.Entry(
-                    block: block, style: style, images: seen,
-                    text: completed(render(block, at: i, style: style,
-                                           images: images, seen: seen,
-                                           cache: cache), style: style))
+                    block: block, style: style, column: column,
+                    images: seen, plain: plain,
+                    text: wide ? plain : columned(plain, column: column))
             }
             if let entry {
                 live[i] = entry
@@ -99,6 +125,55 @@ enum DocumentText {
             }
         }
         return m
+    }
+
+    // Every paragraph of a block moves into the column: its head indents
+    // and tab stops shift by the inset and its tail ends at the column's
+    // far edge. A tail that was measured from the trailing edge, the way
+    // a code block's is, keeps its distance from the new edge instead.
+    // A table cell's paragraph is left alone, since an indent on it is
+    // applied inside the cell; a block whose minimum exceeds the column
+    // never comes here and takes the surface whole.
+
+    private static func columned(_ text: NSAttributedString,
+                                 column: Column?) -> NSAttributedString {
+        var result = text
+        if let column {
+            let m = NSMutableAttributedString(attributedString: text)
+            let full = NSRange(location: 0, length: m.length)
+            m.enumerateAttribute(.paragraphStyle, in: full,
+                                 options: []) { value, range, _ in
+                let kind = m.attribute(atomicKindKey, at: range.location,
+                                       effectiveRange: nil) as? String
+                if kind != AtomicKind.table.rawValue {
+                    let para = shifted(value as? NSParagraphStyle,
+                                       by: column.inset)
+                    let trailing = para.tailIndent < 0 ? -para.tailIndent : 0
+                    para.tailIndent = column.inset + column.width - trailing
+                    m.addAttribute(.paragraphStyle, value: para,
+                                   range: range)
+                }
+            }
+            result = m
+        }
+        return result
+    }
+
+    // A paragraph moved right by `amount`: both head indents and every
+    // tab stop, since a stop is measured from the line's edge and a
+    // list item's body sits at one.
+
+    private static func shifted(_ existing: NSParagraphStyle?,
+                                by amount: CGFloat) -> NSMutableParagraphStyle {
+        let para = NSMutableParagraphStyle()
+        if let existing { para.setParagraphStyle(existing) }
+        para.headIndent += amount
+        para.firstLineHeadIndent += amount
+        para.tabStops = para.tabStops.map { stop in
+            NSTextTab(textAlignment: stop.alignment,
+                      location: stop.location + amount)
+        }
+        return para
     }
 
     // A top-level table's cells are built once and read by the measure
@@ -478,12 +553,8 @@ enum DocumentText {
         let full = NSRange(location: 0, length: m.length)
         m.enumerateAttribute(.paragraphStyle,
                              in: full, options: []) { value, range, _ in
-            let merged = NSMutableParagraphStyle()
-            if let existing = value as? NSParagraphStyle {
-                merged.setParagraphStyle(existing)
-            }
-            merged.headIndent += style.quoteIndent
-            merged.firstLineHeadIndent += style.quoteIndent
+            let merged = shifted(value as? NSParagraphStyle,
+                                 by: style.quoteIndent)
             m.addAttribute(.paragraphStyle, value: merged, range: range)
         }
         m.addAttribute(.backgroundColor,
@@ -578,12 +649,8 @@ enum DocumentText {
                 let full = NSRange(location: 0, length: rendered.length)
                 rendered.enumerateAttribute(.paragraphStyle, in: full,
                                             options: []) { value, r, _ in
-                    let merged = NSMutableParagraphStyle()
-                    if let existing = value as? NSParagraphStyle {
-                        merged.setParagraphStyle(existing)
-                    }
-                    merged.headIndent += contIndent
-                    merged.firstLineHeadIndent += contIndent
+                    let merged = shifted(value as? NSParagraphStyle,
+                                         by: contIndent)
                     rendered.addAttribute(.paragraphStyle,
                                           value: merged, range: r)
                 }

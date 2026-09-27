@@ -92,15 +92,20 @@ func codeBlockRects(in storage: NSAttributedString,
                                          effectiveRange: nil)
                 as? NSParagraphStyle
             let head = max((para?.headIndent ?? 0) - padding, 0)
-            let tail = max(-(para?.tailIndent ?? 0) - padding, 0)
+            let tailIndent = para?.tailIndent ?? 0
             var box = CGRect.null
             lm.enumerateLineFragments(forGlyphRange: glyphs) {
                 rect, _, _, _, _ in
                 box = box.union(rect)
             }
             if !box.isNull {
+                // A positive tail is a distance from the leading edge, a
+                // negative one from the trailing edge.
+                let right = tailIndent > 0
+                    ? box.minX + tailIndent + padding
+                    : box.maxX + tailIndent + padding
+                box.size.width = right - (box.minX + head)
                 box.origin.x += head
-                box.size.width -= head + tail
                 box.size.height -= trailing
                 rects.append(box)
             }

@@ -13,6 +13,7 @@ struct MarkdownView: View, Equatable {
     let theme: ThemeMode
     let showSource: Bool
     let singleSurface: Bool
+    var readingColumn: Bool = true
     var find: MarkdownFindController? = nil
     // Read by FontRole from UserDefaults, not from here. It is a stored
     // property so a changed notch makes SwiftUI re-run body, which is
@@ -29,6 +30,7 @@ struct MarkdownView: View, Equatable {
         a.displayText == b.displayText && a.theme == b.theme &&
         a.showSource == b.showSource &&
         a.singleSurface == b.singleSurface &&
+        a.readingColumn == b.readingColumn &&
         a.find === b.find && a.zoom == b.zoom
     }
 
@@ -77,12 +79,16 @@ struct MarkdownView: View, Equatable {
         }
     }
 
-    // One text view holds the document, so a table too wide for the
-    // window cannot scroll on its own the way a block-rendered one does.
-    // The whole surface is given the width the widest table needs and
-    // scrolls sideways to reach it -- paragraphs travel with it, which
-    // is the price of a single selectable surface. A document whose
-    // tables fit asks for nothing and stays aligned to the window.
+    // One text view holds the document. Its width is the reading column
+    // when the window is wider, or the window when it is not, or the
+    // width the widest block needs when that is more; the view is
+    // centred in the viewport and scrolls sideways past it. When a block
+    // pushes the surface past the column, the prose keeps the column:
+    // centred inside the surface while the surface fits the window, at
+    // the leading edge once it scrolls, so it is on screen at rest. A
+    // window narrower than the column has no column, so the only number
+    // the string ever takes from the window is whether it fits, and a
+    // resize moves the view without rebuilding the string.
 
     // The style is built from the zoom this view holds, so the cache
     // key and the dependency SwiftUI re-renders on are one value.
@@ -94,16 +100,25 @@ struct MarkdownView: View, Equatable {
         let need = DocumentText.minimumWidth(of: blocks,
                                              images: documentImages,
                                              cache: cache, style: style)
-        let width = max(fits, need)
+        let columned = readingColumn && fits >= style.columnWidth
+        let measure = columned ? style.columnWidth : fits
+        let width = max(measure, need)
+        let column: DocumentText.Column? = columned && width > measure
+            ? DocumentText.Column(
+                inset: width > fits ? 0 : ((width - measure) / 2).rounded(),
+                width: measure)
+            : nil
         let urls = ImagePrefetch.collectURLs(in: blocks)
-        return ScrollView(.horizontal, showsIndicators: need > fits) {
+        return ScrollView(.horizontal, showsIndicators: width > fits) {
             SelectableText(
                 nsAttributed: DocumentText.attributed(
                     from: blocks, images: documentImages, cache: cache,
-                    style: style),
+                    style: style, column: column),
                 role: .body, find: find)
                 .frame(width: viewport > 0 ? width : nil,
                        alignment: .leading)
+                .frame(width: viewport > 0 ? max(fits, width) : nil,
+                       alignment: .center)
         }
         // Keyed on the image URLs, not the text: a reload that touched
         // no image fetches nothing.

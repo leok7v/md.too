@@ -86,9 +86,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 struct ZoomCommands: Commands {
 
     @AppStorage(Zoom.key) private var notch: Int = 0
+    @AppStorage(ReadingColumn.key) private var readingColumn: Bool = true
 
     var body: some Commands {
         CommandGroup(after: .toolbar) {
+            Toggle("Reading Column", isOn: $readingColumn)
+                .keyboardShortcut("r", modifiers: [.command, .shift])
+            Divider()
             Button("Zoom In") { notch = Zoom.clamp(notch + 1) }
                 .keyboardShortcut("=", modifiers: .command)
                 .disabled(notch >= Zoom.limit)

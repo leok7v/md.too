@@ -86,6 +86,95 @@ final class SurfaceTests: XCTestCase {
         }
     }
 
+    // A column moves every paragraph but a table's: head indents grow by
+    // the inset, tails end at the column's far edge, and a tail measured
+    // from the trailing edge, a code block's, keeps its distance.
+    func testAColumnIndentsProseAndLeavesTables() {
+        let md = "A paragraph.\n\n```\ncode\n```\n\n" +
+                 "| a | b |\n|---|---|\n| 1 | 2 |"
+        let style = MarkdownStyle(bodySize: 13)
+        let column = DocumentText.Column(inset: 100, width: 400)
+        let text = DocumentText.attributed(from: Markdown.parse(md),
+                                           style: style, column: column)
+        var seen: [String: NSParagraphStyle] = [:]
+        let full = NSRange(location: 0, length: text.length)
+        text.enumerateAttribute(.paragraphStyle, in: full,
+                                options: []) { value, range, _ in
+            let kind = text.attribute(atomicKindKey, at: range.location,
+                                      effectiveRange: nil) as? String
+            if let para = value as? NSParagraphStyle,
+               seen[kind ?? "prose"] == nil {
+                seen[kind ?? "prose"] = para
+            }
+        }
+        XCTAssertEqual(seen["prose"]?.headIndent, 100)
+        XCTAssertEqual(seen["prose"]?.tailIndent, 500)
+        XCTAssertEqual(seen["code"]?.headIndent, 100 + style.codePadding)
+        XCTAssertEqual(seen["code"]?.tailIndent, 500 - style.codePadding)
+        XCTAssertEqual(seen["table"]?.headIndent, 0)
+        XCTAssertEqual(seen["table"]?.tailIndent, 0)
+    }
+
+    // A list's tab stop travels with its indent, a display wider than
+    // the column takes the surface whole, and a rule spans the column.
+    func testAColumnMovesTabStopsAndSparesWideBlocks() {
+        let md = "- item\n\n" +
+                 "$$\\sum_{i=1}^{n} x_i + y_i + z_i + w_i + v_i$$\n\n---"
+        let style = MarkdownStyle(bodySize: 13)
+        let column = DocumentText.Column(inset: 100, width: 120)
+        let blocks = Markdown.parse(md)
+        let text = DocumentText.attributed(from: blocks, style: style,
+                                           column: column)
+        let item = text.attribute(.paragraphStyle, at: 0,
+                                  effectiveRange: nil) as? NSParagraphStyle
+        XCTAssertEqual(item?.headIndent, 100 + style.listIndent)
+        XCTAssertEqual(item?.tabStops.first?.location,
+                       100 + style.listIndent)
+        var display: NSParagraphStyle? = nil
+        var rule: CGRect = .zero
+        let full = NSRange(location: 0, length: text.length)
+        text.enumerateAttribute(atomicKindKey, in: full,
+                                options: []) { value, range, _ in
+            if value as? String == AtomicKind.math.rawValue {
+                display = text.attribute(.paragraphStyle, at: range.location,
+                                         effectiveRange: nil)
+                    as? NSParagraphStyle
+            }
+        }
+        XCTAssertEqual(display?.headIndent, 0,
+                       "a display wider than the column keeps the surface")
+        let storage = NSTextStorage(attributedString: text)
+        let manager = NSLayoutManager()
+        let box = NSTextContainer(size: CGSize(width: 800, height: 1e6))
+        box.lineFragmentPadding = 0
+        storage.addLayoutManager(manager)
+        manager.addTextContainer(box)
+        manager.ensureLayout(for: box)
+        text.enumerateAttribute(atomicCopyKey, in: full,
+                                options: []) { value, range, _ in
+            if value as? String == "---" {
+                let glyphs = manager.glyphRange(forCharacterRange: range,
+                                                actualCharacterRange: nil)
+                rule = manager.boundingRect(forGlyphRange: glyphs, in: box)
+            }
+        }
+        XCTAssertEqual(rule.minX, 100, accuracy: 1)
+        XCTAssertEqual(rule.width, 120, accuracy: 1,
+                       "the rule spans the column, not the surface")
+    }
+
+    // A list inside a quote tabs its body to a stop that moved with the
+    // quote's indent, not to the stop it had at the top level.
+    func testANestedListsTabStopMovesWithItsIndent() {
+        let style = MarkdownStyle(bodySize: 13)
+        let text = DocumentText.attributed(from: Markdown.parse("> - item"),
+                                           style: style)
+        let item = text.attribute(.paragraphStyle, at: 0,
+                                  effectiveRange: nil) as? NSParagraphStyle
+        XCTAssertEqual(item?.tabStops.first?.location,
+                       style.quoteIndent + style.listIndent)
+    }
+
     // What TextKit lays out, not just what it was handed: a container as
     // wide as a window, every fixture, the used rect has to be real.
     func testEveryFixtureLaysOut() throws {

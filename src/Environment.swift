@@ -84,6 +84,13 @@ enum Zoom {
 
 }
 
+// The reading column is one app-wide preference, like the zoom: a
+// measure of prose on a wide window, off on a phone that is narrower
+// than the measure anyway.
+enum ReadingColumn {
+    static let key = "readingColumn"
+}
+
 enum ThemeMode: String, CaseIterable {
 
     case system, light, dark
