@@ -102,7 +102,9 @@ enum PlainExport {
         for run in a.runs {
             let segment = String(a[run.range].characters)
             let intent = run.inlinePresentationIntent ?? []
-            if let level = run[ScriptAttribute.self] {
+            if let source = run[InlineMathAttribute.self] {
+                out += source
+            } else if let level = run[ScriptAttribute.self] {
                 out += TeX.unicodeScript(segment, superscript: level > 0)
             } else if intent.contains(.code) {
                 out += fenced(segment)

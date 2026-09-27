@@ -19,6 +19,10 @@ struct MarkdownStyle: Equatable {
     var quoteIndent: CGFloat
     var codePadding: CGFloat
     var cornerRadius: CGFloat
+    // Inline $...$ drawn by the typesetter as an attachment on the
+    // baseline, or left as the Unicode spelling that flows and searches
+    // as text. On here; a host whose text must stay text turns it off.
+    var typesetInlineMath: Bool
 
     // The ladder of the six heading levels as multiples of the body,
     // even at every zoom: browsers use 2, 1.5, 1.17, 1, 0.83, 0.67 and
@@ -38,6 +42,7 @@ struct MarkdownStyle: Equatable {
         quoteIndent = (bodySize * 1.4).rounded()
         codePadding = (bodySize * 0.8).rounded()
         cornerRadius = 6
+        typesetInlineMath = true
     }
 
     // The one style this app draws with: the platform's body size, which

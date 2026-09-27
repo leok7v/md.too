@@ -47,7 +47,7 @@ A numbered list is the same idea wearing shoes. A small recipe, say:
 
 Two engines, split by which delimiter you used, and you never pick.
 
-Inline maths stays text: $\alpha + \beta = \gamma$, the right triangle staple $x^2 + y^2 = z^2$, Gauss's schoolboy trick $\sum_{i=1}^{n} i$ (he was nine, allegedly), and $x \in \mathbb{R}$. It is Unicode, so it flows with the sentence, selects with it, and Find searches it.
+Inline maths is typeset in the line, at the size of the words around it: $\alpha + \beta = \gamma$, the right triangle staple $x^2 + y^2 = z^2$, Gauss's schoolboy trick $\sum_{i=1}^{n} i$ (he was nine, allegedly), and $x \in \mathbb{R}$. It works in a heading, $e^{i\pi} + 1 = 0$ included, and in a table cell; a copy gives back the TeX it was written from.
 
 A `$$` display is typeset properly, by a TeX layout engine reading the OpenType MATH table of a real maths font:
 
@@ -83,7 +83,7 @@ The maths alphabets are separate Unicode blocks rather than a font trick, so bla
 
 $$\mathbb{RQZ} \quad \mathcal{ABC} \quad \mathfrak{gsl} \quad \mathbf{xyz} \quad \mathsf{uvw} \quad \mathtt{101}$$
 
-Inline, only the ones with a single settled codepoint survive the trip through Unicode: $\mathbb{R}$, $\mathbb{N}$, $\mathbb{Z}$, $\mathbb{Q}$, $\mathbb{C}$. Anything more wants a display.
+Inline, the alphabets work the same way: $\mathbb{R}$, $\mathbb{N}$, $\mathbb{Z}$, $\mathbb{Q}$, $\mathbb{C}$, and $\mathcal{L}$ or $\mathfrak{g}$ just as well. What a surface without a typesetter shows is the Unicode spelling, which keeps the single-codepoint ones and parenthesises the rest.
 
 Greek alphabet, lower and upper, in case you need both at once:
 

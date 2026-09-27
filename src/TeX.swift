@@ -14,6 +14,7 @@ enum TeX {
     private struct LayoutKey: Hashable {
         let tex: String
         let size: CGFloat
+        let display: Bool
     }
 
     private static let layoutLock = NSLock()
@@ -36,8 +37,9 @@ enum TeX {
         return layouts.count
     }
 
-    static func layout(_ tex: String, size: CGFloat) -> MathLayout? {
-        let key = LayoutKey(tex: tex, size: size)
+    static func layout(_ tex: String, size: CGFloat,
+                       display: Bool = true) -> MathLayout? {
+        let key = LayoutKey(tex: tex, size: size, display: display)
         layoutLock.lock()
         defer { layoutLock.unlock() }
         let result: MathLayout?
@@ -45,13 +47,19 @@ enum TeX {
             result = known
         } else {
             var settings = MathSettings()
-            settings.displayMode = true
+            settings.displayMode = display
             settings.fontSize = size
             result = try? KaTeX.layout(tex, settings: settings)
             if layouts.count >= layoutCapacity { layouts.removeAll() }
             layouts.updateValue(result, forKey: key)
         }
         return result
+    }
+
+    // The formula inside its dollars, for the consumers that hold the
+    // source as typed and typeset the body.
+    static func undelimited(_ source: String) -> String {
+        source.trimmingCharacters(in: CharacterSet(charactersIn: "$"))
     }
 
     // Display maths is set larger than the prose around it, the way a

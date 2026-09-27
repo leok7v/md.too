@@ -83,6 +83,9 @@ final class ParserGoldenTests: XCTestCase {
                 flags.append(level > 0 ? "sup" : "sub")
             }
             if run[SmallAttribute.self] == true { flags.append("small") }
+            if let tex = run[InlineMathAttribute.self] {
+                flags.append("math=" + escape(tex))
+            }
             if run[AlignAttribute.self] == .center { flags.append("center") }
             out += escape(text)
             if !flags.isEmpty {

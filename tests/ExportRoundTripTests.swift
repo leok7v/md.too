@@ -23,7 +23,7 @@ final class ExportRoundTripTests: XCTestCase {
             for block in blocks {
                 switch block {
                     case .heading(_, let text):
-                        let words = String(text.characters)
+                        let words = Self.spelled(text)
                         XCTAssertTrue(plain.contains(words),
                                       "\(fixture.name): heading lost: \(words)")
                     case .code(_, let text):
@@ -34,6 +34,20 @@ final class ExportRoundTripTests: XCTestCase {
                 }
             }
         }
+    }
+
+    // What the plain export writes for a run: the TeX an inline formula
+    // came from, the characters otherwise.
+    static func spelled(_ text: AttributedString) -> String {
+        var out = ""
+        for run in text.runs {
+            if let source = run[InlineMathAttribute.self] {
+                out += source
+            } else {
+                out += String(text[run.range].characters)
+            }
+        }
+        return out
     }
 
     static func currentHtml() throws -> String {

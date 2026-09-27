@@ -6,6 +6,7 @@ extension DocumentText {
     private struct RasterKey: Hashable {
         let box: ObjectIdentifier
         let scale: CGFloat
+        let inset: CGFloat
     }
 
     private struct Raster {
@@ -22,12 +23,14 @@ extension DocumentText {
     // surface is off by default on iOS; when that changes, this wants a
     // rebuild on trait change or an NSTextAttachmentViewProvider.
 
-    static func mathAttachment(_ layout: MathLayout) -> NSTextAttachment {
+    static func mathAttachment(_ layout: MathLayout,
+                               inset: CGFloat = 4) -> NSTextAttachment {
         let attachment = NSTextAttachment()
         attachment.image = raster(layout, scale: UIScreen.main.scale,
+                                  inset: inset,
                                   ink: platformDefaultTextColor.cgColor)
         attachment.bounds = CGRect(x: 0, y: -layout.descent,
-                                   width: layout.width + 8,
+                                   width: layout.width + inset * 2,
                                    height: layout.height)
         return attachment
     }
@@ -35,13 +38,14 @@ extension DocumentText {
     // The raster entry keeps its layout so the box the key names cannot
     // be freed and reused by a different formula behind the key's back.
     private static func raster(_ layout: MathLayout, scale: CGFloat,
-                               ink: CGColor) -> UIImage? {
-        let key = RasterKey(box: ObjectIdentifier(layout.box), scale: scale)
+                               inset: CGFloat, ink: CGColor) -> UIImage? {
+        let key = RasterKey(box: ObjectIdentifier(layout.box), scale: scale,
+                            inset: inset)
         var result: UIImage? = nil
         if let hit = rasters[key], hit.layout.box === layout.box,
            CFEqual(hit.ink, ink) {
             result = hit.image
-        } else if let cg = layout.cgImage(scale: scale, padding: 4,
+        } else if let cg = layout.cgImage(scale: scale, padding: inset,
                                           background: nil, color: ink) {
             let image = UIImage(cgImage: cg, scale: scale, orientation: .up)
             if rasters.count >= rasterCapacity { rasters.removeAll() }

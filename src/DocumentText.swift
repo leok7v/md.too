@@ -303,10 +303,12 @@ enum DocumentText {
         let bold = boldFont(of: body)
         let cols = max(headers.count, rows.map { r in r.count }.max() ?? 0)
         let header = headers.map { cell in
-            tableCell(cell, base: bold, images: images)
+            tableCell(cell, base: bold, style: style, images: images)
         }
         let built = rows.map { row in
-            row.map { cell in tableCell(cell, base: body, images: images) }
+            row.map { cell in
+                tableCell(cell, base: body, style: style, images: images)
+            }
         }
         var minimums = [CGFloat](repeating: 0, count: cols)
         for row in [header] + built {
@@ -326,6 +328,7 @@ enum DocumentText {
     // turns one image URL into a demand for two thousand points.
 
     static func tableCell(_ text: String, base: PlatformFont,
+                          style: MarkdownStyle,
                           images: [URL: DocumentImage]) -> TableCell {
         let m = NSMutableAttributedString()
         var drawn = TeX.scriptsToUnicode(text)
@@ -336,7 +339,7 @@ enum DocumentText {
                                 base: base, images: images, into: m)
                     drawn = ""
                 case .paragraph(let attr):
-                    translateInline(attr, base: base, into: m)
+                    translateInline(attr, base: base, style: style, into: m)
                     drawn = String(attr.characters)
                 default:
                     m.append(NSAttributedString(
@@ -446,7 +449,7 @@ enum DocumentText {
             m.append(NSAttributedString(attachment: mathAttachment(layout)))
         } else {
             translateInline(TeX.render(tex, display: true), base: base,
-                            into: m)
+                            style: style, into: m)
         }
         let content = NSRange(location: 0, length: m.length)
         m.addAttribute(atomicKindKey,
@@ -540,7 +543,8 @@ enum DocumentText {
             switch first {
                 case .paragraph(let attr):
                     let body = NSMutableAttributedString()
-                    translateInline(attr, base: style.bodyFont, into: body)
+                    translateInline(attr, base: style.bodyFont,
+                                    style: style, into: body)
                     let r = NSRange(location: 0, length: body.length)
                     body.addAttribute(.paragraphStyle, value: para,
                                       range: r)
@@ -684,7 +688,7 @@ enum DocumentText {
                                   style: MarkdownStyle)
         -> NSAttributedString {
         let m = NSMutableAttributedString()
-        translateInline(attr, base: style.bodyFont, into: m)
+        translateInline(attr, base: style.bodyFont, style: style, into: m)
         let para = blockParagraph(style)
         para.alignment = textAlignment(attr)
         m.addAttribute(.paragraphStyle, value: para,
@@ -697,7 +701,8 @@ enum DocumentText {
                                 style: MarkdownStyle)
         -> NSAttributedString {
         let m = NSMutableAttributedString()
-        translateInline(text, base: style.headingFont(level), into: m)
+        translateInline(text, base: style.headingFont(level), style: style,
+                        into: m)
         let para = blockParagraph(style)
         para.paragraphSpacingBefore = style.headingSpacingBefore(level)
         para.paragraphSpacing = style.headingSpacingAfter(level)
@@ -729,34 +734,67 @@ enum DocumentText {
         return m
     }
 
+    // A run carrying TeX becomes the typeset formula on the baseline at
+    // the run's own size, when the style asks for it and the engine
+    // accepts the formula; otherwise the Unicode spelling it already
+    // holds. The formula takes the run's attributes, so a small, struck
+    // or linked formula is small, struck or linked, and carries the
+    // source on atomicCopyKey so a copy gives it back as typed.
+
     private static func translateInline(_ attr: AttributedString,
                                         base: PlatformFont,
+                                        style: MarkdownStyle,
                                         into m: NSMutableAttributedString) {
         for run in attr.runs {
             let segment = String(attr[run.range].characters)
-            let intent = run.inlinePresentationIntent ?? []
-            var runFont = styledRunFont(intent: intent, base: base)
-            var attrs: [NSAttributedString.Key: Any] = [
-                .foregroundColor: platformDefaultTextColor,
-            ]
-            if run[SmallAttribute.self] == true {
-                runFont = smallRunFont(base: runFont)
+            let attrs = runAttributes(run, base: base)
+            let source = style.typesetInlineMath
+                ? run[InlineMathAttribute.self] : nil
+            let size = (attrs[.font] as? PlatformFont)?.pointSize ??
+                       base.pointSize
+            let layout = source.flatMap { tex in
+                TeX.layout(TeX.undelimited(tex), size: size, display: false)
             }
-            if let level = run[ScriptAttribute.self] {
-                let script = scriptRunFont(level, base: runFont)
-                runFont = script.font
-                attrs[.baselineOffset] = script.offset
+            if let source, let layout {
+                let formula = NSMutableAttributedString(
+                    attachment: mathAttachment(layout, inset: 1))
+                let full = NSRange(location: 0, length: formula.length)
+                formula.addAttributes(attrs, range: full)
+                formula.addAttribute(atomicCopyKey, value: source,
+                                     range: full)
+                m.append(formula)
+            } else {
+                m.append(NSAttributedString(string: segment,
+                                            attributes: attrs))
             }
-            attrs[.font] = runFont
-            if intent.contains(.strikethrough) {
-                attrs[.strikethroughStyle] = NSUnderlineStyle.single.rawValue
-            }
-            if run.underlineStyle != nil {
-                attrs[.underlineStyle] = NSUnderlineStyle.single.rawValue
-            }
-            if let url = run.link { attrs[.link] = url }
-            m.append(NSAttributedString(string: segment, attributes: attrs))
         }
+    }
+
+    private static func runAttributes(_ run: AttributedString.Runs.Run,
+                                      base: PlatformFont)
+        -> [NSAttributedString.Key: Any] {
+        let intent = run.inlinePresentationIntent ?? []
+        var runFont = styledRunFont(intent: intent, base: base)
+        var attrs: [NSAttributedString.Key: Any] = [
+            .foregroundColor: platformDefaultTextColor,
+        ]
+        if run[SmallAttribute.self] == true {
+            runFont = smallRunFont(base: runFont)
+        }
+        if let level = run[ScriptAttribute.self] {
+            let script = scriptRunFont(level, base: runFont)
+            runFont = script.font
+            attrs[.baselineOffset] = script.offset
+        }
+        attrs[.font] = runFont
+        if intent.contains(.strikethrough) {
+            attrs[.strikethroughStyle] = NSUnderlineStyle.single.rawValue
+        }
+        if run.underlineStyle != nil {
+            attrs[.underlineStyle] = NSUnderlineStyle.single.rawValue
+        }
+        if let url = run.link { attrs[.link] = url }
+        return attrs
     }
 
 }

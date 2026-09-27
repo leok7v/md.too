@@ -163,7 +163,113 @@ final class PDFRenderer {
         applyScriptRuns(m, from: attr)
         applySmallRuns(m, from: attr)
         applyParagraphAlignment(m, from: attr)
+        applyInlineMath(m, from: attr)
         flow(m)
+    }
+
+    // An inline formula on the page: the run's characters become one
+    // object-replacement character whose CTRunDelegate reports the
+    // layout's metrics, so the framesetter leaves the room, and after
+    // a frame is drawn each such run is found by its attribute and the
+    // formula drawn on the run's baseline. Walked last to first so the
+    // ranges of the runs still to come are untouched by the replacement.
+
+    private final class InlineMathBox {
+        let layout: MathLayout
+        init(_ layout: MathLayout) { self.layout = layout }
+    }
+
+    private static let runDelegateKey =
+        NSAttributedString.Key(kCTRunDelegateAttributeName as String)
+
+    private static let inlineMathInset: CGFloat = 1
+
+    private func applyInlineMath(_ m: NSMutableAttributedString,
+                                 from attr: AttributedString) {
+        for run in attr.runs.reversed() {
+            let r = NSRange(run.range, in: attr)
+            if let source = run[InlineMathAttribute.self], r.length > 0,
+               NSMaxRange(r) <= m.length {
+                let attrs = m.attributes(at: r.location, effectiveRange: nil)
+                let size = (attrs[.font] as? PlatformFont)?.pointSize ??
+                           CTFontGetSize(bodyFont())
+                if let formula = inlineFormula(source, size: size,
+                                               attrs: attrs) {
+                    m.replaceCharacters(in: r, with: formula)
+                }
+            }
+        }
+    }
+
+    private func inlineFormula(_ source: String, size: CGFloat,
+                               attrs: [NSAttributedString.Key: Any])
+        -> NSAttributedString? {
+        var result: NSAttributedString? = nil
+        if let layout = TeX.layout(TeX.undelimited(source), size: size,
+                                   display: false),
+           let delegate = PDFRenderer.runDelegate(InlineMathBox(layout)) {
+            var placed = attrs
+            placed[PDFRenderer.runDelegateKey] = delegate
+            result = NSAttributedString(string: "\u{FFFC}",
+                                        attributes: placed)
+        }
+        return result
+    }
+
+    // The delegate owns the one retained box and releases it when
+    // CoreText is done with the run; the draw pass reads the same box
+    // back off the delegate. The metrics it reports are the layout's,
+    // plus a point of air each side.
+
+    private static func runDelegate(_ box: InlineMathBox) -> CTRunDelegate? {
+        var callbacks = CTRunDelegateCallbacks(
+            version: kCTRunDelegateCurrentVersion,
+            dealloc: { refcon in
+                Unmanaged<InlineMathBox>.fromOpaque(refcon).release()
+            },
+            getAscent: { refcon in
+                Unmanaged<InlineMathBox>.fromOpaque(refcon)
+                    .takeUnretainedValue().layout.ascent
+            },
+            getDescent: { refcon in
+                Unmanaged<InlineMathBox>.fromOpaque(refcon)
+                    .takeUnretainedValue().layout.descent
+            },
+            getWidth: { refcon in
+                Unmanaged<InlineMathBox>.fromOpaque(refcon)
+                    .takeUnretainedValue().layout.width +
+                    PDFRenderer.inlineMathInset * 2
+            })
+        return CTRunDelegateCreate(&callbacks,
+                                   Unmanaged.passRetained(box).toOpaque())
+    }
+
+    private func drawInlineMath(in frame: CTFrame, rect: CGRect) {
+        let lines = CTFrameGetLines(frame) as! [CTLine]
+        var origins = [CGPoint](repeating: .zero, count: lines.count)
+        CTFrameGetLineOrigins(frame, CFRange(location: 0, length: 0),
+                              &origins)
+        for (line, origin) in zip(lines, origins) {
+            for run in CTLineGetGlyphRuns(line) as! [CTRun] {
+                let attrs = CTRunGetAttributes(run) as NSDictionary
+                let value = attrs[PDFRenderer.runDelegateKey]
+                if let value, CFGetTypeID(value as CFTypeRef) ==
+                    CTRunDelegateGetTypeID() {
+                    let delegate = value as! CTRunDelegate
+                    let box = Unmanaged<InlineMathBox>
+                        .fromOpaque(CTRunDelegateGetRefCon(delegate))
+                        .takeUnretainedValue()
+                    var position = CGPoint.zero
+                    CTRunGetPositions(run, CFRange(location: 0, length: 1),
+                                      &position)
+                    let x = rect.minX + origin.x + position.x +
+                            PDFRenderer.inlineMathInset
+                    let baseline = CGPoint(x: x, y: rect.minY + origin.y)
+                    box.layout.draw(in: ctx, baseline: baseline,
+                                    color: textColor)
+                }
+            }
+        }
     }
 
     private func resizeFont(_ f: PlatformFont,
@@ -190,6 +296,7 @@ final class PDFRenderer {
                 } else {
                     let used = lineHeightUsed(frame: frame, in: rect)
                     CTFrameDraw(frame, ctx)
+                    drawInlineMath(in: frame, rect: rect)
                     y -= used
                     consumed = visible.location + visible.length
                     if consumed < attr.length { newPage() }
@@ -581,6 +688,7 @@ final class PDFRenderer {
             fs, CFRange(location: 0, length: 0), path, nil)
         let used = lineHeightUsed(frame: frame, in: rect)
         CTFrameDraw(frame, ctx)
+        drawInlineMath(in: frame, rect: rect)
         return used
     }
 
@@ -677,9 +785,17 @@ final class PDFRenderer {
                     NSUnderlineStyle.single.rawValue
                 attrs[.strikethroughColor] = textColor
             }
-            let segment = protectNumerics(
-                String(attr[run.range].characters))
-            m.append(NSAttributedString(string: segment, attributes: attrs))
+            let formula = run[InlineMathAttribute.self].flatMap { source in
+                inlineFormula(source, size: runFont.pointSize, attrs: attrs)
+            }
+            if let formula {
+                m.append(formula)
+            } else {
+                let segment = protectNumerics(
+                    String(attr[run.range].characters))
+                m.append(NSAttributedString(string: segment,
+                                            attributes: attrs))
+            }
         }
         return m
     }

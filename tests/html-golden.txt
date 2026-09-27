@@ -50,7 +50,7 @@
 === example-3-math-the-small-kind
 <h2>Math, the small kind</h2>
 <p>Two engines, split by which delimiter you used, and you never pick.</p>
-<p>Inline maths stays text: α + β = γ, the right triangle staple x² + y² = z², Gauss's schoolboy trick ∑(i=1)ⁿ i (he was nine, allegedly), and x ∈ ℝ. It is Unicode, so it flows with the sentence, selects with it, and Find searches it.</p>
+<p>Inline maths is typeset in the line, at the size of the words around it: α + β = γ, the right triangle staple x² + y² = z², Gauss's schoolboy trick ∑(i=1)ⁿ i (he was nine, allegedly), and x ∈ ℝ. It works in a heading, e(iπ) + 1 = 0 included, and in a table cell; a copy gives back the TeX it was written from.</p>
 <p>A <code style="background:rgba(128,128,128,0.14);padding:1px 4px;border-radius:3px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:0.92em;">$$</code> display is typeset properly, by a TeX layout engine reading the OpenType MATH table of a real maths font:</p>
 <p style="text-align:center;font-style:italic;margin:0.8em 0;">-b ± √b² - 4ac⁄2a</p>
 <p>Big operators take their limits above and below, and the fences grow to fit what is inside them:</p>
@@ -72,7 +72,7 @@
 <p style="text-align:center;font-style:italic;margin:0.8em 0;">[(\fracab)⁄c] \qquad A(B^C^D) \qquad ∂ u⁄∂ t = α ∇² u</p>
 <p>The maths alphabets are separate Unicode blocks rather than a font trick, so blackboard bold, script, fraktur, bold, sans and monospace all keep their own letters:</p>
 <p style="text-align:center;font-style:italic;margin:0.8em 0;">\mathbbRQZ \quad \mathcalABC \quad \mathfrakgsl \quad \mathbfxyz \quad \mathsfuvw \quad \mathtt101</p>
-<p>Inline, only the ones with a single settled codepoint survive the trip through Unicode: ℝ, ℕ, ℤ, ℚ, ℂ. Anything more wants a display.</p>
+<p>Inline, the alphabets work the same way: ℝ, ℕ, ℤ, ℚ, ℂ, and \mathcalL or \mathfrakg just as well. What a surface without a typesetter shows is the Unicode spelling, which keeps the single-codepoint ones and parenthesises the rest.</p>
 <p>Greek alphabet, lower and upper, in case you need both at once:</p>
 <p style="text-align:center;font-style:italic;margin:0.8em 0;">α β γ δ ε ζ η θ ι κ λ μ ν ξ π ρ σ τ φ χ ψ ω</p>
 <p style="text-align:center;font-style:italic;margin:0.8em 0;">Γ Δ Θ Λ Ξ Π Σ Φ Ψ Ω</p>

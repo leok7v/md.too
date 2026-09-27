@@ -10,10 +10,11 @@ final class MathAttachmentCell: NSTextAttachmentCell,
                               PasteboardIllustration {
 
     private let layout: MathLayout
-    private let inset: CGFloat = 4
+    private let inset: CGFloat
 
-    init(layout: MathLayout) {
+    init(layout: MathLayout, inset: CGFloat) {
         self.layout = layout
+        self.inset = inset
         super.init()
     }
 
@@ -155,9 +156,13 @@ final class RuleAttachmentCell: NSTextAttachmentCell {
 
 extension DocumentText {
 
-    static func mathAttachment(_ layout: MathLayout) -> NSTextAttachment {
+    // A display gets four points of air each side; an inline formula
+    // one, so it sits in its sentence like a word.
+    static func mathAttachment(_ layout: MathLayout,
+                               inset: CGFloat = 4) -> NSTextAttachment {
         let attachment = NSTextAttachment()
-        attachment.attachmentCell = MathAttachmentCell(layout: layout)
+        attachment.attachmentCell = MathAttachmentCell(layout: layout,
+                                                       inset: inset)
         return attachment
     }
 

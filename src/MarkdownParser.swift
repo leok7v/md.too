@@ -34,6 +34,18 @@ enum AlignAttribute: AttributedStringKey {
     static let name = "md.too.align"
 }
 
+// An inline formula's source, delimiters included, rides the Unicode
+// run it was spelled into, so a surface with a typesetter can draw the
+// formula while plain export writes the source back as typed and a copy
+// hands it over. HTML keeps the Unicode; on a surface that typesets, so
+// does nothing else: the formula is an attachment there, which Find
+// cannot search, the price the style switch exists to refuse.
+
+enum InlineMathAttribute: AttributedStringKey {
+    typealias Value = String
+    static let name = "md.too.math"
+}
+
 enum Alignment: Equatable, Hashable {
     case none, left, center, right
 }
@@ -1157,7 +1169,10 @@ enum Markdown {
         for (index, piece) in maths.enumerated() {
             if case .math(let s, let display) = piece,
                let r = out.range(of: String(sentinel(index))) {
-                out.replaceSubrange(r, with: TeX.render(s, display: display))
+                var rendered = TeX.render(s, display: display)
+                let fence = display ? "$$" : "$"
+                rendered[InlineMathAttribute.self] = fence + s + fence
+                out.replaceSubrange(r, with: rendered)
             }
         }
         applyTag(&out, "u") { sub in sub.underlineStyle = .single }
