@@ -2683,7 +2683,7 @@ final class Layouter {
     }
 }
 
-public struct MathLayout {
+public struct MathLayout: @unchecked Sendable {
     public let width: CGFloat
     public let ascent: CGFloat
     public let descent: CGFloat

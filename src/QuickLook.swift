@@ -12,7 +12,7 @@ final class QuickLookViewController: NSViewController, QLPreviewingController {
         view.autoresizingMask = [.width, .height]
     }
 
-    deinit {
+    isolated deinit {
         if let t = themeObserver {
             NotificationCenter.default.removeObserver(t)
         }
@@ -41,7 +41,9 @@ final class QuickLookViewController: NSViewController, QLPreviewingController {
             themeObserver = NotificationCenter.default.addObserver(
                 forName: UserDefaults.didChangeNotification,
                 object: nil, queue: .main
-            ) { [weak self] _ in self?.applyAppearance() }
+            ) { [weak self] _ in
+                MainActor.assumeIsolated { self?.applyAppearance() }
+            }
         }
     }
 

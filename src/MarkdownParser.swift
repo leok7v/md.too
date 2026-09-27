@@ -32,11 +32,11 @@ enum InlineMathAttribute: AttributedStringKey {
     static let name = "md.too.math"
 }
 
-enum Alignment: Equatable, Hashable {
+enum Alignment: Equatable, Hashable, Sendable {
     case none, left, center, right
 }
 
-enum Block: Equatable {
+enum Block: Equatable, Sendable {
     case heading(level: Int, text: AttributedString)
     case paragraph(AttributedString)
     case code(language: String?, text: String)
@@ -50,7 +50,7 @@ enum Block: Equatable {
     case image(alt: String, url: URL, width: CGFloat?, height: CGFloat?)
 }
 
-struct ListItem: Equatable {
+struct ListItem: Equatable, Sendable {
     let marker: String
     let checked: Bool?
     let blocks: [Block]

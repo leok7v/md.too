@@ -28,6 +28,7 @@ let copyButtonGutter: CGFloat = 26
 
 // AnyObject-constrained so a CopyBlockSpot can hold one without
 // carrying its bytes; the PDF is asked for when copy is pressed.
+@MainActor
 protocol PasteboardIllustration: AnyObject {
     func pdf(dark: Bool) -> Data?
 }

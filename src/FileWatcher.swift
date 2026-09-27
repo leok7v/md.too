@@ -1,17 +1,18 @@
 import Foundation
 import SwiftUI
 
+@MainActor
 final class FileWatcher: NSObject, NSFilePresenter {
 
-    let url: URL
-    let presentedItemOperationQueue = OperationQueue.main
-    var presentedItemURL: URL? { url }
+    nonisolated let url: URL
+    nonisolated let presentedItemOperationQueue = OperationQueue.main
+    nonisolated var presentedItemURL: URL? { url }
 
-    private let onChange: (String) -> Void
-    private var debounce: DispatchWorkItem?
+    private let onChange: @MainActor (String) -> Void
+    private var pending: Task<Void, Never>?
     private var generation = 0
 
-    init(url: URL, onChange: @escaping (String) -> Void) {
+    init(url: URL, onChange: @escaping @MainActor (String) -> Void) {
         self.url = url
         self.onChange = onChange
         super.init()
@@ -19,46 +20,47 @@ final class FileWatcher: NSObject, NSFilePresenter {
         reload()
     }
 
-    deinit {
-        debounce?.cancel()
+    isolated deinit {
+        pending?.cancel()
         NSFileCoordinator.removeFilePresenter(self)
     }
 
-    func presentedItemDidChange() {
-        debounce?.cancel()
-        let work = DispatchWorkItem { [weak self] in self?.reload() }
-        debounce = work
-        DispatchQueue.main.asyncAfter(
-            deadline: .now() + 0.1, execute: work)
+    nonisolated func presentedItemDidChange() {
+        MainActor.assumeIsolated { scheduleReload() }
     }
 
-    func presentedItemDidMove(to newURL: URL) {
+    nonisolated func presentedItemDidMove(to newURL: URL) {
         presentedItemDidChange()
     }
 
+    private func scheduleReload() {
+        pending?.cancel()
+        pending = Task { [weak self] in
+            try? await Task.sleep(for: .milliseconds(100))
+            if !Task.isCancelled { self?.reload() }
+        }
+    }
+
     private func reload() {
-        let targetURL = url
-        let changeHandler = onChange
         generation += 1
         let mine = generation
-        DispatchQueue.global(qos: .userInitiated).async {
+        let target = url
+        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
             let coord = NSFileCoordinator(filePresenter: self)
             var coordError: NSError?
-            coord.coordinate(
-                readingItemAt: targetURL,
-                options: .withoutChanges,
-                error: &coordError) { actualURL in
-                    let read = try? String(
-                        contentsOf: actualURL, encoding: .utf8)
-                    if let read {
-                        DispatchQueue.main.async { [weak self] in
-                            if mine == self?.generation {
-                                changeHandler(read)
-                            }
-                        }
-                    }
-                }
+            var read: String? = nil
+            coord.coordinate(readingItemAt: target, options: .withoutChanges,
+                             error: &coordError) { actualURL in
+                read = try? String(contentsOf: actualURL, encoding: .utf8)
+            }
+            if let text = read {
+                Task { @MainActor [weak self] in self?.apply(text, mine) }
+            }
         }
+    }
+
+    private func apply(_ text: String, _ mine: Int) {
+        if mine == generation { onChange(text) }
     }
 
 }
@@ -78,7 +80,7 @@ struct WatchingFile: ViewModifier {
     private func startWatching() {
         if watcher == nil, let url = fileURL {
             watcher = FileWatcher(url: url) { newText in
-                DispatchQueue.main.async { liveText = newText }
+                liveText = newText
             }
         }
     }

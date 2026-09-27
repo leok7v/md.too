@@ -557,11 +557,12 @@ struct WindowAppearanceApplier: NSViewRepresentable {
 
     let scheme: ColorScheme?
 
+    @MainActor
     final class Coordinator {
         var scheme: ColorScheme?
         var observers: [NSObjectProtocol] = []
         weak var view: NSView?
-        deinit {
+        isolated deinit {
             for o in observers {
                 NotificationCenter.default.removeObserver(o)
             }
@@ -587,7 +588,8 @@ struct WindowAppearanceApplier: NSViewRepresentable {
                 object: nil,
                 queue: .main
             ) { [weak coord] _ in
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
+                Task { @MainActor in
+                    try? await Task.sleep(for: .milliseconds(50))
                     if let coord, let view = coord.view {
                         view.window?.appearance =
                             Self.appearanceFor(coord.scheme)

@@ -111,7 +111,7 @@ struct ContentView: View {
         .padding(.horizontal, 12)
         .padding(.vertical, 6)
         .background(.bar)
-        .onChange(of: findQuery) { q in find.find(q) }
+        .task(id: findQuery) { find.find(findQuery) }
     }
 
     private var findCountLabel: String {

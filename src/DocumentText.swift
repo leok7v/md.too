@@ -1,5 +1,6 @@
 import Foundation
 
+@MainActor
 enum DocumentText {
 
     static func blockParagraph(_ style: MarkdownStyle)
@@ -403,12 +404,15 @@ enum DocumentText {
         return result
     }
 
-    private static var mathFloor: CGFloat { 0.5 }
+    nonisolated private static var mathFloor: CGFloat { 0.5 }
 
     // The copy button's gutter on both sides of a display, plus air.
-    private static var mathSlack: CGFloat { 8 + copyButtonGutter * 2 }
+    nonisolated private static var mathSlack: CGFloat {
+        8 + copyButtonGutter * 2
+    }
 
-    static func mathFit(natural: CGSize, available: CGFloat) -> CGSize {
+    nonisolated static func mathFit(natural: CGSize,
+                                    available: CGFloat) -> CGSize {
         var scale: CGFloat = 1
         if natural.width > available {
             scale = max(available / natural.width, mathFloor)
@@ -417,7 +421,7 @@ enum DocumentText {
                       height: natural.height * scale)
     }
 
-    static func mathRoom(in lineWidth: CGFloat) -> CGFloat {
+    nonisolated static func mathRoom(in lineWidth: CGFloat) -> CGFloat {
         lineWidth - mathSlack
     }
 

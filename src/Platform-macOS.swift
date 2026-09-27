@@ -112,8 +112,9 @@ var systemBackground: Color {
     return Color(nsColor: .textBackgroundColor)
 }
 
-nonisolated(unsafe) var pdfDataExporter: ((String, String) -> Data?)? = nil
+@MainActor var pdfDataExporter: ((String, String) -> Data?)? = nil
 
+@MainActor
 final class CopyPdfProvider: NSObject, NSPasteboardItemDataProvider {
 
     static let shared = CopyPdfProvider()
@@ -122,14 +123,14 @@ final class CopyPdfProvider: NSObject, NSPasteboardItemDataProvider {
 
     func set(text: String) { self.text = text }
 
-    func pasteboard(_ pasteboard: NSPasteboard?,
-                    item: NSPasteboardItem,
-                    provideDataForType type: NSPasteboard.PasteboardType) {
-        if type == .pdf,
-           let exporter = pdfDataExporter,
-           let data = exporter(text, "Document") {
-            item.setData(data, forType: .pdf)
+    nonisolated func pasteboard(_ pasteboard: NSPasteboard?,
+                                item: NSPasteboardItem,
+                                provideDataForType
+                                    type: NSPasteboard.PasteboardType) {
+        let data: Data? = MainActor.assumeIsolated {
+            type == .pdf ? pdfDataExporter?(text, "Document") : nil
         }
+        if let data { item.setData(data, forType: .pdf) }
     }
 
 }
@@ -153,6 +154,7 @@ private func htmlToRtf(_ html: String) -> Data? {
     return result
 }
 
+@MainActor
 func platformCopyMarkdown(plain: String, html: String, sourceText: String) {
     let pb = NSPasteboard.general
     pb.clearContents()
