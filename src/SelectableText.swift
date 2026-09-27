@@ -57,10 +57,14 @@ func codeBlockRects(in storage: NSAttributedString,
     let end = min(NSMaxRange(within), storage.length)
     var pos = min(within.location, end)
     while pos < end {
-        var run = NSRange(location: 0, length: 0)
+        var kindRun = NSRange(location: 0, length: 0)
+        var idRun = NSRange(location: 0, length: 0)
         let kind = storage.attribute(atomicKindKey, at: pos,
-                                     longestEffectiveRange: &run,
+                                     longestEffectiveRange: &kindRun,
                                      in: full) as? String
+        _ = storage.attribute(atomicIdKey, at: pos,
+                              longestEffectiveRange: &idRun, in: full)
+        let run = NSIntersectionRange(kindRun, idRun)
         if kind == AtomicKind.code.rawValue {
             let glyphs = lm.glyphRange(forCharacterRange: run,
                                        actualCharacterRange: nil)
@@ -273,20 +277,28 @@ struct NativeText {
 
 func applyIncremental(_ storage: NSMutableAttributedString,
                       _ next: NSAttributedString) -> Bool {
-    let curLen = storage.length
-    let nextLen = next.length
-    let p = sharedAttributedPrefix(storage, next)
-    let s = sharedAttributedSuffix(storage, next, after: p)
-    let changed = curLen - p - s > 0 || nextLen - p - s > 0
+    let replaced = incrementalRange(storage, next)
+    let changed = replaced.length > 0 ||
+                  next.length != storage.length
     if changed {
+        let tail = storage.length - NSMaxRange(replaced)
         storage.beginEditing()
         storage.replaceCharacters(
-            in: NSRange(location: p, length: curLen - p - s),
+            in: replaced,
             with: next.attributedSubstring(
-                from: NSRange(location: p, length: nextLen - p - s)))
+                from: NSRange(location: replaced.location,
+                              length: next.length - replaced.location -
+                                      tail)))
         storage.endEditing()
     }
     return changed
+}
+
+func incrementalRange(_ storage: NSAttributedString,
+                      _ next: NSAttributedString) -> NSRange {
+    let p = sharedAttributedPrefix(storage, next)
+    let s = sharedAttributedSuffix(storage, next, after: p)
+    return NSRange(location: p, length: storage.length - p - s)
 }
 
 private func sharedAttributedPrefix(_ a: NSAttributedString,

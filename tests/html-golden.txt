@@ -47,6 +47,15 @@
 <li><p>Close the file. That was the whole recipe.</p>
 </li>
 </ol>
+<p>A long number keeps its text in line with the rest, and an item can open with a block of its own:</p>
+<ol start="99" style="margin:0.2em 0;padding-left:1.5em;">
+<li><p>Ninety-nine, one line.</p>
+</li>
+<li><p>The hundredth lines up with it.</p>
+</li>
+<li><pre style="background:rgba(128,128,128,0.10);padding:8px 12px;border-radius:4px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:0.92em;overflow-x:auto;white-space:pre;"><code class="language-sh">echo "an item that starts with code"</code></pre>
+</li>
+</ol>
 === example-3-lines-that-must-not-reflow-and-a-code-wo
 <h2>Lines that <em>must not</em> reflow, and a <code style="background:rgba(128,128,128,0.14);padding:1px 4px;border-radius:3px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:0.92em;">code</code> word in a heading</h2>
 <p>A verse is the one place a writer means every line end. Two trailing spaces are the CommonMark hard break, and a stanza is a blank line; this viewer keeps both, so the shape survives a window of any width. The accents are here on purpose too: find "cafe" and the café turns up.</p>
@@ -57,14 +66,15 @@
 === example-4-where-nabla-2-u-0-holds-so-does-a-headin
 <h2>Where ∇² u = 0 holds, so does a heading</h2>
 <p>Inline maths in a heading is set at the heading's size, in the heading's weight, on the heading's baseline, and the copy button on the display below hands back the TeX it was drawn from. A Jacobian, with the dots that let a matrix stand for any size:</p>
-<p style="text-align:center;font-style:italic;margin:0.8em 0;">\mathbfJ = \beginbmatrix \dfrac∂ f₁∂ x₁ &amp; ⋯ &amp; \dfrac∂ f₁∂ xₙ 
- ⋮ &amp; \ddots &amp; ⋮ 
- \dfrac∂ fₘ∂ x₁ &amp; ⋯ &amp; \dfrac∂ fₘ∂ xₙ \endbmatrix</p>
+<p style="text-align:center;font-style:italic;margin:0.8em 0;">J =  ∂ f₁⁄∂ x₁   ⋯   ∂ f₁⁄∂ xₙ 
+ ⋮   ⋮ 
+ ∂ fₘ⁄∂ x₁   ⋯   ∂ fₘ⁄∂ xₙ</p>
 <p>The same engine sets a wave equation with its hats and its \hbar, and a Gaussian integral with bounds at both infinities:</p>
-<p style="text-align:center;font-style:italic;margin:0.8em 0;">iℏ ∂⁄∂ tΨ(\mathbfr, t) = \hatH Ψ(\mathbfr, t) \qquad ∫(-∞)(∞) e(-x^2) dx = √π</p>
+<p style="text-align:center;font-style:italic;margin:0.8em 0;">iℏ ∂⁄∂ tΨ(r, t) = H Ψ(r, t)    ∫(-∞)(∞) e(-x^2) dx = √π</p>
 === example-5-math-the-small-kind
 <h2>Math, the small kind</h2>
 <p>Two engines, split by which delimiter you used, and you never pick.</p>
+<p>Prices stay prices: the coffee was $4 and the cake $6.</p>
 <p>Inline maths is typeset in the line, at the size of the words around it: α + β = γ, the right triangle staple x² + y² = z², Gauss's schoolboy trick ∑(i=1)ⁿ i (he was nine, allegedly), and x ∈ ℝ. It works in a heading, e(iπ) + 1 = 0 included, and in a table cell; a copy gives back the TeX it was written from.</p>
 <p>A <code style="background:rgba(128,128,128,0.14);padding:1px 4px;border-radius:3px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:0.92em;">$$</code> display is typeset properly, by a TeX layout engine reading the OpenType MATH table of a real maths font:</p>
 <p style="text-align:center;font-style:italic;margin:0.8em 0;">-b ± √b² - 4ac⁄2a</p>
@@ -73,29 +83,33 @@
 <p>Integrals with bounds, which the old renderer used to punt on:</p>
 <p style="text-align:center;font-style:italic;margin:0.8em 0;">∫₀(∞) e(-x^2) dx = √π⁄2</p>
 <p>Named operators carry their limits too, and a root can take an index:</p>
-<p style="text-align:center;font-style:italic;margin:0.8em 0;">\lim(n → ∞) ∑(k=1)ⁿ 1⁄k² = π²⁄6 \qquad √[3]x²+1⁄x-1</p>
+<p style="text-align:center;font-style:italic;margin:0.8em 0;">lim(n → ∞) ∑(k=1)ⁿ 1⁄k² = π²⁄6    √[3]x²+1⁄x-1</p>
 <p>Matrices, cases and aligned blocks, which it also used to punt on:</p>
-<p style="text-align:center;font-style:italic;margin:0.8em 0;">\beginpmatrix a &amp; b 
- c &amp; d \endpmatrix(-1) = 1⁄ad-bc\beginpmatrix d &amp; -b 
- -c &amp; a \endpmatrix</p>
-<p style="text-align:center;font-style:italic;margin:0.8em 0;">f(n) = \begincases n/2 &amp; if  n  is even 
- 3n+1 &amp; otherwise \endcases</p>
+<p style="text-align:center;font-style:italic;margin:0.8em 0;">a   b 
+ c   d (-1) = 1⁄ad-bc d   -b 
+ -c   a</p>
+<p style="text-align:center;font-style:italic;margin:0.8em 0;">f(n) =  n/2   if  n  is even 
+ 3n+1   otherwise</p>
 <p>An <code style="background:rgba(128,128,128,0.14);padding:1px 4px;border-radius:3px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:0.92em;">aligned</code> block lines its rows up on the relation between them, which is how anyone writing more than one equation expects them to sit:</p>
-<p style="text-align:center;font-style:italic;margin:0.8em 0;">\beginaligned ∇ · \mathbfE &amp;= ρ⁄ε₀ 
- ∇ × \mathbfB &amp;= μ₀(\mathbfJ + ε₀ ∂ \mathbfE⁄∂ t) \endaligned</p>
+<p style="text-align:center;font-style:italic;margin:0.8em 0;">∇ · E  = ρ⁄ε₀ 
+ ∇ × B  = μ₀(J + ε₀ ∂ E⁄∂ t)</p>
 <p>Fences nest and keep growing, and scripts keep shrinking until they hit scriptscript and stop:</p>
-<p style="text-align:center;font-style:italic;margin:0.8em 0;">[(\fracab)⁄c] \qquad A(B^C^D) \qquad ∂ u⁄∂ t = α ∇² u</p>
+<p style="text-align:center;font-style:italic;margin:0.8em 0;">[(ab)⁄c]    A(B^C^D)    ∂ u⁄∂ t = α ∇² u</p>
 <p>The maths alphabets are separate Unicode blocks rather than a font trick, so blackboard bold, script, fraktur, bold, sans and monospace all keep their own letters:</p>
-<p style="text-align:center;font-style:italic;margin:0.8em 0;">\mathbbRQZ \quad \mathcalABC \quad \mathfrakgsl \quad \mathbfxyz \quad \mathsfuvw \quad \mathtt101</p>
-<p>Inline, the alphabets work the same way: ℝ, ℕ, ℤ, ℚ, ℂ, and \mathcalL or \mathfrakg just as well. What a surface without a typesetter shows is the Unicode spelling, which keeps the single-codepoint ones and parenthesises the rest.</p>
+<p style="text-align:center;font-style:italic;margin:0.8em 0;">RQZ    ABC    gsl    xyz    uvw    101</p>
+<p>Inline, the alphabets work the same way: ℝ, ℕ, ℤ, ℚ, ℂ, and L or g just as well. What a surface without a typesetter shows is the Unicode spelling, which keeps the single-codepoint ones and parenthesises the rest.</p>
 <p>Greek alphabet, lower and upper, in case you need both at once:</p>
 <p style="text-align:center;font-style:italic;margin:0.8em 0;">α β γ δ ε ζ η θ ι κ λ μ ν ξ π ρ σ τ φ χ ψ ω</p>
 <p style="text-align:center;font-style:italic;margin:0.8em 0;">Γ Δ Θ Λ Ξ Π Σ Φ Ψ Ω</p>
 <p>Decorations, the kind a lecture note reaches for: braces with a label, a box around the result, a struck-out term, an arrow that stretches over its label, a symbol negated, and ink in a colour of the author's choosing.</p>
-<p style="text-align:center;font-style:italic;margin:0.8em 0;">\overbracea + b + c(three terms) \quad \underbracex₁ x₂ ⋯ xₖₖ \quad \boxedE = mc² \quad \cancel2x + \underliney \quad A \xrightarrow f  B \quad a \overset?= b \not= c \quad \textcolor#d81b60rose + \colortealteal</p>
+<p style="text-align:center;font-style:italic;margin:0.8em 0;">a + b + c(three terms)    x₁ x₂ ⋯ xₖₖ    E = mc²    2x + y    A → f  B    a ?= b ≠ c    rose + teal</p>
+<p>The stretchy ones grow as long as their content, and an operator name takes its limits below:</p>
+<p style="text-align:center;font-style:italic;margin:0.8em 0;">a₁ + a₂ + a₃ + a₄ + a₅ + a₆ + a₇ + a₈(eight terms)    X → f  Y</p>
+<p style="text-align:center;font-style:italic;margin:0.8em 0;">θ = arg max(θ) L(θ)</p>
+<p>Logic and modular arithmetic read the way they are written: P ⟺ Q, a ≡ b mod n, a mod b.</p>
 <p>Operators and a corner of set theory: ≤ ≥ ≠ ≈ ± × · ÷ → ⇒, ∀ x ∈ ℕ, ∃ y ∈ ℤ, A ∩ B, A ∪ B, ∅.</p>
 <p>Tools that lift equations out of a PDF often forget the delimiters and leave the bare TeX sitting in a paragraph. A paragraph that opens with a control word and parses cleanly as TeX, with no ordinary words in it, is read as a display anyway:</p>
-<p style="text-align:center;font-style:italic;margin:0.8em 0;">D x N ⁄ \frac  ( Truth )   1 6 0 0   x   1 4   
+<p style="text-align:center;font-style:italic;margin:0.8em 0;">D x N ⁄  ( Truth )   1 6 0 0   x   1 4   
   4 2 8   x   1 0 ⁄ ( 1 )  
   2 9   x   9 5 ⁄ ( 2 3 )</p>
 <p>That is three separate tests, and prose fails all but the first: <code style="background:rgba(128,128,128,0.14);padding:1px 4px;border-radius:3px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:0.92em;">\alpha is the first letter</code> parses perfectly well as alpha times i times s and so on, and is caught by the run of ordinary letters. Rows separated by <code style="background:rgba(128,128,128,0.14);padding:1px 4px;border-radius:3px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:0.92em;">\\</code>, and columns by <code style="background:rgba(128,128,128,0.14);padding:1px 4px;border-radius:3px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:0.92em;">&amp;</code>, work without naming an environment.</p>
@@ -471,13 +485,18 @@ ENTRYPOINT ["./run.sh"]</code></pre>
 <p>A code fence with no language stays plain monospaced, which is what you want for shell transcripts and ASCII art:</p>
 <pre style="background:rgba(128,128,128,0.10);padding:8px 12px;border-radius:4px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:0.92em;overflow-x:auto;white-space:pre;"><code>no language =&gt; no highlighting, just the monospace font
 the [copy] button still works</code></pre>
+<p>A fence of four backticks holds a whole Markdown sample, its own fence included:</p>
+<pre style="background:rgba(128,128,128,0.10);padding:8px 12px;border-radius:4px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:0.92em;overflow-x:auto;white-space:pre;"><code class="language-markdown">```swift
+print("a fence inside a fence")
+```</code></pre>
 <p>An indented code block (four spaces) renders the same way:</p>
 <pre style="background:rgba(128,128,128,0.10);padding:8px 12px;border-radius:4px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:0.92em;overflow-x:auto;white-space:pre;"><code>int x = 0;
 for (int i = 0; i &lt; 10; ++i) x += i;</code></pre>
 <hr style="border:none;border-top:1px solid rgba(128,128,128,0.3);margin:1em 0;">
 === example-10-a-quick-combined-block
 <h2>A quick combined block</h2>
-<p>Just to confirm everything composes:</p>
+<p>Just to confirm everything composes, starting with a heading underlined instead of hashed:</p>
+<h2>An underlined heading</h2>
 <blockquote style="border-left:3px solid rgba(128,128,128,0.5);padding-left:12px;margin-left:0;opacity:0.85;">
 <p>A blockquote with a <a href="https://example.com">link</a>, some <code style="background:rgba(128,128,128,0.14);padding:1px 4px;border-radius:3px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:0.92em;">inline code</code>, and even a math fragment π ≈ 3.14159 on one line.</p>
 </blockquote>
@@ -548,8 +567,8 @@ for (int i = 0; i &lt; 10; ++i) x += i;</code></pre>
 </tr></thead>
 <tbody>
 <tr>
-<td style="padding:6px 14px;border-bottom:1px solid rgba(128,128,128,0.12);border-right:1px solid rgba(128,128,128,0.20);text-align:center;">![Mona Lisa](https://raw.githubusercontent.com/leok7v/md.too/refs/heads/main/docs/images/mona-lisa.jpg){height=200}</td>
-<td style="padding:6px 14px;border-bottom:1px solid rgba(128,128,128,0.12);text-align:center;">![Earthrise](https://raw.githubusercontent.com/leok7v/md.too/refs/heads/main/docs/images/earthrise.jpg){height=200}</td>
+<td style="padding:6px 14px;border-bottom:1px solid rgba(128,128,128,0.12);border-right:1px solid rgba(128,128,128,0.20);text-align:center;">[Mona Lisa]</td>
+<td style="padding:6px 14px;border-bottom:1px solid rgba(128,128,128,0.12);text-align:center;">[Earthrise]</td>
 </tr>
 <tr style="background:rgba(128,128,128,0.07);">
 <td style="padding:6px 14px;border-bottom:1px solid rgba(128,128,128,0.12);border-right:1px solid rgba(128,128,128,0.20);text-align:center;">Leonardo da Vinci, c. 1503</td>
@@ -635,7 +654,7 @@ for (int i = 0; i &lt; 10; ++i) x += i;</code></pre>
 </ul>
 === edge-2-loose-ordered-list-past-nine
 <h2>Loose ordered list past nine</h2>
-<ol style="margin:0.5em 0;padding-left:1.5em;">
+<ol start="8" style="margin:0.5em 0;padding-left:1.5em;">
 <li><p>eight</p>
 </li>
 <li><p>nine</p>
@@ -793,7 +812,7 @@ for (int i = 0; i &lt; 10; ++i) x += i;</code></pre>
 </tr></thead>
 <tbody>
 <tr>
-<td style="padding:6px 14px;border-bottom:1px solid rgba(128,128,128,0.12);border-right:1px solid rgba(128,128,128,0.20);">&lt;img src="https://example.com/i.png" width="32"&gt;</td>
+<td style="padding:6px 14px;border-bottom:1px solid rgba(128,128,128,0.12);border-right:1px solid rgba(128,128,128,0.20);">[https://example.com/i.png]</td>
 <td style="padding:6px 14px;border-bottom:1px solid rgba(128,128,128,0.12);"><a href="https://example.com">home</a></td>
 </tr>
 </tbody>
@@ -818,3 +837,138 @@ for (int i = 0; i &lt; 10; ++i) x += i;</code></pre>
 === html-7-entities-and-unknown-tags
 <h2>Entities and unknown tags</h2>
 <p>An   entity, an &amp; ampersand, © and a dash — decode; <code style="background:rgba(128,128,128,0.14);padding:1px 4px;border-radius:3px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:0.92em;">&amp;nbsp;</code> in code stays literal, and an &lt;unknown attr="x"&gt;unknown tag&lt;/unknown&gt; stays as written. So does <br> inside <code style="background:rgba(128,128,128,0.14);padding:1px 4px;border-radius:3px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:0.92em;">&lt;br&gt;</code> code.</p>
+=== chat-intro
+<h1>Markdown Feature Tour 📝</h1>
+=== chat-1-e-i-pi-1-0-and-beyond-a-journey-through-
+<h2>e(iπ)+1=0 and Beyond: A Journey Through Syntax</h2>
+<h3><code style="background:rgba(128,128,128,0.14);padding:1px 4px;border-radius:3px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:0.92em;">markdown_mastery</code> with Examples</h3>
+<h4>Understanding Features Deeply</h4>
+<p>This document showcases <strong>every markdown feature</strong> you might need, from <em>basic formatting</em> to <del>striking through text</del>. <u>Underlined</u> text appears here for emphasis. Press <code style="background:rgba(128,128,128,0.14);padding:1px 4px;border-radius:3px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:0.92em;">Cmd</code>-<code style="background:rgba(128,128,128,0.14);padding:1px 4px;border-radius:3px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:0.92em;">C</code> to copy code, and remember water is H<sub>2</sub>O. A region of 10<sup>4</sup> m<sup>2</sup> represents area calculations. <br>Line breaks matter in markdown structure. Keep it <strong>bold</strong>, make it <em>italic</em>, cross out <del>struck</del> text. <small>Note: This is small print.</small> © 2024  All rights reserved. Visit <a href="https://commonmark.org">link</a> for more resources.</p>
+<pre style="background:rgba(128,128,128,0.10);padding:8px 12px;border-radius:4px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:0.92em;overflow-x:auto;white-space:pre;"><code>The quick brown fox
+    jumps over the laze,  
+        runs fast and wild,  
+            while flowers bloom.</code></pre>
+<blockquote style="border-left:3px solid rgba(128,128,128,0.5);padding-left:12px;margin-left:0;opacity:0.85;">
+<p>Blockquote content with <code style="background:rgba(128,128,128,0.14);padding:1px 4px;border-radius:3px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:0.92em;">inline code</code> and π ≈ 3.14159.<br><a href="https://en.wikipedia.org">Visit wiki</a> for reference.</p>
+</blockquote>
+<ul style="margin:0.2em 0;padding-left:1.5em;">
+<li><p>Feature one: Basic syntax</p>
+<ul style="margin:0.2em 0;padding-left:1.5em;">
+<li><p>Nested item level 2</p>
+<ul style="margin:0.2em 0;padding-left:1.5em;">
+<li><p>Deeper nesting example</p>
+</li>
+</ul>
+</li>
+<li><p>Item that continues: This is a second paragraph in the nested list.</p>
+</li>
+</ul>
+</li>
+<li><p>Feature two: Tables work</p>
+</li>
+<li><p>Feature three: Lists handle quotes</p>
+</li>
+</ul>
+<ol style="margin:0.2em 0;padding-left:1.5em;">
+<li><p>First numbered item</p>
+</li>
+<li><blockquote style="border-left:3px solid rgba(128,128,128,0.5);padding-left:12px;margin-left:0;opacity:0.85;">
+<p>"This quote belongs here"</p>
+</blockquote>
+</li>
+</ol>
+<pre style="background:rgba(128,128,128,0.10);padding:8px 12px;border-radius:4px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:0.92em;overflow-x:auto;white-space:pre;"><code class="language-python">def hello():
+    print("Hello")</code></pre>
+<ol start="3" style="margin:0.2em 0;padding-left:1.5em;">
+<li><p>Another numbered item</p>
+</li>
+</ol>
+<ul style="margin:0.2em 0;padding-left:1.5em;">
+<li><span style="margin-right:0.4em">&#9744;</span><p>Task one completed</p>
+</li>
+<li><span style="margin-right:0.4em">&#9745;</span><p>Task two done</p>
+</li>
+<li><span style="margin-right:0.4em">&#9744;</span><p>Open task 3</p>
+</li>
+<li><span style="margin-right:0.4em">&#9745;</span><p>Closed task 4</p>
+</li>
+</ul>
+<table style="border-collapse:collapse;margin:0.5em 0;">
+<thead><tr style="background:rgba(128,128,128,0.14);">
+<th style="padding:6px 14px;text-align:left;border-bottom:1px solid rgba(128,128,128,0.3);border-right:1px solid rgba(128,128,128,0.20);"><code style="background:rgba(128,128,128,0.14);padding:1px 4px;border-radius:3px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:0.92em;">code</code></th>
+<th style="padding:6px 14px;text-align:left;border-bottom:1px solid rgba(128,128,128,0.3);border-right:1px solid rgba(128,128,128,0.20);">x²</th>
+<th style="padding:6px 14px;text-align:left;border-bottom:1px solid rgba(128,128,128,0.3);">Text</th>
+</tr></thead>
+<tbody>
+<tr>
+<td style="padding:6px 14px;border-bottom:1px solid rgba(128,128,128,0.12);border-right:1px solid rgba(128,128,128,0.20);">Left</td>
+<td style="padding:6px 14px;border-bottom:1px solid rgba(128,128,128,0.12);border-right:1px solid rgba(128,128,128,0.20);">Center</td>
+<td style="padding:6px 14px;border-bottom:1px solid rgba(128,128,128,0.12);">Right</td>
+</tr>
+</tbody>
+</table>
+<table style="border-collapse:collapse;margin:0.5em 0;">
+<thead><tr style="background:rgba(128,128,128,0.14);">
+<th style="padding:6px 14px;text-align:left;border-bottom:1px solid rgba(128,128,128,0.3);border-right:1px solid rgba(128,128,128,0.20);">Python</th>
+<th style="padding:6px 14px;text-align:left;border-bottom:1px solid rgba(128,128,128,0.3);border-right:1px solid rgba(128,128,128,0.20);">JavaScript</th>
+<th style="padding:6px 14px;text-align:left;border-bottom:1px solid rgba(128,128,128,0.3);border-right:1px solid rgba(128,128,128,0.20);">Java</th>
+<th style="padding:6px 14px;text-align:left;border-bottom:1px solid rgba(128,128,128,0.3);border-right:1px solid rgba(128,128,128,0.20);">Go</th>
+<th style="padding:6px 14px;text-align:left;border-bottom:1px solid rgba(128,128,128,0.3);border-right:1px solid rgba(128,128,128,0.20);">Ruby</th>
+<th style="padding:6px 14px;text-align:left;border-bottom:1px solid rgba(128,128,128,0.3);border-right:1px solid rgba(128,128,128,0.20);">PHP</th>
+<th style="padding:6px 14px;text-align:left;border-bottom:1px solid rgba(128,128,128,0.3);border-right:1px solid rgba(128,128,128,0.20);">Swift</th>
+<th style="padding:6px 14px;text-align:left;border-bottom:1px solid rgba(128,128,128,0.3);border-right:1px solid rgba(128,128,128,0.20);">Kotlin</th>
+<th style="padding:6px 14px;text-align:left;border-bottom:1px solid rgba(128,128,128,0.3);"></th>
+</tr></thead>
+<tbody>
+<tr>
+<td style="padding:6px 14px;border-bottom:1px solid rgba(128,128,128,0.12);border-right:1px solid rgba(128,128,128,0.20);">Interpreted</td>
+<td style="padding:6px 14px;border-bottom:1px solid rgba(128,128,128,0.12);border-right:1px solid rgba(128,128,128,0.20);">Scripting</td>
+<td style="padding:6px 14px;border-bottom:1px solid rgba(128,128,128,0.12);border-right:1px solid rgba(128,128,128,0.20);">Compiled</td>
+<td style="padding:6px 14px;border-bottom:1px solid rgba(128,128,128,0.12);border-right:1px solid rgba(128,128,128,0.20);">Static</td>
+<td style="padding:6px 14px;border-bottom:1px solid rgba(128,128,128,0.12);border-right:1px solid rgba(128,128,128,0.20);">Dynamic</td>
+<td style="padding:6px 14px;border-bottom:1px solid rgba(128,128,128,0.12);border-right:1px solid rgba(128,128,128,0.20);">WSSM</td>
+<td style="padding:6px 14px;border-bottom:1px solid rgba(128,128,128,0.12);border-right:1px solid rgba(128,128,128,0.20);">Static</td>
+<td style="padding:6px 14px;border-bottom:1px solid rgba(128,128,128,0.12);border-right:1px solid rgba(128,128,128,0.20);">Static</td>
+<td style="padding:6px 14px;border-bottom:1px solid rgba(128,128,128,0.12);">Java</td>
+</tr>
+<tr style="background:rgba(128,128,128,0.07);">
+<td style="padding:6px 14px;border-bottom:1px solid rgba(128,128,128,0.12);border-right:1px solid rgba(128,128,128,0.20);">GVM</td>
+<td style="padding:6px 14px;border-bottom:1px solid rgba(128,128,128,0.12);border-right:1px solid rgba(128,128,128,0.20);">Bazel</td>
+<td style="padding:6px 14px;border-bottom:1px solid rgba(128,128,128,0.12);border-right:1px solid rgba(128,128,128,0.20);">Maven</td>
+<td style="padding:6px 14px;border-bottom:1px solid rgba(128,128,128,0.12);border-right:1px solid rgba(128,128,128,0.20);">Makefile</td>
+<td style="padding:6px 14px;border-bottom:1px solid rgba(128,128,128,0.12);border-right:1px solid rgba(128,128,128,0.20);">Bundler</td>
+<td style="padding:6px 14px;border-bottom:1px solid rgba(128,128,128,0.12);border-right:1px solid rgba(128,128,128,0.20);">Composer</td>
+<td style="padding:6px 14px;border-bottom:1px solid rgba(128,128,128,0.12);border-right:1px solid rgba(128,128,128,0.20);">SPM</td>
+<td style="padding:6px 14px;border-bottom:1px solid rgba(128,128,128,0.12);border-right:1px solid rgba(128,128,128,0.20);">KSP</td>
+<td style="padding:6px 14px;border-bottom:1px solid rgba(128,128,128,0.12);">Gradle</td>
+</tr>
+<tr>
+<td style="padding:6px 14px;border-bottom:1px solid rgba(128,128,128,0.12);border-right:1px solid rgba(128,128,128,0.20);">REPL</td>
+<td style="padding:6px 14px;border-bottom:1px solid rgba(128,128,128,0.12);border-right:1px solid rgba(128,128,128,0.20);">Node.js</td>
+<td style="padding:6px 14px;border-bottom:1px solid rgba(128,128,128,0.12);border-right:1px solid rgba(128,128,128,0.20);">IDEs</td>
+<td style="padding:6px 14px;border-bottom:1px solid rgba(128,128,128,0.12);border-right:1px solid rgba(128,128,128,0.20);">Go get</td>
+<td style="padding:6px 14px;border-bottom:1px solid rgba(128,128,128,0.12);border-right:1px solid rgba(128,128,128,0.20);">Crystal</td>
+<td style="padding:6px 14px;border-bottom:1px solid rgba(128,128,128,0.12);border-right:1px solid rgba(128,128,128,0.20);">PHP</td>
+<td style="padding:6px 14px;border-bottom:1px solid rgba(128,128,128,0.12);border-right:1px solid rgba(128,128,128,0.20);">Swift</td>
+<td style="padding:6px 14px;border-bottom:1px solid rgba(128,128,128,0.12);border-right:1px solid rgba(128,128,128,0.20);">Android</td>
+<td style="padding:6px 14px;border-bottom:1px solid rgba(128,128,128,0.12);">IntelliJ</td>
+</tr>
+</tbody>
+</table>
+<p style="text-align:center;font-style:italic;margin:0.8em 0;">√2 ⁄ 3</p>
+<p style="text-align:center;font-style:italic;margin:0.8em 0;">∑(i=1)ⁿ i²</p>
+<p style="text-align:center;font-style:italic;margin:0.8em 0;">a   b 
+ c   d</p>
+<p style="text-align:center;font-style:italic;margin:0.8em 0;">x = 1 
+ y = 2</p>
+<p style="text-align:center;font-style:italic;margin:0.8em 0;">a + b  = c 
+
+x - y  = z</p>
+<pre style="background:rgba(128,128,128,0.10);padding:8px 12px;border-radius:4px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:0.92em;overflow-x:auto;white-space:pre;"><code class="language-swift">class MyClass: Error {}</code></pre>
+<pre style="background:rgba(128,128,128,0.10);padding:8px 12px;border-radius:4px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:0.92em;overflow-x:auto;white-space:pre;"><code class="language-json">{"name": "Test", "age": 25}</code></pre>
+<pre style="background:rgba(128,128,128,0.10);padding:8px 12px;border-radius:4px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:0.92em;overflow-x:auto;white-space:pre;"><code>No language specified</code></pre>
+<pre style="background:rgba(128,128,128,0.10);padding:8px 12px;border-radius:4px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:0.92em;overflow-x:auto;white-space:pre;"><code>def hello():
+    print("Hello")</code></pre>
+<hr style="border:none;border-top:1px solid rgba(128,128,128,0.3);margin:1em 0;">
+<p style="color:rgba(128,128,128,0.7);font-style:italic;">[Earthrise]</p>
+<p><strong><em>This concludes our comprehensive markdown tour.</em></strong></p>

@@ -20,6 +20,7 @@
 		1A2B3C4D530000000000000A /* highlights.ini in Resources */ = {isa = PBXBuildFile; fileRef = 1A2B3C4D520000000000000C /* highlights.ini */; };
 		1A2B3C4D530000000000000B /* highlights.ini in Resources */ = {isa = PBXBuildFile; fileRef = 1A2B3C4D520000000000000C /* highlights.ini */; };
 		1A2B3C4D530000000000000C /* highlights.ini in Resources */ = {isa = PBXBuildFile; fileRef = 1A2B3C4D520000000000000C /* highlights.ini */; };
+		7E5700000000000000000060 /* highlights.ini in Resources */ = {isa = PBXBuildFile; fileRef = 1A2B3C4D520000000000000C /* highlights.ini */; };
 		1A2B3C4D530000000000000E /* PDFRenderer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A2B3C4D520000000000000F /* PDFRenderer.swift */; };
 		1A2B3C4D530000000000000F /* PDFRenderer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A2B3C4D520000000000000F /* PDFRenderer.swift */; };
 		1A2B3C4D5300000000000010 /* QuickLook.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A2B3C4D5200000000000010 /* QuickLook.swift */; };
@@ -427,6 +428,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				7E5700000000000000000060 /* highlights.ini in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

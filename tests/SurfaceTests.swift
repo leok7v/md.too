@@ -343,6 +343,282 @@ final class SurfaceTests: XCTestCase {
                                           caseSensitive: false), [])
     }
 
+    func testAReloadThatShortensTheTextKeepsTheSelectionInside() {
+        let view = NativeText.ResizingTextView()
+        let arbiter = NativeText.Coordinator()
+        view.delegate = arbiter
+        let long = DocumentText.attributed(from: Markdown.parse(
+            "Intro.\n\n| a | b |\n|---|---|\n| 1 | 2 |\n\n" +
+            "```\ncode\nmore\n```"))
+        view.applyResolved(long)
+        let caret = NSRange(location: long.length - 3, length: 0)
+        _ = arbiter.textView(view,
+                             willChangeSelectionFromCharacterRange: caret,
+                             toCharacterRange: caret)
+        view.applyResolved(DocumentText.attributed(
+            from: Markdown.parse("Intro.")))
+        let length = view.textStorage?.length ?? 0
+        let drag = NSRange(location: 2, length: long.length - 2)
+        let picked = arbiter.textView(
+            view, willChangeSelectionFromCharacterRange: caret,
+            toCharacterRange: drag)
+        XCTAssertLessThanOrEqual(NSMaxRange(picked), length)
+    }
+
+    func testImagesAreFoundInsideQuotesListsAndHeaders() {
+        let md = "> ![q](https://e.com/q.png)\n\n- ![l](https://e.com/l.png)" +
+                 "\n\n| ![h](https://e.com/h.png) |\n|---|\n| x |"
+        let names = ImagePrefetch.collectURLs(in: Markdown.parse(md))
+            .map { url in url.lastPathComponent }.sorted()
+        XCTAssertEqual(names, ["h.png", "l.png", "q.png"])
+    }
+
+    private func paragraphStyle(_ text: NSAttributedString,
+                                at i: Int) -> NSParagraphStyle? {
+        text.attribute(.paragraphStyle, at: i, effectiveRange: nil)
+            as? NSParagraphStyle
+    }
+
+    func testAnItemsFirstBlockSharesTheMarkerLine() {
+        let style = MarkdownStyle(bodySize: 13)
+        let code = DocumentText.attributed(
+            from: Markdown.parse("- ```\n  let x = 1\n  ```"), style: style)
+        XCTAssertTrue(code.string.hasPrefix("\u{2022}\tlet x = 1\n"),
+                      code.string.debugDescription)
+        let joined = paragraphStyle(code, at: 0)
+        XCTAssertEqual(joined?.firstLineHeadIndent, 0)
+        XCTAssertEqual(joined?.tabStops.first?.location,
+                       style.listIndent + style.codePadding)
+        let nested = DocumentText.attributed(from: Markdown.parse("- - a"),
+                                             style: style)
+        XCTAssertTrue(nested.string.hasPrefix("\u{2022}\t\u{2022}\ta\n"),
+                      nested.string.debugDescription)
+    }
+
+    func testAWideOrdinalGetsTheRoomItNeeds() {
+        let style = MarkdownStyle(bodySize: 13)
+        let text = DocumentText.attributed(
+            from: Markdown.parse("100. a\n101. b"), style: style)
+        let width = NSAttributedString(string: "100.",
+                                       attributes: [.font: style.bodyFont])
+            .size().width
+        XCTAssertGreaterThan(paragraphStyle(text, at: 0)?.headIndent ?? 0,
+                             width)
+    }
+
+    func testAListEndingInANestedListSpacesAfterItsLastLine() {
+        let style = MarkdownStyle(bodySize: 13)
+        let text = DocumentText.attributed(
+            from: Markdown.parse("- a\n  - b\n\nAfter."), style: style)
+        let ns = text.string as NSString
+        let a = paragraphStyle(text, at: 0)
+        let b = paragraphStyle(text, at: ns.range(of: "b").location)
+        XCTAssertEqual(a?.paragraphSpacing, style.itemSpacing(tight: true))
+        XCTAssertEqual(b?.paragraphSpacing, style.blockSpacing)
+    }
+
+    func testAdjacentCodeBlocksAreTwoBoxes() {
+        let text = DocumentText.attributed(from: Markdown.parse(
+            "```swift\nlet a = 1\n```\n```json\n{}\n```"))
+        let laid = laidOut(text, width: 600)
+        let boxes = codeBlockRects(
+            in: laid.storage, layoutManager: laid.manager,
+            container: laid.manager.textContainers[0],
+            within: NSRange(location: 0, length: text.length),
+            padding: 10, trailing: 8)
+        XCTAssertEqual(boxes.count, 2)
+    }
+
+    func testAnEditReplacesOnlyFromTheEditedBlock() throws {
+        let source = try String(contentsOf: Fixtures.root
+            .deletingLastPathComponent().appendingPathComponent("EXAMPLE.md"),
+                                encoding: .utf8)
+        let marker = "## "
+        let at = try XCTUnwrap(source.range(of: marker, options: .backwards))
+        let edited = source.replacingCharacters(in: at, with: "## Edited ")
+        let cache = DocumentText.RenderCache()
+        let view = NativeText.ResizingTextView()
+        view.applyResolved(DocumentText.attributed(
+            from: Markdown.parse(source), cache: cache))
+        let storage = try XCTUnwrap(view.textStorage)
+        let next = DocumentText.attributed(from: Markdown.parse(edited),
+                                           cache: cache)
+        let replaced = incrementalRange(storage, next)
+        let title = String(source[at.upperBound...]
+            .prefix { ch in ch != "\n" })
+        let heading = (storage.string as NSString)
+            .range(of: title, options: .backwards).location
+        XCTAssertEqual(replaced.location, heading,
+                       "the splice starts before the edited block")
+        _ = applyIncremental(storage, next)
+        XCTAssertEqual(storage.string, next.string)
+    }
+
+    func testDisplaysAndPlaceholdersSpaceLikeParagraphs() {
+        let style = MarkdownStyle(bodySize: 13)
+        let text = DocumentText.attributed(
+            from: Markdown.parse("A.\n\n$$x$$\n\n![p](https://e.com/p.png)"),
+            style: style)
+        let ns = text.string as NSString
+        let display = ns.range(of: "\u{FFFC}").location
+        XCTAssertEqual(paragraphStyle(text, at: display)?
+            .paragraphSpacingBefore, 0)
+        XCTAssertFalse(text.string.contains("]\n\n"))
+    }
+
+    func testTextIsReadInWhateverEncodingItCameIn() {
+        XCTAssertEqual(Markdown.text(from: Data("Café".utf8)), "Café")
+        XCTAssertEqual(Markdown.text(from: Data([0x43, 0x61, 0x66, 0xE9])),
+                       "Café")
+        var utf16 = Data([0xFF, 0xFE])
+        utf16.append("Café".data(using: .utf16LittleEndian) ?? Data())
+        XCTAssertEqual(Markdown.text(from: utf16), "Café")
+        XCTAssertEqual(Markdown.parse("one\r\rtwo").count, 2)
+    }
+
+    private func ink(_ code: String, _ language: String,
+                     at needle: String) -> PlatformColor? {
+        let text = Highlight.attribute(code, language: language,
+                                       baseFont: monoFont(at: 12))
+        let at = (code as NSString).range(of: needle).location
+        return text.attribute(.foregroundColor, at: at,
+                              effectiveRange: nil) as? PlatformColor
+    }
+
+    func testTheHighlighterReadsCommentsStringsAndKeysInOrder() {
+        let js = "let u = \"http://e.com\"; // note"
+        XCTAssertEqual(ink(js, "js", at: "//e.com"), ink(js, "js", at: "\""))
+        XCTAssertNotEqual(ink(js, "js", at: "note"), ink(js, "js", at: "\""))
+        let json = "{\"key\": \"value\"}"
+        XCTAssertNotEqual(ink(json, "json", at: "key"),
+                          ink(json, "json", at: "value"))
+        let ruby = "s = 'it\\'s' + 'x' # note"
+        XCTAssertNotEqual(ink(ruby, "ruby", at: "+ '"),
+                          ink(ruby, "ruby", at: "it"),
+                          "the escaped quote ended the string")
+        XCTAssertNotEqual(ink(ruby, "ruby", at: "note"),
+                          ink(ruby, "ruby", at: "it"))
+        XCTAssertEqual(ink("x = 1", "rs", at: "1"), ink("x = 1", "rust",
+                                                          at: "1"))
+        let quoted = "/* it's */ s = 'abc';"
+        XCTAssertEqual(ink(quoted, "js", at: "abc"),
+                       ink("q = 'z';", "js", at: "z"))
+    }
+
+    func testALongDigitRunHighlightsInLinearTime() {
+        let digits = String(repeating: "7", count: 20_000) + "x"
+        let start = ContinuousClock.now
+        _ = Highlight.attribute(digits, language: "c",
+                                baseFont: monoFont(at: 12))
+        XCTAssertLessThan(ContinuousClock.now - start, .seconds(1))
+    }
+
+    func testQuickLookMeasuresACellAsItIsShown() {
+        XCTAssertEqual(TableMeasure.shown("**bold** [l](http://e.com/long)"),
+                       "bold l")
+        XCTAssertEqual(TableMeasure.shown("![p](http://e.com/p.png)"), "")
+    }
+
+    func testEveryExportGetsItsOwnTag() {
+        XCTAssertNotEqual(TempPDFs.nextTag(), TempPDFs.nextTag())
+    }
+
+    private final class CountingView: FindableTextView {
+        var count = 5
+        func findAll(_ query: String, caseSensitive: Bool) -> Int { count }
+        func setActive(_ index: Int?) {}
+        func clearFind() {}
+        var liveFindCount: Int { count }
+        func activeMatchFraction() -> CGFloat? { nil }
+        func activeMatchOnScreen() -> Bool { true }
+        func revealActiveMatch() {}
+    }
+
+    func testTheFindCounterStaysWithinTheMatches() async throws {
+        let find = MarkdownFindController()
+        let view = CountingView()
+        find.register(view)
+        find.find("x")
+        for _ in 0..<4 { find.findNext() }
+        XCTAssertEqual(find.currentMatch, 5)
+        view.count = 3
+        find.viewDidReapply()
+        try await Task.sleep(for: .milliseconds(100))
+        XCTAssertEqual(find.matchCount, 3)
+        XCTAssertLessThanOrEqual(find.currentMatch, find.matchCount)
+    }
+
+    private func scratchFile() throws -> URL {
+        let dir = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString, isDirectory: true)
+        try FileManager.default.createDirectory(
+            at: dir, withIntermediateDirectories: true)
+        let file = dir.appendingPathComponent("a.md")
+        try "# a".write(to: file, atomically: true, encoding: .utf8)
+        return file
+    }
+
+    func testAWatcherFollowsAMove() throws {
+        let file = try scratchFile()
+        let moved = file.deletingLastPathComponent()
+            .appendingPathComponent("b.md")
+        let watcher = FileWatcher(url: file) { _ in }
+        watcher.presentedItemDidMove(to: moved)
+        XCTAssertEqual(watcher.presentedItemURL, moved)
+        watcher.stop()
+        try? FileManager.default.removeItem(
+            at: file.deletingLastPathComponent())
+    }
+
+    func testAStoppedWatcherIsFreed() async throws {
+        let file = try scratchFile()
+        weak var released: FileWatcher? = nil
+        do {
+            let watcher = FileWatcher(url: file) { _ in }
+            watcher.stop()
+            released = watcher
+        }
+        var waited = 0
+        while released != nil, waited < 40 {
+            try await Task.sleep(for: .milliseconds(50))
+            waited += 1
+        }
+        XCTAssertNil(released, "a stopped watcher is still alive")
+        try? FileManager.default.removeItem(
+            at: file.deletingLastPathComponent())
+    }
+
+    func testDeepNestingParsesAndRendersWithinTheCap() {
+        let quotes = String(repeating: "> ", count: 100_000) + "deep"
+        let items = String(repeating: "- ", count: 100_000) + "deep"
+        for source in [quotes, items] {
+            let blocks = Markdown.parse(source)
+            XCTAssertLessThanOrEqual(Self.nesting(blocks),
+                                     Markdown.maxNesting + 1)
+            XCTAssertGreaterThan(
+                DocumentText.attributed(from: blocks).length, 0)
+            XCTAssertFalse(PlainExport.render(blocks).isEmpty)
+            XCTAssertFalse(HtmlExport.renderFragment(blocks).isEmpty)
+        }
+    }
+
+    private static func nesting(_ blocks: [Block]) -> Int {
+        var deepest = 0
+        for block in blocks {
+            var inner = 0
+            switch block {
+                case .quote(let body): inner = 1 + nesting(body)
+                case .list(let list, _):
+                    for item in list {
+                        inner = max(inner, 1 + nesting(item.blocks))
+                    }
+                default: inner = 0
+            }
+            deepest = max(deepest, inner)
+        }
+        return deepest
+    }
+
     private func laidOut(_ text: NSAttributedString,
                          width: CGFloat) -> Laid {
         let storage = NSTextStorage(attributedString: text)

@@ -41,6 +41,14 @@ list loose:
     paragraph: and the step still reads as one thought.|
   item 3.:
     paragraph: Close the file. That was the whole recipe.|
+paragraph: A long number keeps its text in line with the rest, and an item can open with a block of its own:|
+list tight:
+  item 99.:
+    paragraph: Ninety-nine, one line.|
+  item 100.:
+    paragraph: The hundredth lines up with it.|
+  item 101.:
+    code[sh]: echo "an item that starts with code"
 === example-3-lines-that-must-not-reflow-and-a-code-wo
 heading 2: Lines that |must not{i}| reflow, and a |code{c}| word in a heading|
 paragraph: A verse is the one place a writer means every line end. Two trailing spaces are the CommonMark hard break, and a stanza is a blank line; this viewer keeps both, so the shape survives a window of any width. The accents are here on purpose too: find "cafe" and the café turns up.|
@@ -57,6 +65,7 @@ math: i\\hbar\\,\\frac\{\\partial\}\{\\partial t\}\\Psi(\\mathbf\{r\}, t) = \\ha
 === example-5-math-the-small-kind
 heading 2: Math, the small kind|
 paragraph: Two engines, split by which delimiter you used, and you never pick.|
+paragraph: Prices stay prices: the coffee was $4 and the cake $6.|
 paragraph: Inline maths is typeset in the line, at the size of the words around it: |α + β = γ{math=$\\alpha + \\beta = \\gamma$}|, the right triangle staple |x² + y² = z²{math=$x^2 + y^2 = z^2$}|, Gauss's schoolboy trick |∑(i=1)ⁿ i{math=$\\sum_\{i=1\}^\{n\} i$}| (he was nine, allegedly), and |x ∈ ℝ{math=$x \\in \\mathbb\{R\}$}|. It works in a heading, |e(iπ) + 1 = 0{math=$e^\{i\\pi\} + 1 = 0$}| included, and in a table cell; a copy gives back the TeX it was written from.|
 paragraph: A |$${c}| display is typeset properly, by a TeX layout engine reading the OpenType MATH table of a real maths font:|
 math: \\frac\{-b \\pm \\sqrt\{b^2 - 4ac\}\}\{2a\}
@@ -75,12 +84,16 @@ paragraph: Fences nest and keep growing, and scripts keep shrinking until they h
 math: \\left[\\frac\{\\left(\\frac\{a\}\{b\}\\right)\}\{c\}\\right] \\qquad A^\{B^\{C^\{D\}\}\} \\qquad \\frac\{\\partial u\}\{\\partial t\} = \\alpha \\nabla^2 u
 paragraph: The maths alphabets are separate Unicode blocks rather than a font trick, so blackboard bold, script, fraktur, bold, sans and monospace all keep their own letters:|
 math: \\mathbb\{RQZ\} \\quad \\mathcal\{ABC\} \\quad \\mathfrak\{gsl\} \\quad \\mathbf\{xyz\} \\quad \\mathsf\{uvw\} \\quad \\mathtt\{101\}
-paragraph: Inline, the alphabets work the same way: |ℝ{math=$\\mathbb\{R\}$}|, |ℕ{math=$\\mathbb\{N\}$}|, |ℤ{math=$\\mathbb\{Z\}$}|, |ℚ{math=$\\mathbb\{Q\}$}|, |ℂ{math=$\\mathbb\{C\}$}|, and |\\mathcalL{math=$\\mathcal\{L\}$}| or |\\mathfrakg{math=$\\mathfrak\{g\}$}| just as well. What a surface without a typesetter shows is the Unicode spelling, which keeps the single-codepoint ones and parenthesises the rest.|
+paragraph: Inline, the alphabets work the same way: |ℝ{math=$\\mathbb\{R\}$}|, |ℕ{math=$\\mathbb\{N\}$}|, |ℤ{math=$\\mathbb\{Z\}$}|, |ℚ{math=$\\mathbb\{Q\}$}|, |ℂ{math=$\\mathbb\{C\}$}|, and |L{math=$\\mathcal\{L\}$}| or |g{math=$\\mathfrak\{g\}$}| just as well. What a surface without a typesetter shows is the Unicode spelling, which keeps the single-codepoint ones and parenthesises the rest.|
 paragraph: Greek alphabet, lower and upper, in case you need both at once:|
 math: \\alpha \\beta \\gamma \\delta \\epsilon \\zeta \\eta \\theta \\iota \\kappa \\lambda \\mu \\nu \\xi \\pi \\rho \\sigma \\tau \\phi \\chi \\psi \\omega
 math: \\Gamma \\Delta \\Theta \\Lambda \\Xi \\Pi \\Sigma \\Phi \\Psi \\Omega
 paragraph: Decorations, the kind a lecture note reaches for: braces with a label, a box around the result, a struck-out term, an arrow that stretches over its label, a symbol negated, and ink in a colour of the author's choosing.|
 math: \\overbrace\{a + b + c\}^\{\\text\{three terms\}\} \\quad \\underbrace\{x_1 x_2 \\cdots x_k\}_\{k\} \\quad \\boxed\{E = mc^2\} \\quad \\cancel\{2x\} + \\underline\{y\} \\quad A \\xrightarrow\{\\ f\\ \} B \\quad a \\overset\{?\}\{=\} b \\not= c \\quad \\textcolor\{#d81b60\}\{\\text\{rose\}\} + \\color\{teal\}\\text\{teal\}
+paragraph: The stretchy ones grow as long as their content, and an operator name takes its limits below:|
+math: \\overbrace\{a_1 + a_2 + a_3 + a_4 + a_5 + a_6 + a_7 + a_8\}^\{\\text\{eight terms\}\} \\qquad X \\xrightarrow[\\text\{a label longer than the arrow\}]\{\\ f\\ \} Y
+math: \\hat\\theta = \\operatorname*\{arg\\,max\}_\{\\theta\} L(\\theta)
+paragraph: Logic and modular arithmetic read the way they are written: |P ⟺ Q{math=$P \\iff Q$}|, |a ≡ b mod n{math=$a \\equiv b \\pmod\{n\}$}|, |a mod b{math=$a \\bmod b$}|.|
 paragraph: Operators and a corner of set theory: |≤ ≥ ≠ ≈ ± × · ÷ → ⇒{math=$\\le \\ge \\neq \\approx \\pm \\times \\cdot \\div \\to \\Rightarrow$}|, |∀ x ∈ ℕ, ∃ y ∈ ℤ{math=$\\forall x \\in \\mathbb\{N\}, \\exists y \\in \\mathbb\{Z\}$}|, |A ∩ B{math=$A \\cap B$}|, |A ∪ B{math=$A \\cup B$}|, |∅{math=$\\varnothing$}|.|
 paragraph: Tools that lift equations out of a PDF often forget the delimiters and leave the bare TeX sitting in a paragraph. A paragraph that opens with a control word and parses cleanly as TeX, with no ordinary words in it, is read as a display anyway:|
 math: \\frac \{ D x N \} \{ \\frac \{ ( \\text \{Truth\} ) \} \{ 1 6 0 0 \\, x \\, 1 4 \} \} \\\\ \\frac \{ 4 2 8 \\, x \\, 1 0 \} \{ ( 1 ) \} \\\\ \\frac \{ 2 9 \\, x \\, 9 5 \} \{ ( 2 3 ) \}
@@ -184,12 +197,15 @@ paragraph: CSS:|
 code[css]: .body \{\n    font_family: _apple_system, BlinkMacSystemFont, sans_serif;\n    padding: 1.5rem 2rem;\n    color: #2a1500;\n\}
 paragraph: A code fence with no language stays plain monospaced, which is what you want for shell transcripts and ASCII art:|
 code[]: no language => no highlighting, just the monospace font\nthe [copy] button still works
+paragraph: A fence of four backticks holds a whole Markdown sample, its own fence included:|
+code[markdown]: ```swift\nprint("a fence inside a fence")\n```
 paragraph: An indented code block (four spaces) renders the same way:|
 code[]: int x = 0;\nfor (int i = 0; i < 10; ++i) x += i;
 rule
 === example-10-a-quick-combined-block
 heading 2: A quick combined block|
-paragraph: Just to confirm everything composes:|
+paragraph: Just to confirm everything composes, starting with a heading underlined instead of hashed:|
+heading 2: An underlined heading|
 quote:
   paragraph: A blockquote with a |link{link=https://example.com}|, some |inline code{c}|, and even a math fragment |π ≈ 3.14159{math=$\\pi \\approx 3.14159$}| on one line.|
 list tight:
@@ -395,3 +411,67 @@ list tight:
 === html-7-entities-and-unknown-tags
 heading 2: Entities and unknown tags|
 paragraph: An \u00a0 entity, an & ampersand, © and a dash — decode; |&nbsp;{c}| in code stays literal, and an |<unknown attr="x">|unknown tag|</unknown>| stays as written. So does \u2028 inside |<br>{c}| code.|
+=== chat-intro
+heading 1: Markdown Feature Tour 📝|
+=== chat-1-e-i-pi-1-0-and-beyond-a-journey-through-
+heading 2: e(iπ)+1=0{math=$e^\{i\\pi\}+1=0$}| and Beyond: A Journey Through Syntax|
+heading 3: markdown_mastery{c}| with Examples|
+heading 4: Understanding Features Deeply|
+paragraph: This document showcases |every markdown feature{b}| you might need, from |basic formatting{i}| to |striking through text{s}|. |Underlined{u}| text appears here for emphasis. Press |Cmd{c}|-|C{c}| to copy code, and remember water is H|2{sub}|O. A region of 10|4{sup}| m|2{sup}| represents area calculations. \u2028Line breaks matter in markdown structure. Keep it |bold{b}|, make it |italic{i}|, cross out |struck{s}| text. |Note: This is small print.{small}| © 2024 \u00a0All rights reserved. Visit |link{link=https://commonmark.org}| for more resources.|
+code[]: The quick brown fox\n    jumps over the laze,  \n        runs fast and wild,  \n            while flowers bloom.
+quote:
+  paragraph: Blockquote content with |inline code{c}| and |π ≈ 3.14159{math=$\\pi \\approx 3.14159$}|.\u2028|Visit wiki{link=https://en.wikipedia.org}| for reference.|
+list tight:
+  item •:
+    paragraph: Feature one: Basic syntax|
+    list tight:
+      item •:
+        paragraph: Nested item level 2|
+        list tight:
+          item •:
+            paragraph: Deeper nesting example|
+      item •:
+        paragraph: Item that continues: This is a second paragraph in the nested list.|
+  item •:
+    paragraph: Feature two: Tables work|
+  item •:
+    paragraph: Feature three: Lists handle quotes|
+list tight:
+  item 1.:
+    paragraph: First numbered item|
+  item 2.:
+    quote:
+      paragraph: "This quote belongs here"|
+code[python]: def hello():\n    print("Hello")
+list tight:
+  item 3.:
+    paragraph: Another numbered item|
+list tight:
+  item • [ ]:
+    paragraph: Task one completed|
+  item • [x]:
+    paragraph: Task two done|
+  item • [ ]:
+    paragraph: Open task 3|
+  item • [x]:
+    paragraph: Closed task 4|
+table 3x1: none,none,none
+  h: [`code`] [$x^2$] [Text]
+  r: [Left] [Center] [Right]
+table 8x3: none,none,none,none,none,none,none,none,none
+  h: [Python] [JavaScript] [Java] [Go] [Ruby] [PHP] [Swift] [Kotlin]
+  r: [Interpreted] [Scripting] [Compiled] [Static] [Dynamic] [WSSM] [Static] [Static] [Java]
+  r: [GVM] [Bazel] [Maven] [Makefile] [Bundler] [Composer] [SPM] [KSP] [Gradle]
+  r: [REPL] [Node.js] [IDEs] [Go get] [Crystal] [PHP] [Swift] [Android] [IntelliJ]
+math: \\sqrt\{2\} \\over 3
+math: \\sum_\{i=1\}^\{n\} i^2
+math: \\begin\{pmatrix\} a & b \\\\ c & d \\end\{pmatrix\}
+math: \\begin\{cases\} x = 1 \\\\ y = 2 \\end\{cases\}
+math: \\begin\{aligned\}\na + b &= c \\\\\nx - y &= z\n\\end\{aligned\}
+code[swift]: class MyClass: Error \{\}
+code[json]: \{"name": "Test", "age": 25\}
+code[]: No language specified
+code[]: def hello():\n    print("Hello")
+rule
+image alt=Earthrise url=https://raw.githubusercontent.com/leok7v/md.too/refs/heads/main/docs/images/earthrise.jpg w=- h=200.0
+paragraph: This concludes our comprehensive markdown tour.{b,i}|

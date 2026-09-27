@@ -23,7 +23,7 @@ struct MarkdownDocument: FileDocument {
 
     init(configuration: ReadConfiguration) throws {
         if let data = configuration.file.regularFileContents,
-           let str = String(data: data, encoding: .utf8) {
+           let str = Markdown.text(from: data) {
             text = str
         } else {
             throw CocoaError(.fileReadCorruptFile)

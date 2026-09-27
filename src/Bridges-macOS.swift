@@ -8,6 +8,11 @@ extension NativeText: NSViewRepresentable {
         private var anchor: Int = 0
         private var anchorScope: NSRange? = nil
 
+        func forgetAnchor() {
+            anchor = 0
+            anchorScope = nil
+        }
+
         func textView(_ tv: NSTextView, clickedOnLink link: Any,
                         at: Int) -> Bool {
             var url: URL? = nil
@@ -33,7 +38,8 @@ extension NativeText: NSViewRepresentable {
                 if newRange.length == 0 {
                     anchor = newRange.location
                     anchorScope = atomicScope(at: anchor, in: storage)
-                } else if let scope = anchorScope {
+                } else if let scope = anchorScope,
+                          NSMaxRange(scope) <= storage.length {
                     let endLo = newRange.location
                     let endHi = newRange.location + newRange.length
                     let scopeLo = scope.location
@@ -78,10 +84,11 @@ extension NativeText: NSViewRepresentable {
 
         private func expandToAtomicBoundaries(_ range: NSRange,
                          in storage: NSTextStorage) -> NSRange {
-            var lo = range.location
-            var hi = range.location + range.length
+            var lo = min(range.location, storage.length)
+            var hi = min(range.location + range.length, storage.length)
             storage.enumerateAttribute(atomicIdKey,
-                                       in: range,
+                                       in: NSRange(location: lo,
+                                                   length: hi - lo),
                                        options: []) { value, r, _ in
                 if value != nil,
                    let run = atomicRun(at: r.location, in: storage) {
@@ -162,6 +169,7 @@ extension NativeText: NSViewRepresentable {
             if next !== lastApplied, let ts = textStorage {
                 lastApplied = next
                 if applyIncremental(ts, next) {
+                    (delegate as? Coordinator)?.forgetAnchor()
                     contentGeneration += 1
                     invalidateIntrinsicContentSize()
                     needsLayout = true
@@ -248,6 +256,14 @@ extension NativeText: NSViewRepresentable {
                     rect.offsetBy(dx: origin.x, dy: origin.y))
             }
             return result
+        }
+
+        func revealActiveMatch() {
+            if let rect = activeMatchRect() {
+                let origin = textContainerOrigin
+                _ = scrollToVisible(rect.offsetBy(dx: origin.x, dy: origin.y)
+                                        .insetBy(dx: -40, dy: -20))
+            }
         }
 
         // A match recorded before a reload may end past the storage

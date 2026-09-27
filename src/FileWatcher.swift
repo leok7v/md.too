@@ -4,8 +4,15 @@ import SwiftUI
 @MainActor
 final class FileWatcher: NSObject, NSFilePresenter {
 
-    nonisolated let url: URL
     nonisolated let presentedItemOperationQueue = OperationQueue.main
+
+    private nonisolated let urlLock = NSLock()
+    private nonisolated(unsafe) var current: URL
+
+    nonisolated var url: URL {
+        urlLock.withLock { current }
+    }
+
     nonisolated var presentedItemURL: URL? { url }
 
     private let onChange: @MainActor (String) -> Void
@@ -13,16 +20,20 @@ final class FileWatcher: NSObject, NSFilePresenter {
     private var generation = 0
 
     init(url: URL, onChange: @escaping @MainActor (String) -> Void) {
-        self.url = url
+        self.current = url
         self.onChange = onChange
         super.init()
         NSFileCoordinator.addFilePresenter(self)
         reload()
     }
 
-    isolated deinit {
+    func stop() {
         pending?.cancel()
         NSFileCoordinator.removeFilePresenter(self)
+    }
+
+    isolated deinit {
+        pending?.cancel()
     }
 
     nonisolated func presentedItemDidChange() {
@@ -30,6 +41,7 @@ final class FileWatcher: NSObject, NSFilePresenter {
     }
 
     nonisolated func presentedItemDidMove(to newURL: URL) {
+        urlLock.withLock { current = newURL }
         presentedItemDidChange()
     }
 
@@ -51,7 +63,7 @@ final class FileWatcher: NSObject, NSFilePresenter {
             var read: String? = nil
             coord.coordinate(readingItemAt: target, options: .withoutChanges,
                              error: &coordError) { actualURL in
-                read = try? String(contentsOf: actualURL, encoding: .utf8)
+                read = Markdown.text(contentsOf: actualURL)
             }
             if let text = read {
                 Task { @MainActor [weak self] in self?.apply(text, mine) }
@@ -74,7 +86,10 @@ struct WatchingFile: ViewModifier {
     func body(content: Content) -> some View {
         content
             .onAppear { startWatching() }
-            .onDisappear { watcher = nil }
+            .onDisappear {
+                watcher?.stop()
+                watcher = nil
+            }
     }
 
     private func startWatching() {

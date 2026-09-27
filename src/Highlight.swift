@@ -14,18 +14,15 @@ enum Highlight {
             let key = data.aliases[lower] ?? lower
             if let spec = data.languages[key] {
                 var mask = [Bool](repeating: false, count: full.length)
-                apply(spec.blockComment, code: code, full: full,
-                      color: data.comment, into: ns, mask: &mask)
-                apply(spec.lineComment, code: code, full: full,
-                      color: data.comment, into: ns, mask: &mask)
-                apply(spec.string, code: code, full: full,
-                      color: data.string, into: ns, mask: &mask)
+                tokenize([(spec.blockComment, data.comment),
+                          (spec.lineComment, data.comment),
+                          (spec.attr, data.attr),
+                          (spec.string, data.string)],
+                         code: code, full: full, into: ns, mask: &mask)
                 apply(spec.meta, code: code, full: full,
                       color: data.builtin, into: ns, mask: &mask)
                 apply(spec.tag, code: code, full: full,
                       color: data.variable, into: ns, mask: &mask)
-                apply(spec.attr, code: code, full: full,
-                      color: data.attr, into: ns, mask: &mask)
                 apply(spec.type, code: code, full: full,
                       color: data.type, into: ns, mask: &mask)
                 apply(spec.builtin, code: code, full: full,
@@ -62,6 +59,65 @@ enum Highlight {
                 }
             }
         }
+    }
+
+    private static func tokenize(
+        _ classes: [(NSRegularExpression?, PlatformColor)],
+        code: String, full: NSRange,
+        into ns: NSMutableAttributedString, mask: inout [Bool]) {
+        var next = classes.map { entry in
+            firstMatch(entry.0, in: code, from: 0, full: full)
+        }
+        var position = 0
+        var pending = true
+        while pending {
+            for k in next.indices {
+                if let r = next[k], r.location < position {
+                    next[k] = firstMatch(classes[k].0, in: code,
+                                         from: position, full: full)
+                }
+            }
+            let best = next.indices.compactMap { k in
+                next[k].map { r in (range: r, rank: k) }
+            }.min { a, b in
+                a.range.location != b.range.location
+                    ? a.range.location < b.range.location
+                    : a.rank < b.rank
+            }
+            if let best, NSMaxRange(best.range) <= mask.count {
+                let hi = NSMaxRange(best.range)
+                for i in best.range.location..<hi { mask[i] = true }
+                ns.addAttribute(.foregroundColor,
+                                value: classes[best.rank].1,
+                                range: best.range)
+                position = hi
+            } else {
+                pending = false
+            }
+        }
+    }
+
+    private static func firstMatch(_ re: NSRegularExpression?, in code: String,
+                                   from start: Int,
+                                   full: NSRange) -> NSRange? {
+        var result: NSRange? = nil
+        var from = start
+        var searching = re != nil
+        while searching, from <= full.length {
+            let m = re?.firstMatch(
+                in: code, options: [.withTransparentBounds,
+                                    .withoutAnchoringBounds],
+                range: NSRange(location: from, length: full.length - from))
+            if let m, m.range.length > 0 {
+                result = m.range
+                searching = false
+            } else if let m {
+                from = m.range.location + 1
+            } else {
+                searching = false
+            }
+        }
+        return result
     }
 
     private static func applyKeywords(_ re: NSRegularExpression?,
@@ -148,8 +204,11 @@ enum Highlight {
 
     private static func load() -> Loaded {
         var result: Loaded = .empty
-        let url = Bundle.main.url(forResource: "highlights",
-                                  withExtension: "ini")
+        let url = ([Bundle.main] + Bundle.allBundles).lazy
+            .compactMap { bundle in
+                bundle.url(forResource: "highlights", withExtension: "ini")
+            }
+            .first
         if let url,
            let source = try? String(contentsOf: url, encoding: .utf8) {
             result = build(from: parseINI(source))

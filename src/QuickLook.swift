@@ -19,7 +19,9 @@ final class QuickLookViewController: NSViewController, QLPreviewingController {
     }
 
     func preparePreviewOfFile(at url: URL) async throws {
-        let text = try String(contentsOf: url, encoding: .utf8)
+        let decoded = Markdown.text(from: try Data(contentsOf: url))
+        if decoded == nil { throw CocoaError(.fileReadCorruptFile) }
+        let text = decoded ?? ""
         let blocks = Markdown.parse(text)
         let prefetched = await Self.prefetchImages(in: blocks)
         await MainActor.run {
@@ -63,7 +65,7 @@ final class QuickLookViewController: NSViewController, QLPreviewingController {
     }
 
     private static func prefetchImages(in blocks: [Block])
-        async -> [URL: Image] {
+        async -> [URL: SizedImage] {
         await ImagePrefetch.fetchAndDecode(in: blocks,
                                            decode: platformDecodeImage)
     }

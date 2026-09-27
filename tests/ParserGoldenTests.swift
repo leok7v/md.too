@@ -130,6 +130,72 @@ final class ParserGoldenTests: XCTestCase {
         }
     }
 
+    static let corners: [(source: String, parse: String)] = [
+        ("[Note]: do not run this.",
+         "paragraph: [Note]: do not run this.|\n"),
+        ("[^1]: a footnote", "paragraph: [^1]: a footnote|\n"),
+        ("    [x]: http://example.com",
+         "code[]: [x]: http://example.com\n"),
+        ("[ok]: http://example.com \"Title\"\n\nSee [ok].",
+         "paragraph: See |ok{link=http://example.com}|.|\n"),
+        ("<!-- one line --> text after", "paragraph: text after|\n"),
+        ("A &lt;sub&gt;tag&lt;/sub&gt; and \\<sup>escaped\\</sup>.",
+         "paragraph: A <sub>tag</sub> and <sup>escaped</sup>.|\n"),
+        ("    # not a heading\n    ---",
+         "code[]: # not a heading\\n---\n"),
+        ("Para\n    # still para", "paragraph: Para # still para|\n"),
+        ("````\n```\ninner\n```\n````\nafter",
+         "code[]: ```\\ninner\\n```\nparagraph: after|\n"),
+        ("Last line  ", "paragraph: Last line|\n"),
+        ("In the year\n1984. Things.",
+         "paragraph: In the year 1984. Things.|\n"),
+        ("$$a$$ is the area", "math: a\nparagraph: is the area|\n"),
+        ("$$x$$ $$y$$", "math: x\nmath: y\n"),
+        ("Price $5 and $10.", "paragraph: Price $5 and $10.|\n"),
+        ("<div align=\"center\">\nA line </p>\nstill centred\n</div>\n" +
+         "After.",
+         "paragraph: A line {center}|</p>{center}| still centred{center}|\n" +
+         "paragraph: After.|\n"),
+        ("<details><summary>Outer</summary>\n" +
+         "<details><summary>Inner</summary>\nDeep.\n</details>\n" +
+         "Still outer.\n</details>\nOut.",
+         "paragraph: Outer{b}|\nparagraph: Inner{b}|\n" +
+         "paragraph: Deep.|\nparagraph: Still outer.|\n" +
+         "paragraph: Out.|\n"),
+        ("Hard\\\nbreak", "paragraph: Hard\\u2028break|\n"),
+        ("[cost](http://e.com/$5$x) and $y$.",
+         "paragraph: cost{link=http://e.com/$5$x}| and |y{math=$y$}|.|\n"),
+        ("Title\n=====", "heading 1: Title|\n"),
+        ("Sub title\nwraps\n---", "heading 2: Sub title wraps|\n"),
+        ("## Closed ##\n# C# #", "heading 2: Closed|\nheading 1: C#|\n"),
+        ("Text\n- - -", "paragraph: Text|\nrule\n"),
+        ("> foo\n===", "quote:\n  paragraph: foo|\nparagraph: ===|\n"),
+        ("---\ntitle: Hello\n---\n# Body",
+         "code[yaml]: title: Hello\nheading 1: Body|\n"),
+        ("$$x$$    y", "math: x\nparagraph: y|\n"),
+        ("<!-- c -->    text", "paragraph: text|\n"),
+        ("$$a$$$$\nnext", "math: a\nparagraph: next|\n"),
+        ("x \\\\<sup>2</sup>", "paragraph: x \\\\|2{sup}|\n"),
+        ("Pay $\\$5 + x$ now.",
+         "paragraph: Pay |$5 + x{math=$\\\\$5 + x$}| now.|\n"),
+    ]
+
+    func testCornerCasesParseAsCommonMarkReadsThem() {
+        for corner in Self.corners {
+            XCTAssertEqual(Self.dump(Markdown.parse(corner.source)),
+                           corner.parse, corner.source)
+        }
+    }
+
+    func testLongParagraphsParseInLinearTime() {
+        for piece in ["$5 ", "a &lt; b ", "<u>a</u> "] {
+            let start = ContinuousClock.now
+            _ = Markdown.parse(String(repeating: piece, count: 4000))
+            XCTAssertLessThan(ContinuousClock.now - start, .seconds(2),
+                              piece)
+        }
+    }
+
     func testFixturesCoverEveryBlockKind() throws {
         var seen: Set<String> = []
         for fixture in try Fixtures.all() {

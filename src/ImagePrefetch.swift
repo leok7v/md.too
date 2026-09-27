@@ -34,13 +34,17 @@ enum ImagePrefetch {
         for b in blocks {
             switch b {
                 case .image(_, let u, _, _): urls.insert(u)
-                case .table(_, let rows, _):
-                    for row in rows {
-                        for cell in row {
-                            if let info = imageInCell(cell) {
-                                urls.insert(info.0)
-                            }
+                case .table(let headers, let rows, _):
+                    for cell in headers + rows.joined() {
+                        if let info = imageInCell(cell) {
+                            urls.insert(info.0)
                         }
+                    }
+                case .quote(let inner):
+                    urls.formUnion(collectURLs(in: inner))
+                case .list(let items, _):
+                    for item in items {
+                        urls.formUnion(collectURLs(in: item.blocks))
                     }
                 default: break
             }

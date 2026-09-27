@@ -75,7 +75,6 @@ struct ShareMenu: View {
     @State private var pdfURL: URL?
     @State private var htmlURL: URL?
     @State private var pdfThumb: Image?
-    @State private var ticket = 0
 
     var body: some View {
         Menu {
@@ -100,8 +99,7 @@ struct ShareMenu: View {
         .disabled(pdfURL == nil && htmlURL == nil)
         .help("Share as PDF or HTML")
         .task(id: text) {
-            ticket += 1
-            let mine = ticket
+            let mine = TempPDFs.nextTag()
             let pdf = await exportPDF(text: text, title: title, tag: mine)
             if !Task.isCancelled {
                 replace(&pdfURL, with: pdf)

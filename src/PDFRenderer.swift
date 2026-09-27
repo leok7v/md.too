@@ -21,6 +21,18 @@ final class PDFRenderer {
     // 1 everywhere but inside a table too wide for the page, and only
     // for the span of that one table.
     var tableScale: CGFloat = 1
+    private var quoteBars: [QuoteBar] = []
+    private var pendingMarkers: [PendingMarker] = []
+
+    private struct QuoteBar {
+        let x: CGFloat
+        let top: CGFloat
+    }
+
+    private struct PendingMarker {
+        let glyph: String
+        let x: CGFloat
+    }
 
     init(ctx: CGContext,
          pageSize: CGSize,
@@ -50,8 +62,35 @@ final class PDFRenderer {
     func endPage() { ctx.endPDFPage() }
 
     func newPage() {
+        for bar in quoteBars { fillBar(bar) }
         endPage()
         startPage()
+        quoteBars = quoteBars.map { bar in QuoteBar(x: bar.x, top: y) }
+    }
+
+    private func fillBar(_ bar: QuoteBar) {
+        let bottom = max(y, contentBottom)
+        if bar.top > bottom {
+            ctx.setFillColor(secondaryColor)
+            ctx.fill(CGRect(x: bar.x, y: bottom, width: 2,
+                            height: bar.top - bottom))
+        }
+    }
+
+    private func placeMarkers(baseline: CGFloat) {
+        for marker in pendingMarkers {
+            let attr = NSAttributedString(string: marker.glyph, attributes: [
+                .font: bodyFont(),
+                .foregroundColor: textColor,
+            ])
+            ctx.textPosition = CGPoint(x: marker.x, y: baseline)
+            CTLineDraw(CTLineCreateWithAttributedString(attr), ctx)
+        }
+        pendingMarkers = []
+    }
+
+    private func placeMarkers(top: CGFloat) {
+        placeMarkers(baseline: top - bodySize)
     }
 
     func ensureSpace(_ minHeight: CGFloat) {
@@ -63,7 +102,7 @@ final class PDFRenderer {
             case .heading(let level, let text):
                 drawHeading(level: level, text: text)
             case .paragraph(let attr):
-                drawText(attr, font: bodyFont(), color: textColor)
+                drawText(attr, font: bodyFont())
             case .code(let language, let text):
                 drawCode(text, language: language)
             case .quote(let blocks): drawQuote(blocks)
@@ -74,9 +113,10 @@ final class PDFRenderer {
                           alignments: alignments)
             case .math(let tex): drawMath(tex)
             case .rule: drawRule()
-            case .image(let alt, let url, let width, _):
+            case .image(let alt, let url, let width, let height):
                 if let cg = images[url] {
-                    drawImage(cg, alt: alt, explicitWidth: width)
+                    drawImage(cg, alt: alt, explicitWidth: width,
+                              explicitHeight: height)
                 } else {
                     drawImagePlaceholder(alt: alt, url: url)
                 }
@@ -85,23 +125,21 @@ final class PDFRenderer {
     }
 
     private func drawImage(_ cg: CGImage, alt: String,
-                  explicitWidth: CGFloat?) {
+                           explicitWidth: CGFloat?,
+                           explicitHeight: CGFloat?) {
         let imgW = CGFloat(cg.width)
         let imgH = CGFloat(cg.height)
         if imgW > 0, imgH > 0 {
-            let aspect = imgW / imgH
-            let maxW = contentWidth
             let maxH = pageSize.height - margin * 2 -
                        headerH - footerH - bodySize * 2
-            var drawW: CGFloat
-            if let explicitWidth { drawW = min(maxW, explicitWidth) }
-            else { drawW = min(maxW, imgW * 0.5) }
-            var drawH = drawW / aspect
-            if drawH > maxH {
-                drawH = maxH
-                drawW = drawH * aspect
-            }
+            let size = imageDrawSize(cg, maxWidth: contentWidth,
+                                     maxHeight: maxH,
+                                     explicitWidth: explicitWidth,
+                                     explicitHeight: explicitHeight)
+            let drawW = size.width
+            let drawH = size.height
             ensureSpace(drawH + bodySize * 1.6)
+            placeMarkers(top: y)
             let originX = contentLeft + (contentWidth - drawW) / 2
             let originY = y - drawH
             ctx.draw(cg, in: CGRect(x: originX, y: originY,
@@ -132,42 +170,16 @@ final class PDFRenderer {
                                         size, nil)
         let bold = CTFontCreateCopyWithSymbolicTraits(
             font, size, nil, .traitBold, .traitBold) ?? font
-        drawText(text, font: bold, color: textColor)
+        ensureSpace(size * 1.4 + bodySize * 3)
+        drawText(text, font: bold)
     }
 
-    // NSAttributedString(_:) drops the custom script-level key, so the
-    // AttributedString runs must stay reachable until fonts are settled.
-
-    private func drawText(_ attr: AttributedString,
-                          font: CTFont,
-                          color: CGColor) {
-        let m = NSMutableAttributedString(
-            attributedString: NSAttributedString(attr))
-        let full = NSRange(location: 0, length: m.length)
-        m.enumerateAttribute(.font, in: full, options: []) { v, range, _ in
-            if v == nil {
-                m.addAttribute(.font, value: font, range: range)
-            } else if let existing = v as? PlatformFont {
-                let sized = resizeFont(existing, to: CTFontGetSize(font))
-                m.addAttribute(.font, value: sized, range: range)
-            }
-        }
-        m.enumerateAttribute(.foregroundColor, in: full,
-                             options: []) { v, range, _ in
-            if v == nil {
-                m.addAttribute(.foregroundColor, value: color,
-                               range: range)
-            }
-        }
-        applyScriptRuns(m, from: attr)
-        applySmallRuns(m, from: attr)
+    private func drawText(_ attr: AttributedString, font: CTFont) {
+        let m = styled(attr, base: font, bold: false, para: nil,
+                       numerics: false)
         applyParagraphAlignment(m, from: attr)
-        applyInlineMath(m, from: attr)
         flow(m)
     }
-
-    // Walked last to first so replacing one run's range leaves the
-    // ranges of the runs before it untouched.
 
     private final class InlineMathBox {
         let layout: MathLayout
@@ -178,23 +190,6 @@ final class PDFRenderer {
         NSAttributedString.Key(kCTRunDelegateAttributeName as String)
 
     private static let inlineMathInset: CGFloat = 1
-
-    private func applyInlineMath(_ m: NSMutableAttributedString,
-                                 from attr: AttributedString) {
-        for run in attr.runs.reversed() {
-            let r = NSRange(run.range, in: attr)
-            if let source = run[InlineMathAttribute.self], r.length > 0,
-               NSMaxRange(r) <= m.length {
-                let attrs = m.attributes(at: r.location, effectiveRange: nil)
-                let size = (attrs[.font] as? PlatformFont)?.pointSize ??
-                           CTFontGetSize(bodyFont())
-                if let formula = inlineFormula(source, size: size,
-                                               attrs: attrs) {
-                    m.replaceCharacters(in: r, with: formula)
-                }
-            }
-        }
-    }
 
     private func inlineFormula(_ source: String, size: CGFloat,
                                attrs: [NSAttributedString.Key: Any])
@@ -265,11 +260,6 @@ final class PDFRenderer {
         }
     }
 
-    private func resizeFont(_ f: PlatformFont,
-                            to size: CGFloat) -> PlatformFont {
-        platformResizedFont(f, to: size)
-    }
-
     private func flow(_ attr: NSAttributedString) {
         if attr.length > 0 {
             let fs = CTFramesetterCreateWithAttributedString(attr)
@@ -277,25 +267,56 @@ final class PDFRenderer {
             while consumed < attr.length {
                 ensureSpace(20)
                 let avail = remaining
+                let fresh = y >= contentTop
+                let line = fresh ? firstLine(fs, attr, from: consumed) : 0
                 let rem = CFRange(location: consumed,
                                   length: attr.length - consumed)
-                let rect = CGRect(x: contentLeft, y: contentBottom,
+                var rect = CGRect(x: contentLeft, y: contentBottom,
                                   width: contentWidth, height: avail)
-                let path = CGPath(rect: rect, transform: nil)
-                let frame = CTFramesetterCreateFrame(fs, rem, path, nil)
-                let visible = CTFrameGetVisibleStringRange(frame)
+                var frame = CTFramesetterCreateFrame(
+                    fs, rem, CGPath(rect: rect, transform: nil), nil)
+                var visible = CTFrameGetVisibleStringRange(frame)
+                if visible.length == 0, line > 0 {
+                    let tall: CGFloat = 1_000_000
+                    rect = CGRect(x: contentLeft, y: y - tall,
+                                  width: contentWidth, height: tall)
+                    frame = CTFramesetterCreateFrame(
+                        fs, CFRange(location: consumed, length: line),
+                        CGPath(rect: rect, transform: nil), nil)
+                    visible = CTFrameGetVisibleStringRange(frame)
+                }
                 if visible.length == 0 {
                     newPage()
                 } else {
                     let used = lineHeightUsed(frame: frame, in: rect)
+                    placeMarkers(baseline: rect.minY +
+                                           firstBaseline(frame))
                     CTFrameDraw(frame, ctx)
                     drawInlineMath(in: frame, rect: rect)
+                    annotateLinks(in: frame, rect: rect)
                     y -= used
                     consumed = visible.location + visible.length
                     if consumed < attr.length { newPage() }
                 }
             }
         }
+    }
+
+    private func firstBaseline(_ frame: CTFrame) -> CGFloat {
+        var origin = CGPoint.zero
+        if CFArrayGetCount(CTFrameGetLines(frame)) > 0 {
+            CTFrameGetLineOrigins(frame, CFRange(location: 0, length: 1),
+                                  &origin)
+        }
+        return origin.y
+    }
+
+    private func firstLine(_ fs: CTFramesetter, _ attr: NSAttributedString,
+                           from start: Int) -> Int {
+        let typesetter = CTFramesetterGetTypesetter(fs)
+        let count = CTTypesetterSuggestLineBreak(typesetter, start,
+                                                 Double(contentWidth))
+        return min(max(count, 1), attr.length - start)
     }
 
     private func lineHeightUsed(frame: CTFrame, in rect: CGRect) -> CGFloat {
@@ -346,7 +367,7 @@ final class PDFRenderer {
                               length: m.length - consumed)
             let inset: CGFloat = 6
             let textRect = CGRect(x: contentLeft + inset,
-                                  y: contentBottom,
+                                  y: contentBottom + inset,
                                   width: contentWidth - 2 * inset,
                                   height: avail - 2 * inset)
             let path = CGPath(rect: textRect, transform: nil)
@@ -362,6 +383,7 @@ final class PDFRenderer {
                                     height: used + 2 * inset)
                 ctx.setFillColor(codeBgColor)
                 ctx.fill(bgRect)
+                placeMarkers(top: y - inset)
                 CTFrameDraw(frame, ctx)
                 y -= used + 2 * inset
                 consumed = visible.location + visible.length
@@ -372,43 +394,34 @@ final class PDFRenderer {
 
     private func drawQuote(_ blocks: [Block]) {
         let saved = listIndent
-        let barX = margin + saved
-        var startY = y
-        var startPage = pageNumber
+        quoteBars.append(QuoteBar(x: margin + saved, top: y))
         listIndent = saved + 16
-        for b in blocks {
-            draw(b)
-            if pageNumber != startPage {
-                startPage = pageNumber
-                startY = contentTop
-            }
-        }
+        for b in blocks { draw(b) }
         listIndent = saved
-        if startY > y {
-            ctx.setFillColor(secondaryColor)
-            ctx.fill(CGRect(x: barX, y: y, width: 2, height: startY - y))
-        }
+        if let bar = quoteBars.popLast() { fillBar(bar) }
     }
 
     private func drawList(_ items: [ListItem], tight: Bool) {
         let saved = listIndent
-        let gutter: CGFloat = 20
+        let widest = items.map { item in
+            CTLineGetTypographicBounds(CTLineCreateWithAttributedString(
+                NSAttributedString(string: item.marker,
+                                   attributes: [.font: bodyFont()])),
+                nil, nil, nil)
+        }.max() ?? 0
+        let gutter = max(20, ceil(CGFloat(widest)) + 6)
         for item in items {
             ensureSpace(bodySize * 2)
             let glyph = item.checked == nil ? item.marker
                 : (item.checked == true ? "☑︎" : "☐")
-            let markerAttr = NSAttributedString(string: glyph, attributes: [
-                .font: bodyFont(),
-                .foregroundColor: textColor,
-            ])
-            let line = CTLineCreateWithAttributedString(markerAttr)
-            ctx.textPosition = CGPoint(x: margin + saved, y: y - bodySize)
-            CTLineDraw(line, ctx)
+            pendingMarkers.append(PendingMarker(glyph: glyph,
+                                                x: margin + saved))
             listIndent = saved + gutter
-            if item.blocks.isEmpty {
+            for b in item.blocks { draw(b) }
+            if tight, !item.blocks.isEmpty { y += blockGap * 0.6 }
+            if !pendingMarkers.isEmpty {
+                placeMarkers(top: y)
                 y -= bodySize * 1.4
-            } else {
-                for b in item.blocks { draw(b) }
             }
             listIndent = saved
         }
@@ -535,81 +548,176 @@ final class PDFRenderer {
             let scale = contentWidth / total
             colWidths = colWidths.map { v in v * scale }
         }
-        let tableRight = contentLeft + colWidths.reduce(0, +)
-        func drawRow(_ cells: [String], bold: Bool, shade: CGColor?) {
-            let built = (0..<cols).map { c in
-                cellContent(c < cells.count ? cells[c] : "", bold: bold,
-                            alignment: c < alignments.count
-                                ? alignments[c] : .none)
+        let table = TableFrame(widths: colWidths,
+                               right: contentLeft + colWidths.reduce(0, +),
+                               pad: cellPad)
+        let build = { (cells: [String], bold: Bool) in
+            (0..<cols).map { c in
+                self.cellContent(c < cells.count ? cells[c] : "",
+                                 bold: bold,
+                                 alignment: c < alignments.count
+                                     ? alignments[c] : .none)
             }
-            var rowH: CGFloat = scaledBodySize * 1.3
-            for c in 0..<cols {
-                let cellW = colWidths[c] - 2 * cellPad
-                var h: CGFloat = 0
-                switch built[c] {
-                    case .picture(let cg, let ew, let eh):
-                        h = predictImageHeight(cg, maxWidth: cellW,
-                                               explicitWidth: ew,
-                                               explicitHeight: eh)
-                    case .text(let inner):
-                        h = textCellHeight(inner, width: cellW)
-                }
-                if h > rowH { rowH = h }
-            }
-            ensureSpace(rowH + rowPad * 2)
-            let savedY = y
-            if let shade {
-                ctx.setFillColor(shade)
-                ctx.fill(CGRect(x: contentLeft,
-                                y: savedY - rowH - rowPad,
-                                width: tableRight - contentLeft,
-                                height: rowH + 2 * rowPad))
-            }
-            var maxUsed: CGFloat = 0
-            var x = contentLeft
-            for c in 0..<cols {
-                let xL = x + cellPad
-                let cellW = colWidths[c] - 2 * cellPad
-                var used: CGFloat = 0
-                switch built[c] {
-                    case .picture(let cg, let ew, let eh):
-                        used = drawCellImage(cg, x: xL, topY: savedY,
-                                             maxWidth: cellW,
-                                             explicitWidth: ew,
-                                             explicitHeight: eh)
-                    case .text(let inner):
-                        used = drawCellText(inner, x: xL, topY: savedY,
-                                            width: cellW)
-                }
-                if used > maxUsed { maxUsed = used }
-                x += colWidths[c]
-            }
-            y = savedY - maxUsed - rowPad
-            ctx.setStrokeColor(secondaryColor)
-            ctx.setLineWidth(0.5)
-            ctx.move(to: CGPoint(x: contentLeft, y: y))
-            ctx.addLine(to: CGPoint(x: tableRight, y: y))
-            ctx.strokePath()
-            // Aligned to the previous row's rule so rows join into one
-            // line; clamped at contentTop for a row that page-broke.
-            let bandTop = min(savedY + rowPad, contentTop)
-            ctx.setLineWidth(0.25)
-            var divider = contentLeft
-            for c in 0..<max(cols - 1, 0) {
-                divider += colWidths[c]
-                ctx.move(to: CGPoint(x: divider, y: bandTop))
-                ctx.addLine(to: CGPoint(x: divider, y: y))
-            }
-            ctx.strokePath()
-            y -= rowPad
         }
         if !headers.isEmpty {
-            drawRow(headers, bold: true, shade: headerShadeColor)
+            drawRow(build(headers, true), shade: headerShadeColor,
+                    table: table)
         }
         for (idx, row) in rows.enumerated() {
-            drawRow(row, bold: false,
-                    shade: idx % 2 == 1 ? rowShadeColor : nil)
+            drawRow(build(row, false),
+                    shade: idx % 2 == 1 ? rowShadeColor : nil, table: table)
         }
+    }
+
+    private struct TableFrame {
+        let widths: [CGFloat]
+        let right: CGFloat
+        let pad: CGFloat
+    }
+
+    private struct CellSlice {
+        let frame: CTFrame?
+        let rect: CGRect
+        let used: CGFloat
+        let taken: Int
+    }
+
+    private var tallestCell: CGFloat {
+        contentTop - contentBottom - 2 * rowPad
+    }
+
+    private func rowHeight(_ built: [CellContent],
+                           _ table: TableFrame) -> CGFloat {
+        var rowH: CGFloat = scaledBodySize * 1.3
+        for (c, cell) in built.enumerated() {
+            let cellW = table.widths[c] - 2 * table.pad
+            var h: CGFloat = 0
+            switch cell {
+                case .picture(let cg, let ew, let eh):
+                    h = imageDrawSize(cg, maxWidth: cellW,
+                                      maxHeight: tallestCell,
+                                      explicitWidth: ew,
+                                      explicitHeight: eh).height
+                case .text(let inner):
+                    h = textCellHeight(inner, width: cellW)
+            }
+            if h > rowH { rowH = h }
+        }
+        return rowH
+    }
+
+    private func drawRow(_ built: [CellContent], shade: CGColor?,
+                         table: TableFrame) {
+        let rowH = rowHeight(built, table)
+        if rowH + rowPad * 2 > remaining, y < contentTop { newPage() }
+        var consumed = [Int](repeating: 0, count: built.count)
+        var first = true
+        var pending = true
+        while pending {
+            let top = y
+            placeMarkers(top: top - rowPad)
+            var slices: [CellSlice] = []
+            var x = contentLeft
+            for (c, cell) in built.enumerated() {
+                let cellW = table.widths[c] - 2 * table.pad
+                slices.append(slice(cell, from: consumed[c], first: first,
+                                    x: x + table.pad, top: top,
+                                    width: cellW))
+                x += table.widths[c]
+            }
+            let maxUsed = slices.map { one in one.used }.max() ?? 0
+            if let shade {
+                ctx.setFillColor(shade)
+                ctx.fill(CGRect(x: contentLeft, y: top - maxUsed - rowPad,
+                                width: table.right - contentLeft,
+                                height: maxUsed + 2 * rowPad))
+            }
+            x = contentLeft
+            for (c, cell) in built.enumerated() {
+                drawSlice(cell, slices[c], first: first, x: x + table.pad,
+                          top: top, width: table.widths[c] - 2 * table.pad)
+                consumed[c] += slices[c].taken
+                x += table.widths[c]
+            }
+            y = top - maxUsed - rowPad
+            drawRowRules(top: top, table: table)
+            y -= rowPad
+            let progressed = slices.contains { one in one.taken > 0 }
+            pending = progressed && built.enumerated().contains { c, cell in
+                if case .text(let inner) = cell {
+                    consumed[c] < inner.length
+                } else {
+                    false
+                }
+            }
+            if pending { newPage() }
+            first = false
+        }
+    }
+
+    private func slice(_ cell: CellContent, from start: Int, first: Bool,
+                       x: CGFloat, top: CGFloat, width: CGFloat)
+        -> CellSlice {
+        var result = CellSlice(frame: nil, rect: .zero, used: 0, taken: 0)
+        switch cell {
+            case .picture(let cg, let ew, let eh):
+                let h = imageDrawSize(cg, maxWidth: width,
+                                      maxHeight: tallestCell,
+                                      explicitWidth: ew,
+                                      explicitHeight: eh).height
+                result = CellSlice(frame: nil, rect: .zero,
+                                   used: first ? h : 0, taken: 0)
+            case .text(let inner):
+                if start < inner.length {
+                    let fs = CTFramesetterCreateWithAttributedString(inner)
+                    let rect = CGRect(x: x, y: contentBottom, width: width,
+                                      height: top - contentBottom)
+                    let frame = CTFramesetterCreateFrame(
+                        fs, CFRange(location: start, length: 0),
+                        CGPath(rect: rect, transform: nil), nil)
+                    result = CellSlice(
+                        frame: frame, rect: rect,
+                        used: lineHeightUsed(frame: frame, in: rect),
+                        taken: CTFrameGetVisibleStringRange(frame).length)
+                }
+        }
+        return result
+    }
+
+    private func drawSlice(_ cell: CellContent, _ slice: CellSlice,
+                           first: Bool, x: CGFloat, top: CGFloat,
+                           width: CGFloat) {
+        switch cell {
+            case .picture(let cg, let ew, let eh):
+                if first {
+                    _ = drawCellImage(cg, x: x, topY: top, maxWidth: width,
+                                      explicitWidth: ew,
+                                      explicitHeight: eh)
+                }
+            case .text:
+                if let frame = slice.frame {
+                    CTFrameDraw(frame, ctx)
+                    drawInlineMath(in: frame, rect: slice.rect)
+                    annotateLinks(in: frame, rect: slice.rect)
+                }
+        }
+    }
+
+    private func drawRowRules(top: CGFloat, table: TableFrame) {
+        ctx.setStrokeColor(secondaryColor)
+        ctx.setLineWidth(0.5)
+        ctx.move(to: CGPoint(x: contentLeft, y: y))
+        ctx.addLine(to: CGPoint(x: table.right, y: y))
+        ctx.strokePath()
+        let bandTop = min(top + rowPad, contentTop)
+        ctx.setLineWidth(0.25)
+        var divider = contentLeft
+        for c in 0..<max(table.widths.count - 1, 0) {
+            divider += table.widths[c]
+            ctx.move(to: CGPoint(x: divider, y: bandTop))
+            ctx.addLine(to: CGPoint(x: divider, y: y))
+        }
+        ctx.strokePath()
     }
 
     private enum CellContent {
@@ -630,36 +738,18 @@ final class PDFRenderer {
         return result
     }
 
-    private func drawCellText(_ inner: NSAttributedString, x: CGFloat,
-                              topY: CGFloat, width: CGFloat) -> CGFloat {
-        let fs = CTFramesetterCreateWithAttributedString(inner)
-        let rect = CGRect(x: x, y: contentBottom, width: width,
-                          height: topY - contentBottom)
-        let path = CGPath(rect: rect, transform: nil)
-        let frame = CTFramesetterCreateFrame(
-            fs, CFRange(location: 0, length: 0), path, nil)
-        let used = lineHeightUsed(frame: frame, in: rect)
-        CTFrameDraw(frame, ctx)
-        drawInlineMath(in: frame, rect: rect)
-        return used
-    }
-
     private func imageDrawSize(_ cg: CGImage, maxWidth: CGFloat,
-                      explicitWidth: CGFloat?, explicitHeight: CGFloat?)
-                                  -> CGSize {
+                               maxHeight: CGFloat,
+                               explicitWidth: CGFloat?,
+                               explicitHeight: CGFloat?) -> CGSize {
         let fit = aspectFit(intrinsicWidth: CGFloat(cg.width),
                             intrinsicHeight: CGFloat(cg.height),
                             explicitWidth: explicitWidth,
                             explicitHeight: explicitHeight,
                             defaultScale: 0.5, maxWidth: maxWidth)
-        return CGSize(width: fit.width, height: fit.height)
-    }
-
-    private func predictImageHeight(_ cg: CGImage, maxWidth: CGFloat,
-                           explicitWidth: CGFloat?, explicitHeight: CGFloat?)
-                                       -> CGFloat {
-        imageDrawSize(cg, maxWidth: maxWidth, explicitWidth: explicitWidth,
-                      explicitHeight: explicitHeight).height
+        let shrink = fit.height > maxHeight ? maxHeight / fit.height : 1
+        return CGSize(width: fit.width * shrink,
+                      height: fit.height * shrink)
     }
 
     private static let numericTokenRE: NSRegularExpression? =
@@ -699,14 +789,20 @@ final class PDFRenderer {
         if let first = parsed.first, case .paragraph(let a) = first {
             attr = a
         }
-        let base = bold ? bodyFontBold() : bodyFont()
-        let baseSize = CTFontGetSize(base)
         let para = NSMutableParagraphStyle()
         switch alignment {
             case .center: para.alignment = .center
             case .right: para.alignment = .right
             case .left, .none: para.alignment = .natural
         }
+        return styled(attr, base: bold ? bodyFontBold() : bodyFont(),
+                      bold: bold, para: para, numerics: true)
+    }
+
+    func styled(_ attr: AttributedString, base: CTFont, bold: Bool,
+                para: NSParagraphStyle?, numerics: Bool)
+        -> NSMutableAttributedString {
+        let baseSize = CTFontGetSize(base)
         let m = NSMutableAttributedString()
         for run in attr.runs {
             let intent = run.inlinePresentationIntent ?? []
@@ -715,8 +811,8 @@ final class PDFRenderer {
                                         additionalBold: bold)
             var attrs: [NSAttributedString.Key: Any] = [
                 .foregroundColor: textColor,
-                .paragraphStyle: para,
             ]
+            if let para { attrs[.paragraphStyle] = para }
             if run[SmallAttribute.self] == true {
                 runFont = smallRunFont(base: runFont)
             }
@@ -726,13 +822,18 @@ final class PDFRenderer {
                 attrs[.baselineOffset] = script.offset
             }
             attrs[.font] = runFont
-            if intent.contains(.code) {
-                attrs[.backgroundColor] = codeBgColor
-            }
             if intent.contains(.strikethrough) {
                 attrs[.strikethroughStyle] =
                     NSUnderlineStyle.single.rawValue
                 attrs[.strikethroughColor] = textColor
+            }
+            if run.underlineStyle != nil {
+                attrs[.underlineStyle] = NSUnderlineStyle.single.rawValue
+            }
+            if let url = run.link, HtmlExport.safeLink(url) {
+                attrs[.link] = url
+                attrs[.foregroundColor] = linkColor
+                attrs[.underlineStyle] = NSUnderlineStyle.single.rawValue
             }
             let formula = run[InlineMathAttribute.self].flatMap { source in
                 inlineFormula(source, size: runFont.pointSize, attrs: attrs)
@@ -740,15 +841,40 @@ final class PDFRenderer {
             if let formula {
                 m.append(formula)
             } else {
-                let segment = protectNumerics(
-                    String(attr[run.range].characters))
-                m.append(NSAttributedString(string: segment,
-                                            attributes: attrs))
+                let text = String(attr[run.range].characters)
+                m.append(NSAttributedString(
+                    string: numerics ? protectNumerics(text) : text,
+                    attributes: attrs))
             }
         }
         return m
     }
 
+    private func annotateLinks(in frame: CTFrame, rect: CGRect) {
+        let lines = CTFrameGetLines(frame) as! [CTLine]
+        var origins = [CGPoint](repeating: .zero, count: lines.count)
+        CTFrameGetLineOrigins(frame, CFRange(location: 0, length: 0),
+                              &origins)
+        for (line, origin) in zip(lines, origins) {
+            for run in CTLineGetGlyphRuns(line) as! [CTRun] {
+                let attrs = CTRunGetAttributes(run) as NSDictionary
+                if let url = attrs[NSAttributedString.Key.link] as? URL {
+                    var ascent: CGFloat = 0
+                    var descent: CGFloat = 0
+                    let width = CTRunGetTypographicBounds(
+                        run, CFRange(location: 0, length: 0),
+                        &ascent, &descent, nil)
+                    var position = CGPoint.zero
+                    CTRunGetPositions(run, CFRange(location: 0, length: 1),
+                                      &position)
+                    ctx.setURL(url as CFURL, for: CGRect(
+                        x: rect.minX + origin.x + position.x,
+                        y: rect.minY + origin.y - descent,
+                        width: CGFloat(width), height: ascent + descent))
+                }
+            }
+        }
+    }
 
     private func cellRenderedWidth(_ text: String, bold: Bool) -> CGFloat {
         let attr = cellAttributed(text, bold: bold, alignment: .none)
@@ -785,6 +911,7 @@ final class PDFRenderer {
                       explicitWidth: CGFloat?,
                      explicitHeight: CGFloat?) -> CGFloat {
         let size = imageDrawSize(cg, maxWidth: maxWidth,
+                                 maxHeight: tallestCell,
                                  explicitWidth: explicitWidth,
                                  explicitHeight: explicitHeight)
         if size.height > 0 {
@@ -802,31 +929,37 @@ final class PDFRenderer {
         let layout = fittedMath(tex)
         if let layout {
             ensureSpace(layout.height + bodySize)
+            placeMarkers(top: y)
             let slack = contentWidth - layout.width
             let x = contentLeft + max(slack / 2, 0)
             layout.draw(in: ctx, at: CGPoint(x: x, y: y), color: textColor)
             y -= layout.height
         } else {
-            drawText(TeX.render(tex, display: true),
-                     font: bodyFontItalic(), color: textColor)
+            drawText(TeX.render(tex, display: true), font: bodyFontItalic())
         }
     }
 
     private func fittedMath(_ tex: String) -> MathLayout? {
         let wanted = TeX.displaySize(body: bodySize)
         var result = TeX.layout(tex, size: wanted)
-        if let first = result, first.width > contentWidth, first.width > 0 {
-            let fitted = max(wanted * contentWidth / first.width,
-                             wanted * 0.5)
+        let tallest = contentTop - contentBottom - bodySize
+        if let first = result, first.width > 0, first.height > 0,
+           first.width > contentWidth || first.height > tallest {
+            let wide = first.width > contentWidth
+                ? max(contentWidth / first.width, 0.5) : 1
+            let tall = min(tallest / first.height, 1)
+            let fitted = wanted * min(wide, tall)
             let step: CGFloat = 0.25
-            result = TeX.layout(tex, size: (fitted / step).rounded(.down)
-                                           * step)
+            result = TeX.layout(tex, size: max((fitted / step)
+                                                   .rounded(.down) * step,
+                                               step))
         }
         return result
     }
 
     private func drawRule() {
         ensureSpace(8)
+        placeMarkers(top: y)
         ctx.setStrokeColor(secondaryColor)
         ctx.setLineWidth(0.5)
         ctx.move(to: CGPoint(x: contentLeft, y: y - 4))
@@ -842,6 +975,7 @@ final class PDFRenderer {
             .foregroundColor: secondaryColor,
         ])
         ensureSpace(bodySize * 2)
+        placeMarkers(top: y)
         let inset: CGFloat = 8
         let line = CTLineCreateWithAttributedString(attr)
         let bounds = CTLineGetBoundsWithOptions(line, [])
@@ -882,6 +1016,32 @@ final class PDFRenderer {
         let x = (pageSize.width - bounds.width) / 2
         ctx.textPosition = CGPoint(x: x, y: margin + 6)
         CTLineDraw(line, ctx)
+        drawCredit()
+    }
+
+    static let home = URL(string: "https://leok7v.github.io/md.too/")
+
+    private func drawCredit() {
+        let credit = NSMutableAttributedString(string: "Made with ",
+                                               attributes: [
+            .font: smallFont(),
+            .foregroundColor: secondaryColor,
+        ])
+        credit.append(NSAttributedString(string: "md.too", attributes: [
+            .font: CTFontCreateCopyWithSymbolicTraits(
+                smallFont(), 9, nil, .traitBold, .traitBold) ?? smallFont(),
+            .foregroundColor: linkColor,
+        ]))
+        let line = CTLineCreateWithAttributedString(credit)
+        let bounds = CTLineGetBoundsWithOptions(line, [])
+        let x = pageSize.width - margin - bounds.width
+        ctx.textPosition = CGPoint(x: x, y: margin + 6)
+        CTLineDraw(line, ctx)
+        if let home = PDFRenderer.home {
+            ctx.setURL(home as CFURL, for: CGRect(
+                x: x, y: margin + 6 + bounds.minY - 2,
+                width: bounds.width, height: bounds.height + 4))
+        }
     }
 
     private var scaledBodySize: CGFloat { bodySize * tableScale }
@@ -926,6 +1086,10 @@ final class PDFRenderer {
 
     private var textColor: CGColor {
         return CGColor(srgbRed: 0.10, green: 0.10, blue: 0.12, alpha: 1.0)
+    }
+
+    private var linkColor: CGColor {
+        CGColor(srgbRed: 0.10, green: 0.36, blue: 0.80, alpha: 1.0)
     }
 
     private var secondaryColor: CGColor {

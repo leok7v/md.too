@@ -154,6 +154,7 @@ enum DocumentText {
                                value: platformDefaultTextColor, range: r)
             }
         }
+        m.fixAttributes(in: full)
         return m
     }
 
@@ -378,11 +379,12 @@ enum DocumentText {
                                                 images: images),
                                   by: style.quoteIndent)
             case .list(let items, _):
+                let step = markerStep(items, style: style)
                 for item in items {
                     let w = indented(widestMinimum(in: item.blocks,
                                                    style: style,
                                                    images: images),
-                                     by: style.listIndent)
+                                     by: step)
                     if w > result { result = w }
                 }
             default:
@@ -637,8 +639,9 @@ enum DocumentText {
                 result = quote(inner, id: id, style: style, images: images,
                                budget: budget)
             case .list(let items, let tight):
-                result = list(items: items, tight: tight, depth: 0, id: id,
-                              style: style, images: images, budget: budget)
+                result = list(items: items, tight: tight, depth: 0,
+                              base: 0, id: id, style: style,
+                              images: images, budget: budget)
             case .table(let headers, let rows, let alignments):
                 result = table(headers: headers, rows: rows,
                                alignments: alignments, id: id,
@@ -676,7 +679,6 @@ enum DocumentText {
         let para = NSMutableParagraphStyle()
         para.alignment = .center
         para.paragraphSpacing = style.blockSpacing
-        para.paragraphSpacingBefore = style.blockSpacing
         m.addAttribute(.paragraphStyle, value: para,
                        range: NSRange(location: 0, length: m.length))
         return m
@@ -702,16 +704,17 @@ enum DocumentText {
     }
 
     private static func list(items: [ListItem], tight: Bool, depth: Int,
-                             id: String, style: MarkdownStyle,
+                             base: CGFloat, id: String,
+                             style: MarkdownStyle,
                              images: [URL: DocumentImage],
                              budget: CGFloat)
         -> NSAttributedString {
         let m = NSMutableAttributedString()
-        let indent = CGFloat(depth + 1) * style.listIndent
+        let indent = base + markerStep(items, style: style)
         for (idx, item) in items.enumerated() {
             let para = NSMutableParagraphStyle()
             para.headIndent = indent
-            para.firstLineHeadIndent = indent - style.listIndent
+            para.firstLineHeadIndent = base
             para.tabStops = [NSTextTab(textAlignment: .left,
                                        location: indent)]
             // TextKit adds the paragraph above's spacing to this one's
@@ -719,85 +722,133 @@ enum DocumentText {
             para.paragraphSpacing = style.itemSpacing(tight: tight)
             para.paragraphSpacingBefore = idx == 0
                 ? 0 : style.itemSpacing(tight: tight)
-            if idx == items.count - 1, depth == 0 {
-                para.paragraphSpacing = style.blockSpacing
-            }
-            m.append(listItem(item, para: para, tight: tight,
-                              depth: depth, id: id + "." + String(idx),
-                              style: style, images: images,
-                              budget: budget))
+            m.append(listItem(item, para: para, depth: depth,
+                              id: id + "." + String(idx), style: style,
+                              images: images, budget: budget))
         }
+        if depth == 0 { spaceAfter(m, style.blockSpacing) }
         return m
     }
 
+    private static func markerText(_ item: ListItem) -> String {
+        var result = item.marker
+        if let c = item.checked { result = c ? "\u{2611}" : "\u{2610}" }
+        return result
+    }
+
+    private static func markerStep(_ items: [ListItem],
+                                   style: MarkdownStyle) -> CGFloat {
+        let font = style.bodyFont
+        let widest = items.map { item in
+            NSAttributedString(string: markerText(item),
+                               attributes: [.font: font]).size().width
+        }.max() ?? 0
+        return max(style.listIndent, ceil(widest + style.bodySize * 0.5))
+    }
+
+    private static func spaceAfter(_ m: NSMutableAttributedString,
+                                   _ spacing: CGFloat) {
+        if m.length > 0 {
+            let ns = m.string as NSString
+            let last = ns.paragraphRange(for: NSRange(location: m.length - 1,
+                                                      length: 0))
+            m.enumerateAttribute(.paragraphStyle, in: last,
+                                 options: []) { value, r, _ in
+                let para = NSMutableParagraphStyle()
+                if let v = value as? NSParagraphStyle {
+                    para.setParagraphStyle(v)
+                }
+                para.paragraphSpacing = max(para.paragraphSpacing, spacing)
+                m.addAttribute(.paragraphStyle, value: para, range: r)
+            }
+        }
+    }
+
     private static func listItem(_ item: ListItem, para: NSParagraphStyle,
-                                 tight: Bool, depth: Int, id: String,
+                                 depth: Int, id: String,
                                  style: MarkdownStyle,
                                  images: [URL: DocumentImage],
                                  budget: CGFloat)
         -> NSAttributedString {
-        let marker: String
-        if let c = item.checked {
-            marker = c ? "\u{2611}" : "\u{2610}"
-        } else {
-            marker = item.marker
+        let body = NSMutableAttributedString()
+        for (k, block) in item.blocks.enumerated() {
+            let blockId = id + "." + String(k)
+            if case .list(let inner, let innerTight) = block {
+                body.append(list(items: inner, tight: innerTight,
+                                 depth: depth + 1, base: para.headIndent,
+                                 id: blockId, style: style, images: images,
+                                 budget: budget))
+            } else if k == 0, case .paragraph(let attr) = block {
+                let line = NSMutableAttributedString()
+                translateInline(attr, base: style.bodyFont, style: style,
+                                into: line)
+                line.append(NSAttributedString(string: "\n"))
+                line.addAttribute(.paragraphStyle, value: para,
+                                  range: NSRange(location: 0,
+                                                 length: line.length))
+                body.append(line)
+            } else {
+                let rendered = NSMutableAttributedString(
+                    attributedString: render(block, id: blockId,
+                                             style: style, images: images,
+                                             budget: budget -
+                                                     para.headIndent))
+                move(rendered, by: para.headIndent)
+                body.append(rendered)
+            }
         }
         let prefix: [NSAttributedString.Key: Any] = [
             .font: style.bodyFont,
             .foregroundColor: platformSecondaryColor,
             .paragraphStyle: para,
         ]
-        let line = NSMutableAttributedString(
-            string: "\(marker)\t", attributes: prefix)
-        var headHandled = false
-        if let first = item.blocks.first {
-            switch first {
-                case .paragraph(let attr):
-                    let body = NSMutableAttributedString()
-                    translateInline(attr, base: style.bodyFont,
-                                    style: style, into: body)
-                    let r = NSRange(location: 0, length: body.length)
-                    body.addAttribute(.paragraphStyle, value: para,
-                                      range: r)
-                    line.append(body)
-                    headHandled = true
-                case .list(let inner, let innerTight):
-                    line.append(list(items: inner, tight: innerTight,
-                                     depth: depth + 1, id: id + ".0",
-                                     style: style, images: images,
-                                     budget: budget))
-                    headHandled = true
-                default:
-                    break
-            }
+        return marked(body, marker: markerText(item), prefix: prefix,
+                      para: para, first: item.blocks.first)
+    }
+
+    private static func marked(_ body: NSMutableAttributedString,
+                               marker: String,
+                               prefix: [NSAttributedString.Key: Any],
+                               para: NSParagraphStyle, first: Block?)
+        -> NSAttributedString {
+        let head = body.length > 0
+            ? body.attribute(.paragraphStyle, at: 0, effectiveRange: nil)
+                as? NSParagraphStyle
+            : nil
+        let kind = body.length > 0
+            ? body.attribute(atomicKindKey, at: 0, effectiveRange: nil)
+                as? String
+            : nil
+        var alone = head == nil || !(head?.textBlocks.isEmpty ?? true) ||
+                    kind == AtomicKind.table.rawValue
+        switch first {
+            case .math?, .rule?: alone = true
+            default: break
         }
-        let contIndent = para.headIndent
-        if !headHandled, let first = item.blocks.first {
-            let rendered = NSMutableAttributedString(
-                attributedString: render(first, id: id + ".0", style: style,
-                                         images: images,
-                                         budget: budget - contIndent))
-            move(rendered, by: contIndent)
-            line.append(rendered)
+        if alone {
+            body.insert(NSAttributedString(string: marker + "\n",
+                                           attributes: prefix), at: 0)
+        } else if case .paragraph? = first {
+            body.insert(NSAttributedString(string: marker + "\t",
+                                           attributes: prefix), at: 0)
+        } else if let head {
+            let joined = NSMutableParagraphStyle()
+            joined.setParagraphStyle(head)
+            joined.firstLineHeadIndent = para.firstLineHeadIndent
+            joined.tabStops = [NSTextTab(textAlignment: .left,
+                                         location: head.firstLineHeadIndent)]
+                + head.tabStops.filter { stop in
+                    stop.location > head.firstLineHeadIndent
+                }
+            var styled = prefix
+            styled[.paragraphStyle] = joined
+            let ns = body.string as NSString
+            let line = ns.paragraphRange(for: NSRange(location: 0, length: 0))
+            body.addAttribute(.paragraphStyle, value: joined, range: line)
+            body.insert(NSAttributedString(string: marker + "\t",
+                                           attributes: styled), at: 0)
         }
-        line.append(NSAttributedString(string: "\n"))
-        for (k, rest) in item.blocks.enumerated().dropFirst() {
-            let restId = id + "." + String(k)
-            if case .list(let inner, let innerTight) = rest {
-                line.append(list(items: inner, tight: innerTight,
-                                 depth: depth + 1, id: restId,
-                                 style: style, images: images,
-                                 budget: budget))
-            } else {
-                let rendered = NSMutableAttributedString(
-                    attributedString: render(rest, id: restId, style: style,
-                                             images: images,
-                                             budget: budget - contIndent))
-                move(rendered, by: contIndent)
-                line.append(rendered)
-            }
-        }
-        return line
+        return body
     }
 
     private static func image(alt: String, url: URL, width: CGFloat?,
@@ -825,11 +876,12 @@ enum DocumentText {
             let attrs: [NSAttributedString.Key: Any] = [
                 .font: style.bodyFont,
                 .foregroundColor: platformSecondaryColor,
+                .paragraphStyle: blockParagraph(style),
                 atomicKindKey: AtomicKind.image.rawValue,
                 atomicIdKey: id,
             ]
             result = NSAttributedString(
-                string: "[Image: \(label)]\n\n", attributes: attrs)
+                string: "[Image: \(label)]\n", attributes: attrs)
         }
         return result
     }

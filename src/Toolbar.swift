@@ -47,7 +47,6 @@ struct ShareButton: View {
     var compact: Bool = true
     @State private var pdfURL: URL?
     @State private var pdfThumb: Image?
-    @State private var ticket = 0
 
     var body: some View {
         Group {
@@ -74,8 +73,7 @@ struct ShareButton: View {
         .task(id: text) {
             let title = fileURL?.deletingPathExtension().lastPathComponent ??
                         "Document"
-            ticket += 1
-            let mine = ticket
+            let mine = TempPDFs.nextTag()
             let url = await exportPDF(text: text, title: title, tag: mine)
             let thumb = url.flatMap { u in firstPageThumbnail(of: u) }
             if !Task.isCancelled {

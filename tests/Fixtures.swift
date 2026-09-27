@@ -18,10 +18,13 @@ enum Fixtures {
             .appendingPathComponent("edge.md")
         let html = root.appendingPathComponent("fixtures")
             .appendingPathComponent("html.md")
+        let chat = root.appendingPathComponent("fixtures")
+            .appendingPathComponent("chat.md")
         var out: [Fixture] = []
         out += try sections(of: example, prefix: "example")
         out += try sections(of: edge, prefix: "edge")
         out += try sections(of: html, prefix: "html")
+        out += try sections(of: chat, prefix: "chat")
         return out
     }
 
@@ -38,10 +41,14 @@ enum Fixtures {
         for line in text.split(separator: "\n",
                                omittingEmptySubsequences: false) {
             let trimmed = line.trimmingCharacters(in: .whitespaces)
-            let opener = String(trimmed.prefix(3))
-            if fence.isEmpty, opener == "```" || opener == "~~~" {
-                fence = opener
-            } else if trimmed.hasPrefix(fence), !fence.isEmpty {
+            let indent = line.prefix { ch in ch == " " }.count
+            let run = String(trimmed.prefix { ch in
+                ch == trimmed.first && (ch == "`" || ch == "~")
+            })
+            if fence.isEmpty, run.count >= 3, indent < 4 {
+                fence = run
+            } else if !fence.isEmpty, trimmed.hasPrefix(fence),
+                      trimmed.allSatisfy({ ch in ch == fence.first }) {
                 fence = ""
             } else if fence.isEmpty, line.hasPrefix("## ") {
                 result.append(Fixture(name: name,

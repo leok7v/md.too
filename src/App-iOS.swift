@@ -21,6 +21,7 @@ struct IOSDocumentRoot: View {
     @State private var text: String = ""
     @State private var showPicker = false
     @State private var didAutoShowPicker = false
+    @State private var scoped: URL?
 
     var body: some View {
         Group {
@@ -63,17 +64,26 @@ struct IOSDocumentRoot: View {
     }
 
     private func load(_ pickedURL: URL) {
-        let scoped = pickedURL.startAccessingSecurityScopedResource()
-        if let read = try? String(contentsOf: pickedURL, encoding: .utf8) {
+        let granted = pickedURL.startAccessingSecurityScopedResource()
+        if let read = Markdown.text(contentsOf: pickedURL) {
+            release()
+            scoped = granted ? pickedURL : nil
             url = pickedURL
             text = read
             showPicker = false
             didAutoShowPicker = true
+        } else if granted {
+            pickedURL.stopAccessingSecurityScopedResource()
         }
-        if scoped { pickedURL.stopAccessingSecurityScopedResource() }
+    }
+
+    private func release() {
+        scoped?.stopAccessingSecurityScopedResource()
+        scoped = nil
     }
 
     private func close() {
+        release()
         url = nil
         text = ""
         if let filesAppURL = URL(string: "shareddocuments://") {

@@ -84,12 +84,16 @@ extension DocumentText {
             let widths = tableWidths(cells, budget: budget)
             let pad = cellPadding(style)
             var stops: [NSTextTab] = []
-            var x: CGFloat = 0
+            var left: CGFloat = 0
             for (col, w) in widths.enumerated() {
-                x += w + pad * 2
-                stops.append(NSTextTab(
-                    textAlignment: tabAlignment(cells.alignment(col + 1)),
-                    location: x))
+                let alignment = tabAlignment(cells.alignment(col))
+                let offset = alignment == .right ? w
+                    : alignment == .center ? w / 2 : 0
+                if col > 0 {
+                    stops.append(NSTextTab(textAlignment: alignment,
+                                           location: left + offset))
+                }
+                left += w + pad * 2
             }
             if !cells.header.isEmpty {
                 m.append(tableRowTabStops(cells: cells.header, stops: stops,
@@ -120,9 +124,6 @@ extension DocumentText {
         }
         return m
     }
-
-    // A tab stop aligns the text that follows it, so the first column
-    // has none and the stop after column c carries column c + 1's.
 
     private static func tabAlignment(_ a: Alignment) -> NSTextAlignment {
         let result: NSTextAlignment

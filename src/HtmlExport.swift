@@ -43,7 +43,7 @@ enum HtmlExport {
                 return renderList(items, tight: tight, images: images)
             case .table(let headers, let rows, let alignments):
                 return renderTable(headers: headers, rows: rows,
-                                   alignments: alignments)
+                                   alignments: alignments, images: images)
             case .math(let tex):
                 // Rendered as Unicode text, not a rasterized image, so it
                 // keeps the page's theme and scale instead of a snapshot.
@@ -77,7 +77,7 @@ enum HtmlExport {
                 open.append("<small>")
                 close.insert("</small>", at: 0)
             }
-            if let url = run.link {
+            if let url = run.link, safeLink(url) {
                 open.append("<a href=\"\(escAttr(url.absoluteString))\">")
                 close.insert("</a>", at: 0)
             }
@@ -113,6 +113,13 @@ enum HtmlExport {
         return out
     }
 
+    private static let linkSchemes: Set<String> = ["http", "https", "mailto"]
+
+    static func safeLink(_ url: URL) -> Bool {
+        let scheme = url.scheme?.lowercased()
+        return scheme == nil || linkSchemes.contains(scheme ?? "")
+    }
+
     private static func renderCode(lang: String?, text: String) -> String {
         let body = esc(text)
         var cls = ""
@@ -129,7 +136,11 @@ enum HtmlExport {
         }
         let tag = ordered ? "ol" : "ul"
         let style = tight ? listStyleTight : listStyleLoose
-        var out = "<\(tag) style=\"\(style)\">\n"
+        let first = items.first.flatMap { item in
+            Int(item.marker.filter { ch in ch.isNumber })
+        } ?? 1
+        let start = ordered && first != 1 ? " start=\"\(first)\"" : ""
+        var out = "<\(tag)\(start) style=\"\(style)\">\n"
         for item in items { out += renderItem(item, images: images) }
         return out + "</\(tag)>\n"
     }
@@ -150,7 +161,8 @@ enum HtmlExport {
 
     private static func renderTable(headers: [String],
                                     rows: [[String]],
-                                    alignments: [Alignment]) -> String {
+                                    alignments: [Alignment],
+                                    images: [URL: Data]) -> String {
         let n = TableMetrics.columnCount(headers: headers, rows: rows)
         var out = "<table style=\"\(tableStyle)\">\n"
         if !headers.isEmpty {
@@ -159,7 +171,7 @@ enum HtmlExport {
                 let cell = i < headers.count ? headers[i] : ""
                 out += "<th style=\"\(thStyle)\(divider(i, of: n))" +
                        "\(textAlign(i, alignments))\">" +
-                       "\(inlineFromCell(cell))</th>\n"
+                       "\(inlineFromCell(cell, images: images))</th>\n"
             }
             out += "</tr></thead>\n"
         }
@@ -174,7 +186,7 @@ enum HtmlExport {
                 let cell = i < row.count ? row[i] : ""
                 out += "<td style=\"\(tdStyle)\(divider(i, of: n))" +
                        "\(textAlign(i, alignments))\">" +
-                       "\(inlineFromCell(cell))</td>\n"
+                       "\(inlineFromCell(cell, images: images))</td>\n"
             }
             out += "</tr>\n"
         }
@@ -204,30 +216,49 @@ enum HtmlExport {
         return result
     }
 
-    private static func inlineFromCell(_ raw: String) -> String {
-        let parsed = Markdown.parseCell(raw)
-        var attr = AttributedString(raw)
-        if let first = parsed.first, case .paragraph(let a) = first {
-            attr = a
+    private static func inlineFromCell(_ raw: String,
+                                       images: [URL: Data]) -> String {
+        var result = esc(raw)
+        if let first = Markdown.parseCell(raw).first {
+            switch first {
+                case .paragraph(let a): result = renderInline(a)
+                case .image(let alt, let url, let w, let h):
+                    result = imageTag(alt: alt, url: url, w: w, h: h,
+                                      images: images)
+                default: result = esc(raw)
+            }
         }
-        return renderInline(attr)
+        return result
     }
 
     private static func renderImage(alt: String, url: URL,
                                       w: CGFloat?, h: CGFloat?,
+                                 images: [URL: Data]) -> String {
+        var result = ""
+        if images[url] != nil {
+            result = "<p>" + imageTag(alt: alt, url: url, w: w, h: h,
+                                      images: images) + "</p>\n"
+        } else {
+            result = "<p style=\"\(imagePlaceholderStyle)\">" +
+                     imageTag(alt: alt, url: url, w: w, h: h,
+                              images: images) + "</p>\n"
+        }
+        return result
+    }
+
+    private static func imageTag(alt: String, url: URL,
+                                 w: CGFloat?, h: CGFloat?,
                                  images: [URL: Data]) -> String {
         var style = "max-width:100%;"
         if let w { style += "width:\(Int(w))px;" }
         if let h { style += "height:\(Int(h))px;" }
         var result = ""
         if let data = images[url] {
-            let src = dataURI(data)
-            result = "<p><img alt=\"\(escAttr(alt))\" " +
-                     "src=\"\(src)\" style=\"\(style)\"></p>\n"
+            result = "<img alt=\"\(escAttr(alt))\" " +
+                     "src=\"\(dataURI(data))\" style=\"\(style)\">"
         } else {
             let label = alt.isEmpty ? url.absoluteString : alt
-            result = "<p style=\"\(imagePlaceholderStyle)\">" +
-                     "[\(esc(label))]</p>\n"
+            result = "[\(esc(label))]"
         }
         return result
     }

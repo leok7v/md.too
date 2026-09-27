@@ -43,6 +43,15 @@ A numbered list is the same idea wearing shoes. A small recipe, say:
    and the step still reads as one thought.
 3. Close the file. That was the whole recipe.
 
+A long number keeps its text in line with the rest, and an item can open
+with a block of its own:
+
+99. Ninety-nine, one line.
+100. The hundredth lines up with it.
+101. ```sh
+     echo "an item that starts with code"
+     ```
+
 ## Lines that *must not* reflow, and a `code` word in a heading
 
 A verse is the one place a writer means every line end. Two trailing
@@ -81,6 +90,8 @@ $$i\hbar\,\frac{\partial}{\partial t}\Psi(\mathbf{r}, t) = \hat{H}\,\Psi(\mathbf
 ## Math, the small kind
 
 Two engines, split by which delimiter you used, and you never pick.
+
+Prices stay prices: the coffee was $4 and the cake $6.
 
 Inline maths is typeset in the line, at the size of the words around it: $\alpha + \beta = \gamma$, the right triangle staple $x^2 + y^2 = z^2$, Gauss's schoolboy trick $\sum_{i=1}^{n} i$ (he was nine, allegedly), and $x \in \mathbb{R}$. It works in a heading, $e^{i\pi} + 1 = 0$ included, and in a table cell; a copy gives back the TeX it was written from.
 
@@ -129,6 +140,14 @@ $$\Gamma \Delta \Theta \Lambda \Xi \Pi \Sigma \Phi \Psi \Omega$$
 Decorations, the kind a lecture note reaches for: braces with a label, a box around the result, a struck-out term, an arrow that stretches over its label, a symbol negated, and ink in a colour of the author's choosing.
 
 $$\overbrace{a + b + c}^{\text{three terms}} \quad \underbrace{x_1 x_2 \cdots x_k}_{k} \quad \boxed{E = mc^2} \quad \cancel{2x} + \underline{y} \quad A \xrightarrow{\ f\ } B \quad a \overset{?}{=} b \not= c \quad \textcolor{#d81b60}{\text{rose}} + \color{teal}\text{teal}$$
+
+The stretchy ones grow as long as their content, and an operator name takes its limits below:
+
+$$\overbrace{a_1 + a_2 + a_3 + a_4 + a_5 + a_6 + a_7 + a_8}^{\text{eight terms}} \qquad X \xrightarrow[\text{a label longer than the arrow}]{\ f\ } Y$$
+
+$$\hat\theta = \operatorname*{arg\,max}_{\theta} L(\theta)$$
+
+Logic and modular arithmetic read the way they are written: $P \iff Q$, $a \equiv b \pmod{n}$, $a \bmod b$.
 
 Operators and a corner of set theory: $\le \ge \neq \approx \pm \times \cdot \div \to \Rightarrow$, $\forall x \in \mathbb{N}, \exists y \in \mathbb{Z}$, $A \cap B$, $A \cup B$, $\varnothing$.
 
@@ -461,6 +480,15 @@ no language => no highlighting, just the monospace font
 the [copy] button still works
 ```
 
+A fence of four backticks holds a whole Markdown sample, its own fence
+included:
+
+````markdown
+```swift
+print("a fence inside a fence")
+```
+````
+
 An indented code block (four spaces) renders the same way:
 
     int x = 0;
@@ -470,7 +498,11 @@ An indented code block (four spaces) renders the same way:
 
 ## A quick combined block
 
-Just to confirm everything composes:
+Just to confirm everything composes, starting with a heading underlined
+instead of hashed:
+
+An underlined heading
+---------------------
 
 > A blockquote with a [link](https://example.com), some `inline code`, and even a math fragment $\pi \approx 3.14159$ on one line.
 

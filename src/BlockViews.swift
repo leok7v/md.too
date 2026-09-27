@@ -51,7 +51,7 @@ private struct ImageBlockView: View {
     let width: CGFloat?
     let height: CGFloat?
     @Environment(\.prefetchedImages) private var prefetched
-    @State private var image: Image?
+    @State private var image: SizedImage?
     @State private var failed = false
 
     var body: some View {
@@ -74,8 +74,8 @@ private struct ImageBlockView: View {
     }
 
     @ViewBuilder
-    private func sized(_ image: Image) -> some View {
-        let scaled = image.resizable().scaledToFit()
+    private func sized(_ sized: SizedImage) -> some View {
+        let scaled = sized.image.resizable().scaledToFit()
         if let w = width, let h = height {
             scaled.frame(width: w, height: h, alignment: .leading)
         } else if let w = width {
@@ -83,7 +83,8 @@ private struct ImageBlockView: View {
         } else if let h = height {
             scaled.frame(maxHeight: h, alignment: .leading)
         } else {
-            scaled.frame(maxWidth: 320, alignment: .leading)
+            scaled.frame(maxWidth: min(320, sized.size.width),
+                         alignment: .leading)
         }
     }
 
@@ -423,6 +424,18 @@ private struct TableBlock: View {
 
 final class TableMeasure {
 
+    static func shown(_ cell: String) -> String {
+        var result = TeX.scriptsToUnicode(cell)
+        if let first = Markdown.parseCell(cell).first {
+            switch first {
+                case .paragraph(let attr): result = String(attr.characters)
+                case .image: result = ""
+                default: result = TeX.scriptsToUnicode(cell)
+            }
+        }
+        return result
+    }
+
     struct Measured {
         let headers: [String]
         let rows: [[String]]
@@ -469,12 +482,12 @@ final class TableMeasure {
             var natural: CGFloat = 0
             var minimum: CGFloat = 0
             if c < h.count {
-                let visible = TeX.scriptsToUnicode(h[c])
+                let visible = shown(h[c])
                 natural = TableMetrics.naturalWidth(visible, font: bold)
                 minimum = TableMetrics.minimumWidth(visible, font: bold)
             }
             for row in r where c < row.count {
-                let visible = TeX.scriptsToUnicode(row[c])
+                let visible = shown(row[c])
                 let s = TableMetrics.naturalWidth(visible, font: body)
                 let w = TableMetrics.minimumWidth(visible, font: body)
                 if s > natural { natural = s }

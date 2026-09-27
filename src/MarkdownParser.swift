@@ -59,16 +59,56 @@ struct ListItem: Equatable, Sendable {
 enum Markdown {
 
     @TaskLocal private static var currentRefs: [String: URL] = [:]
+    @TaskLocal private static var nesting = 0
+    static let maxNesting = 32
 
     static func parse(_ source: String) -> [Block] {
         let raw = source
             .replacingOccurrences(of: "\r\n", with: "\n")
+            .replacingOccurrences(of: "\r", with: "\n")
             .split(separator: "\n", omittingEmptySubsequences: false)
             .map(String.init)
-        let (lines, refs) = stripLinkDefinitions(raw)
+        let (lines, refs) = stripLinkDefinitions(frontMatterAsCode(raw))
         return Markdown.$currentRefs.withValue(refs) {
             parseBlocks(lines)
         }
+    }
+
+    static func frontMatterAsCode(_ lines: [String]) -> [String] {
+        var result = lines
+        if lines.first?.trimmedOuter() == "---",
+           let end = lines.dropFirst().prefix(64).firstIndex(where: { l in
+               l.trimmedOuter() == "---" || l.trimmedOuter() == "..."
+           }),
+           lines[1..<end].allSatisfy({ l in
+               l.trimmedOuter().isEmpty || l.hasPrefix(" ") ||
+               l.hasPrefix("-") || l.hasPrefix("#") || l.contains(":")
+           }), end > 1 {
+            result = ["```yaml"] + lines[1..<end] + ["```"] +
+                     lines[(end + 1)...]
+        }
+        return result
+    }
+
+    static func text(from data: Data) -> String? {
+        var result = String(data: data, encoding: .utf8)
+        if result == nil {
+            var converted: NSString? = nil
+            var lossy: ObjCBool = false
+            let found = NSString.stringEncoding(
+                for: data,
+                encodingOptions: [.allowLossyKey: false],
+                convertedString: &converted, usedLossyConversion: &lossy)
+            if found != 0, let converted { result = converted as String }
+        }
+        if result == nil {
+            result = String(data: data, encoding: .windowsCP1252)
+        }
+        return result
+    }
+
+    static func text(contentsOf url: URL) -> String? {
+        (try? Data(contentsOf: url)).flatMap { data in text(from: data) }
     }
 
     private static let cellLock = NSLock()
@@ -96,14 +136,30 @@ enum Markdown {
     }
 
     private static func parseBlocks(_ lines: [String]) -> [Block] {
+        let result: [Block]
+        if nesting >= maxNesting {
+            let raw = lines.joined(separator: "\n").trimmedOuter()
+            result = raw.isEmpty ? [] : [.paragraph(AttributedString(raw))]
+        } else {
+            result = Markdown.$nesting.withValue(nesting + 1) {
+                parseBlockLines(lines)
+            }
+        }
+        return result
+    }
+
+    private static func parseBlockLines(_ source: [String]) -> [Block] {
+        var lines = source
         var blocks: [Block] = []
         var i = 0
         while i < lines.count {
             let line = lines[i]
-            if isFence(line) {
+            if isIndentedCode(line) {
+                blocks.append(consumeIndentedCode(lines, &i))
+            } else if isFence(line) {
                 blocks.append(consumeFenced(lines, &i))
             } else if isMathFence(line) {
-                blocks.append(consumeMath(lines, &i))
+                blocks.append(consumeMath(&lines, &i))
             } else if isHeading(line) {
                 blocks.append(consumeHeading(lines, &i))
             } else if isHR(line) {
@@ -115,12 +171,10 @@ enum Markdown {
                 blocks.append(consumeTable(lines, &i))
             } else if isListStart(line) {
                 blocks.append(consumeList(lines, &i))
-            } else if isIndentedCode(line) {
-                blocks.append(consumeIndentedCode(lines, &i))
             } else if line.trimmedOuter().isEmpty {
                 i += 1
             } else if isCommentStart(line) {
-                skipComment(lines, &i)
+                skipComment(&lines, &i)
             } else if let img = imageBlock(line) {
                 blocks.append(img)
                 i += 1
@@ -139,16 +193,13 @@ enum Markdown {
         -> (lines: [String], refs: [String: URL]) {
         var refs: [String: URL] = [:]
         var out: [String] = []
-        var inFence = false
-        var fenceMarker = ""
+        var fence: (mark: Character, n: Int)? = nil
         for line in raw {
-            let trimmed = line.trimmedLeading()
-            if inFence {
-                if trimmed.hasPrefix(fenceMarker) { inFence = false }
+            if let open = fence {
+                if closesFence(line, open) { fence = nil }
                 out.append(line)
-            } else if trimmed.hasPrefix("```") || trimmed.hasPrefix("~~~") {
-                inFence = true
-                fenceMarker = String(trimmed.prefix(3))
+            } else if let run = fenceRun(line), leadingSpaces(line) < 4 {
+                fence = run
                 out.append(line)
             } else if let parsed = parseLinkDefinition(line) {
                 refs[parsed.label] = parsed.url
@@ -163,24 +214,38 @@ enum Markdown {
                                             -> (label: String, url: URL)? {
         var result: (String, URL)? = nil
         let t = line.trimmedLeading()
-        if t.hasPrefix("[") {
+        if t.hasPrefix("["), leadingSpaces(line) < 4 {
             let rest = t.dropFirst()
             if let close = rest.firstIndex(of: "]") {
                 let label = String(rest[..<close]).trimmedOuter()
                 let after = rest[rest.index(after: close)...]
-                if !label.isEmpty, after.hasPrefix(":") {
+                if !label.isEmpty, !label.hasPrefix("^"),
+                   after.hasPrefix(":") {
                     var rhs = String(after.dropFirst()).trimmedOuter()
+                    var title = ""
                     if let space = rhs.firstIndex(of: " ") {
+                        title = String(rhs[space...]).trimmedOuter()
                         rhs = String(rhs[..<space])
                     }
                     if rhs.hasPrefix("<"), rhs.hasSuffix(">") {
                         rhs = String(rhs.dropFirst().dropLast())
                     }
-                    if let url = URL(string: rhs) {
+                    if !rhs.isEmpty, isLinkTitle(title),
+                       let url = URL(string: rhs) {
                         result = (refKey(label), url)
                     }
                 }
             }
+        }
+        return result
+    }
+
+    private static func isLinkTitle(_ s: String) -> Bool {
+        var result = s.isEmpty
+        if let open = s.first, let close = s.last, s.count >= 2 {
+            result = (open == "\"" && close == "\"") ||
+                     (open == "'" && close == "'") ||
+                     (open == "(" && close == ")")
         }
         return result
     }
@@ -253,11 +318,22 @@ enum Markdown {
     // A comment that opens a line is dropped through its close, however
     // many lines that takes; what follows the close on that line stays.
 
-    private static func skipComment(_ lines: [String], _ i: inout Int) {
+    private static func skipComment(_ lines: inout [String],
+                                    _ i: inout Int) {
         var closed = false
         while i < lines.count, !closed {
-            if lines[i].contains("-->") { closed = true }
-            i += 1
+            if let end = lines[i].range(of: "-->") {
+                let tail = String(lines[i][end.upperBound...])
+                    .trimmedLeading()
+                closed = true
+                if tail.trimmedOuter().isEmpty {
+                    i += 1
+                } else {
+                    lines[i] = tail
+                }
+            } else {
+                i += 1
+            }
         }
     }
 
@@ -366,9 +442,6 @@ enum Markdown {
         pattern: #"^\s*<(?:(?:div|p)\s+align\s*=\s*"?center"?|center)\s*>"#,
         options: .caseInsensitive)
 
-    private static let centerCloseRE = try? NSRegularExpression(
-        pattern: #"</(?:div|p|center)\s*>\s*$"#, options: .caseInsensitive)
-
     private static func centerOpener(_ line: String) -> NSRange? {
         var result: NSRange? = nil
         if line.contains("<"), let re = centerOpenRE {
@@ -380,9 +453,23 @@ enum Markdown {
         return result
     }
 
-    private static func centerCloser(_ line: String) -> NSRange? {
+    private static func centerTag(_ opener: String) -> String {
+        let lower = opener.lowercased()
+        return lower.contains("<center") ? "center"
+             : lower.contains("<div") ? "div" : "p"
+    }
+
+    private static let centerClosers: [String: NSRegularExpression] =
+        ["center", "div", "p"].reduce(into: [:]) { map, tag in
+            map[tag] = try? NSRegularExpression(
+                pattern: "</" + tag + #"\s*>\s*$"#,
+                options: .caseInsensitive)
+        }
+
+    private static func centerCloser(_ line: String,
+                                     tag: String) -> NSRange? {
         var result: NSRange? = nil
-        if line.contains("</"), let re = centerCloseRE {
+        if line.contains("</"), let re = centerClosers[tag] {
             let ns = line as NSString
             result = re.firstMatch(
                 in: line, range: NSRange(location: 0, length: ns.length))?
@@ -399,12 +486,14 @@ enum Markdown {
         var inner: [String] = []
         var closed = false
         var first = lines[i]
+        var tag = "div"
         if let open = centerOpener(first) {
+            tag = centerTag((first as NSString).substring(with: open))
             first = (first as NSString).replacingCharacters(in: open, with: "")
         }
         var line = first
         while i < lines.count, !closed {
-            if let close = centerCloser(line) {
+            if let close = centerCloser(line, tag: tag) {
                 line = (line as NSString).replacingCharacters(in: close,
                                                               with: "")
                 closed = true
@@ -447,14 +536,14 @@ enum Markdown {
                                        _ i: inout Int) -> [Block] {
         var inner: [String] = []
         var title = ""
-        var closed = false
-        while i < lines.count, !closed {
-            var line = lines[i]
-            if let r = line.range(of: "<details", options: .caseInsensitive),
-               let end = line[r.lowerBound...].firstIndex(of: ">") {
-                line = String(line[line.index(after: end)...])
-            }
-            if let re = summaryRE {
+        var line = lines[i]
+        if let r = line.range(of: "<details", options: .caseInsensitive),
+           let end = line[r.lowerBound...].firstIndex(of: ">") {
+            line = String(line[line.index(after: end)...])
+        }
+        var depth = 1
+        while depth > 0, i < lines.count {
+            if depth == 1, title.isEmpty, let re = summaryRE {
                 let ns = line as NSString
                 let full = NSRange(location: 0, length: ns.length)
                 if let m = re.firstMatch(in: line, range: full) {
@@ -462,14 +551,22 @@ enum Markdown {
                     line = ns.replacingCharacters(in: m.range, with: "")
                 }
             }
-            if let r = line.range(of: "</details>", options: .caseInsensitive) {
-                line = String(line[..<r.lowerBound])
-                closed = true
+            depth += line.lowercased().components(separatedBy: "<details")
+                .count - 1
+            var from = line.startIndex
+            while depth > 0,
+                  let r = line.range(of: "</details>",
+                                     options: .caseInsensitive,
+                                     range: from..<line.endIndex) {
+                depth -= 1
+                from = depth == 0 ? r.lowerBound : r.upperBound
             }
+            if depth == 0 { line = String(line[..<from]) }
             if !line.trimmedOuter().isEmpty || !inner.isEmpty {
                 inner.append(line)
             }
             i += 1
+            if depth > 0, i < lines.count { line = lines[i] }
         }
         var out: [Block] = []
         if !title.trimmedOuter().isEmpty {
@@ -495,7 +592,14 @@ enum Markdown {
                                        _ i: inout Int) -> Block {
         let t = lines[i].trimmedOuter()
         let n = t.prefix { c in c == "#" }.count
-        let body = String(t.dropFirst(n)).trimmedOuter()
+        var body = String(t.dropFirst(n)).trimmedOuter()
+        let closing = body.reversed().prefix { c in c == "#" }.count
+        if closing == body.count {
+            body = ""
+        } else if closing > 0,
+                  body.dropLast(closing).last?.isWhitespace == true {
+            body = String(body.dropLast(closing)).trimmedOuter()
+        }
         i += 1
         return .heading(level: n, text: inline(body))
     }
@@ -510,16 +614,35 @@ enum Markdown {
     }
 
     private static func isFence(_ s: String) -> Bool {
+        fenceRun(s) != nil
+    }
+
+    private static func fenceRun(_ s: String) -> (mark: Character, n: Int)? {
+        var result: (Character, Int)? = nil
         let t = s.trimmedLeading()
-        return t.hasPrefix("```") || t.hasPrefix("~~~")
+        if let c = t.first, c == "`" || c == "~" {
+            let n = t.prefix { ch in ch == c }.count
+            if n >= 3 { result = (c, n) }
+        }
+        return result
+    }
+
+    private static func closesFence(_ s: String,
+                                    _ open: (mark: Character, n: Int))
+        -> Bool {
+        var result = false
+        if let run = fenceRun(s), run.mark == open.mark, run.n >= open.n {
+            result = s.trimmedOuter().allSatisfy { ch in ch == open.mark }
+        }
+        return result
     }
 
     private static func consumeFenced(_ lines: [String],
                                       _ i: inout Int) -> Block {
         let raw = lines[i]
         let t = raw.trimmedLeading()
-        let fence = String(t.prefix(3))
-        let lang = String(t.dropFirst(3)).trimmedOuter()
+        let open = fenceRun(raw) ?? ("`", 3)
+        let lang = String(t.dropFirst(open.n)).trimmedOuter()
         let indent = raw.count - t.count
         let pad = String(repeating: " ", count: indent)
         i += 1
@@ -527,8 +650,7 @@ enum Markdown {
         var done = false
         while i < lines.count, !done {
             let line = lines[i]
-            let trimmed = line.trimmedLeading()
-            if trimmed.hasPrefix(fence) {
+            if closesFence(line, open) {
                 done = true
             } else if indent > 0, line.hasPrefix(pad) {
                 body.append(String(line.dropFirst(indent)))
@@ -551,27 +673,31 @@ enum Markdown {
     // Accepts $$ ... $$ whole on one line, or opened alone with the
     // formula below; an unterminated display runs to the document's end.
 
-    private static func consumeMath(_ lines: [String],
+    private static func consumeMath(_ lines: inout [String],
                                     _ i: inout Int) -> Block {
         var body: [String] = []
-        var rest = String(lines[i].trimmedOuter().dropFirst(2))
+        var line = String(lines[i].trimmedOuter().dropFirst(2))
         var closed = false
-        if let end = rest.range(of: "$$", options: .backwards) {
-            rest = String(rest[..<end.lowerBound])
-            closed = true
-        }
-        if !rest.trimmedOuter().isEmpty { body.append(rest) }
-        i += 1
-        while i < lines.count, !closed {
-            let t = lines[i].trimmedOuter()
-            if let end = t.range(of: "$$") {
-                let head = String(t[..<end.lowerBound])
+        var reading = true
+        while reading {
+            if let end = line.range(of: "$$") {
+                let head = String(line[..<end.lowerBound])
+                let tail = String(line[end.upperBound...]).trimmedLeading()
                 if !head.trimmedOuter().isEmpty { body.append(head) }
                 closed = true
+                if tail.trimmedOuter().allSatisfy({ ch in ch == "$" }) {
+                    i += 1
+                } else {
+                    lines[i] = tail
+                }
             } else {
-                body.append(lines[i])
+                if !line.trimmedOuter().isEmpty || !body.isEmpty {
+                    body.append(line)
+                }
+                i += 1
             }
-            i += 1
+            reading = !closed && i < lines.count
+            if reading { line = lines[i] }
         }
         return .math(body.joined(separator: "\n").trimmedOuter())
     }
@@ -639,6 +765,14 @@ enum Markdown {
 
     private static func isListStart(_ s: String) -> Bool {
         listMarker(s) != nil
+    }
+
+    private static func listInterrupts(_ s: String) -> Bool {
+        var result = false
+        if let m = listMarker(s), !m.rest.trimmedOuter().isEmpty {
+            result = m.label == "\u{2022}" || m.label == "1."
+        }
+        return result
     }
 
     private static func listMarker(_ line: String)
@@ -795,7 +929,8 @@ enum Markdown {
 
     private static func isLazyContinuation(_ line: String) -> Bool {
         !(isHeading(line) || isHR(line) || isFence(line) ||
-          isMathFence(line) || isQuoteStart(line) || isListStart(line))
+          isMathFence(line) || isQuoteStart(line) || isListStart(line) ||
+          setextLevel(line) > 0)
     }
 
     private static func leadingSpaces(_ s: String) -> Int {
@@ -890,7 +1025,22 @@ enum Markdown {
             rows.append(parseRow(lines[i]))
             i += 1
         }
-        return .table(headers: headers, rows: rows, alignments: alignments)
+        return .table(headers: headers.map { c in cellWithRefs(c) },
+                      rows: rows.map { r in r.map { c in cellWithRefs(c) } },
+                      alignments: alignments)
+    }
+
+    private static func cellWithRefs(_ cell: String) -> String {
+        var out = ""
+        if Markdown.currentRefs.isEmpty {
+            out = cell
+        } else {
+            for segment in codeSpanSegments(cell) {
+                out += segment.code ? segment.text
+                                    : substituteRefs(segment.text)
+            }
+        }
+        return out
     }
 
     // A pipe escaped as \| is a character of its cell; one leading and
@@ -1014,17 +1164,23 @@ enum Markdown {
     private static func consumeParagraph(_ lines: [String],
                                          _ i: inout Int) -> Block {
         var body: [String] = []
+        var level = 0
         var done = false
         while i < lines.count, !done {
             let line = lines[i]
+            level = body.isEmpty ? 0 : setextLevel(line)
             let blank = line.trimmedOuter().isEmpty
-            let other = isHeading(line) || isHR(line) || isFence(line) ||
-                        isMathFence(line) ||
-                        isTableStart(lines, i) || isQuoteStart(line) ||
-                        isListStart(line) || imageBlock(line) != nil ||
-                        centerOpener(line) != nil ||
-                        isDetailsStart(line) || isCommentStart(line)
-            if blank || other {
+            let other = leadingSpaces(line) < 4 &&
+                        (isHeading(line) || isHR(line) || isFence(line) ||
+                         isMathFence(line) ||
+                         isTableStart(lines, i) || isQuoteStart(line) ||
+                         listInterrupts(line) || imageBlock(line) != nil ||
+                         centerOpener(line) != nil ||
+                         isDetailsStart(line) || isCommentStart(line))
+            if level > 0 {
+                i += 1
+                done = true
+            } else if blank || other {
                 done = true
             } else {
                 body.append(line.trimmedLeading())
@@ -1032,7 +1188,19 @@ enum Markdown {
             }
         }
         let raw = body.joined(separator: "\n")
-        return bareMath(raw) ?? .paragraph(inline(raw))
+        return level > 0
+            ? .heading(level: level, text: inline(raw.trimmedOuter()))
+            : bareMath(raw) ?? .paragraph(inline(raw))
+    }
+
+    private static func setextLevel(_ line: String) -> Int {
+        var result = 0
+        let t = line.trimmedOuter()
+        if leadingSpaces(line) < 4, let c = t.first, c == "=" || c == "-",
+           t.allSatisfy({ ch in ch == c }) {
+            result = c == "=" ? 1 : 2
+        }
+        return result
     }
 
     // The paragraph must OPEN with a control word and parse completely,
@@ -1098,8 +1266,9 @@ enum Markdown {
             if segment.code {
                 stitched += segment.text
             } else {
-                let withRefs = substituteRefs(htmlInline(segment.text))
-                for piece in TeX.split(withRefs) {
+                let literal = escapedAngles(segment.text)
+                let withRefs = substituteRefs(htmlInline(literal))
+                for piece in mathsOutsideLinks(withRefs) {
                     switch piece {
                         case .text(let s): stitched += s
                         case .math:
@@ -1124,6 +1293,54 @@ enum Markdown {
         applyTag(&out, "sup") { sub in sub[ScriptAttribute.self] = 1 }
         applyTag(&out, "sub") { sub in sub[ScriptAttribute.self] = -1 }
         applyTag(&out, "small") { sub in sub[SmallAttribute.self] = true }
+        restoreAngles(&out)
+        return out
+    }
+
+    private static let angle = Unicode.Scalar(0x10FFFD) ?? "<"
+
+    private static func escapedAngles(_ s: String) -> String {
+        var result = s
+        if s.contains("<") || s.contains("&") {
+            let mark = String(angle)
+            result = s.replacingOccurrences(
+                    of: #"(?<!\\)((?:\\\\)*)\\<"#, with: "$1" + mark,
+                    options: .regularExpression)
+                .replacingOccurrences(of: "&lt;", with: mark,
+                                      options: .caseInsensitive)
+        }
+        return result
+    }
+
+    private static func restoreAngles(_ a: inout AttributedString) {
+        let mark = String(angle)
+        if a.characters.contains(Character(angle)) {
+            var rebuilt = AttributedString()
+            for run in a.runs {
+                let text = String(a[run.range].characters)
+                    .replacingOccurrences(of: mark, with: "<")
+                rebuilt.append(AttributedString(text,
+                                                attributes: run.attributes))
+            }
+            a = rebuilt
+        }
+    }
+
+    private static let linkTarget = try? NSRegularExpression(
+        pattern: #"\]\([^)\s]*"#)
+
+    private static func mathsOutsideLinks(_ s: String) -> [TeX.Segment] {
+        var out: [TeX.Segment] = []
+        let ns = s as NSString
+        var last = 0
+        let full = NSRange(location: 0, length: ns.length)
+        for m in linkTarget?.matches(in: s, range: full) ?? [] {
+            out += TeX.split(ns.substring(with: NSRange(
+                location: last, length: m.range.location - last)))
+            out.append(.text(ns.substring(with: m.range)))
+            last = NSMaxRange(m.range)
+        }
+        out += TeX.split(ns.substring(from: last))
         return out
     }
 
@@ -1156,12 +1373,17 @@ enum Markdown {
         var out: [String] = []
         for (idx, line) in lines.enumerated() {
             let last = idx == lines.count - 1
-            let hardBreak = line.hasSuffix("  ")
-            let trimmed = hardBreak ? String(line.dropLast(2)) : line
+            let slashes = line.reversed().prefix { ch in ch == "\\" }.count
+            let spaced = line.hasSuffix("  ")
+            let hardBreak = (spaced || slashes % 2 == 1) && !last
+            let trimmed = hardBreak ? String(line.dropLast(spaced ? 2 : 1))
+                                    : line
             if hardBreak {
                 out.append(trimmed + "\u{2028}")
             } else if last {
-                out.append(trimmed)
+                var tail = trimmed
+                while tail.hasSuffix(" ") { tail.removeLast() }
+                out.append(tail)
             } else {
                 out.append(trimmed + " ")
             }
@@ -1237,11 +1459,15 @@ enum Markdown {
                     of: close, options: .caseInsensitive) {
                     var sub = a[o.upperBound..<c.lowerBound]
                     style(&sub)
+                    let at = a.characters.distance(from: a.startIndex,
+                                                   to: o.lowerBound)
                     a.replaceSubrange(o.lowerBound..<c.upperBound, with: sub)
-                    from = a.startIndex
+                    from = a.characters.index(a.startIndex, offsetBy: at)
                 } else {
+                    let at = a.characters.distance(from: a.startIndex,
+                                                   to: o.lowerBound)
                     a.removeSubrange(o)
-                    from = a.startIndex
+                    from = a.characters.index(a.startIndex, offsetBy: at)
                 }
             } else {
                 searching = false

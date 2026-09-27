@@ -1,11 +1,16 @@
 import SwiftUI
 
+struct SizedImage {
+    let image: Image
+    let size: CGSize
+}
+
 struct PrefetchedImagesKey: EnvironmentKey {
-    static let defaultValue: [URL: Image] = [:]
+    static let defaultValue: [URL: SizedImage] = [:]
 }
 
 extension EnvironmentValues {
-    var prefetchedImages: [URL: Image] {
+    var prefetchedImages: [URL: SizedImage] {
         get { self[PrefetchedImagesKey.self] }
         set { self[PrefetchedImagesKey.self] = newValue }
     }

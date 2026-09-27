@@ -17,6 +17,13 @@ enum TempPDFs {
             at: dir, withIntermediateDirectories: true)
     }
 
+    @MainActor private static var issued = 0
+
+    @MainActor static func nextTag() -> Int {
+        issued += 1
+        return issued
+    }
+
     static func name(_ title: String, tag: Int, suffix: String) -> String {
         let safe = title
             .replacingOccurrences(of: "/", with: "_")

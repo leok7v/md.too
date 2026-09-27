@@ -59,6 +59,7 @@ final class MarkdownFindController: ObservableObject {
             currentMatch = 0
         } else if cursor >= matchCount {
             cursor = matchCount - 1
+            currentMatch = cursor + 1
         }
     }
 
@@ -68,6 +69,7 @@ final class MarkdownFindController: ObservableObject {
             cursor = ((cursor + (forward ? 1 : -1)) % matchCount
                       + matchCount) % matchCount
             view.setActive(cursor)
+            if !view.activeMatchOnScreen() { view.revealActiveMatch() }
             if !view.activeMatchOnScreen(),
                let fraction = view.activeMatchFraction() {
                 scrollTo?(fraction)
@@ -90,6 +92,7 @@ protocol FindableTextView: AnyObject {
     var liveFindCount: Int { get }
     func activeMatchFraction() -> CGFloat?
     func activeMatchOnScreen() -> Bool
+    func revealActiveMatch()
 }
 
 // Guards a non-advancing match so an empty query terminates.

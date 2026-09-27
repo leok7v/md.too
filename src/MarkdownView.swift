@@ -82,7 +82,7 @@ struct MarkdownView: View {
         let measure = columned ? style.columnWidth : fits
         let width = max(measure, need)
         let lead = columned ? ((fits - measure) / 2).rounded() : 0
-        let column: DocumentText.Column? = columned && width > measure
+        let column: DocumentText.Column? = width > measure
             ? DocumentText.Column(inset: 0, width: measure, surface: width)
             : nil
         let urls = ImagePrefetch.collectURLs(in: blocks)

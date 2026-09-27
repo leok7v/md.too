@@ -66,6 +66,7 @@ enum TeX {
     }
 
     static func split(_ s: String) -> [Segment] {
+        let closers = s.contains("$") ? inlineClosers(s) : []
         var out: [Segment] = []
         var buf = ""
         var i = s.startIndex
@@ -87,13 +88,12 @@ enum TeX {
                                     limitedBy: s.endIndex) {
                     isDisplay = nx < s.endIndex && s[nx] == "$"
                 }
-                let endMarker = isDisplay ? "$$" : "$"
                 let off = isDisplay ? 2 : 1
                 let searchStart = s.index(i, offsetBy: off)
-                if searchStart <= s.endIndex,
-                   let endRange = s.range(
-                    of: endMarker,
-                    range: searchStart..<s.endIndex) {
+                let endRange = isDisplay
+                    ? s.range(of: "$$", range: searchStart..<s.endIndex)
+                    : inlineClose(s, from: searchStart, closers)
+                if let endRange {
                     if !buf.isEmpty {
                         out.append(.text(buf))
                         buf.removeAll()
@@ -113,6 +113,41 @@ enum TeX {
         return out
     }
 
+    private static func inlineClosers(_ s: String) -> [String.Index] {
+        var out: [String.Index] = []
+        var i = s.startIndex
+        var before: Character = " "
+        while i < s.endIndex {
+            let c = s[i]
+            let next = s.index(after: i)
+            let digit = next < s.endIndex && s[next].isNumber
+            if c == "$", !before.isWhitespace, before != "\\", !digit {
+                out.append(i)
+            }
+            before = c
+            i = next
+        }
+        return out
+    }
+
+    private static func inlineClose(_ s: String, from start: String.Index,
+                                    _ closers: [String.Index])
+        -> Range<String.Index>? {
+        var result: Range<String.Index>? = nil
+        if start < s.endIndex, !s[start].isWhitespace, s[start] != "$" {
+            var lo = 0
+            var hi = closers.count
+            while lo < hi {
+                let mid = (lo + hi) / 2
+                if closers[mid] > start { hi = mid } else { lo = mid + 1 }
+            }
+            if lo < closers.count {
+                result = closers[lo]..<s.index(after: closers[lo])
+            }
+        }
+        return result
+    }
+
     static func render(_ src: String, display: Bool) -> AttributedString {
         let rendered = renderToString(src)
         var a = AttributedString(rendered)
@@ -122,24 +157,49 @@ enum TeX {
 
     private static func renderToString(_ src: String) -> String {
         var s = expandText(src)
+        for (pattern, template) in spelledOut {
+            s = s.replacingOccurrences(of: pattern, with: template,
+                                       options: .regularExpression)
+        }
         s = expandFractions(s)
         s = expandScript(s, prefix: "^", map: superscriptMap)
         s = expandScript(s, prefix: "_", map: subscriptMap)
         s = replaceTokens(s)
+        s = s.replacingOccurrences(of: #"\\[A-Za-z]+\s*"#, with: "",
+                                   options: .regularExpression)
+        s = s.replacingOccurrences(of: #"\\([^A-Za-z\n])"#, with: "$1",
+                                   options: .regularExpression)
         s = s.replacingOccurrences(of: "{", with: "")
              .replacingOccurrences(of: "}", with: "")
         return s.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
+    private static let textCommand = try? NSRegularExpression(
+        pattern: #"\\(?:text(?!color)[a-z]*|mbox)\s*\{([^{}]*)\}"#)
+
+    private static let spelledOut: [(String, String)] = [
+        (#"\\(?:begin|end)\s*\{[^{}]*\}"#, ""),
+        (#"\\[dt]frac(?![A-Za-z])"#, "\\\\frac"),
+        (#"\\q?quad(?![A-Za-z])"#, "  "),
+        (#"\\over(?![A-Za-z])"#, "\u{2044}"),
+        (#"(?<!\\)&"#, " "),
+        (#"\\operatorname\*?\s*\{([^{}]*)\}"#, "$1"),
+        (#"\\xrightarrow\s*(?:\[[^\]]*\])?"#, "\u{2192}"),
+        (#"\\xleftarrow\s*(?:\[[^\]]*\])?"#, "\u{2190}"),
+        (#"\\(?:text)?color\s*\{[^{}]*\}"#, ""),
+        (#"\\not\s*="#, "\u{2260}"),
+        (#"\\("# + Symbols.namedOps.keys
+            .map { name in String(name.dropFirst()) }
+            .sorted { a, b in a.count > b.count }
+            .joined(separator: "|") + #")(?![A-Za-z])"#, "$1"),
+    ]
+
     private static func expandText(_ s: String) -> String {
         var out = s
-        let pattern = #"\\text\s*\{([^{}]*)\}"#
-        while let r = out.range(of: pattern, options: .regularExpression) {
-            let replaced = out[r].replacingOccurrences(
-                of: #"^\\text\s*\{([^{}]*)\}$"#,
-                with: "{$1}",
-                options: .regularExpression)
-            out.replaceSubrange(r, with: replaced)
+        if let re = textCommand {
+            let full = NSRange(location: 0, length: (s as NSString).length)
+            out = re.stringByReplacingMatches(in: s, range: full,
+                                              withTemplate: "{$1}")
         }
         return out
     }
@@ -231,6 +291,11 @@ enum TeX {
                         i = s.index(after: close)
                         consumed = true
                     }
+                } else if after == "\\" {
+                    let word = controlWord(s, from: next)
+                    out.append(mapScript(String(s[next..<word]), map: map))
+                    i = word
+                    consumed = true
                 } else {
                     out.append(mapScript(String(after), map: map))
                     i = s.index(after: next)
@@ -243,6 +308,19 @@ enum TeX {
             }
         }
         return out
+    }
+
+    private static func controlWord(_ s: String,
+                                    from start: String.Index) -> String.Index {
+        var end = s.index(after: start)
+        if end < s.endIndex, s[end].isLetter {
+            while end < s.endIndex, s[end].isLetter {
+                end = s.index(after: end)
+            }
+        } else if end < s.endIndex {
+            end = s.index(after: end)
+        }
+        return end
     }
 
     private static func mapScript(_ s: String,
@@ -390,6 +468,9 @@ enum TeX {
         "\\hbar": "ℏ", "\\ell": "ℓ", "\\Re": "ℜ", "\\Im": "ℑ",
         "\\mathbb{R}": "ℝ", "\\mathbb{N}": "ℕ", "\\mathbb{Z}": "ℤ",
         "\\mathbb{Q}": "ℚ", "\\mathbb{C}": "ℂ",
+        "\\iff": "⟺", "\\implies": "⟹", "\\Longrightarrow": "⟹",
+        "\\gets": "←", "\\leqslant": "⩽", "\\geqslant": "⩾",
+        "\\colon": ":", "\\bmod": "mod", "\\pmod": "mod ",
         "\\left": "", "\\right": "", "\\,": " ", "\\;": " ", "\\ ": " ",
         "\\\\": "\n",
     ]

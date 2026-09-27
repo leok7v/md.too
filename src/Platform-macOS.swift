@@ -67,10 +67,10 @@ func platformAdaptiveColor(light: PlatformColor,
     }
 }
 
-func platformDecodeImage(_ data: Data) -> Image? {
-    var result: Image? = nil
-    if let ns = NSImage(data: data) { result = Image(nsImage: ns) }
-    return result
+func platformDecodeImage(_ data: Data) -> SizedImage? {
+    NSImage(data: data).map { ns in
+        SizedImage(image: Image(nsImage: ns), size: ns.size)
+    }
 }
 
 func platformDocumentImage(_ data: Data) -> PlatformImage? {
