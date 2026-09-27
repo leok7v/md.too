@@ -9,6 +9,7 @@ final class FileWatcher: NSObject, NSFilePresenter {
 
     private let onChange: (String) -> Void
     private var debounce: DispatchWorkItem?
+    private var generation = 0
 
     init(url: URL, onChange: @escaping (String) -> Void) {
         self.url = url
@@ -38,6 +39,8 @@ final class FileWatcher: NSObject, NSFilePresenter {
     private func reload() {
         let targetURL = url
         let changeHandler = onChange
+        generation += 1
+        let mine = generation
         DispatchQueue.global(qos: .userInitiated).async {
             let coord = NSFileCoordinator(filePresenter: self)
             var coordError: NSError?
@@ -48,8 +51,10 @@ final class FileWatcher: NSObject, NSFilePresenter {
                     let read = try? String(
                         contentsOf: actualURL, encoding: .utf8)
                     if let read {
-                        DispatchQueue.main.async {
-                            changeHandler(read)
+                        DispatchQueue.main.async { [weak self] in
+                            if mine == self?.generation {
+                                changeHandler(read)
+                            }
                         }
                     }
                 }

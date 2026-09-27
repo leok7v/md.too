@@ -68,7 +68,9 @@ private struct ImageBlockView: View {
             }
         }
         .accessibilityLabel(alt)
-        .task(id: url) { await load() }
+        .task(id: url) {
+            if prefetched[url] == nil { await load() }
+        }
     }
 
     @ViewBuilder
@@ -112,7 +114,7 @@ private struct ImageBlockView: View {
             } catch {
                 if attempt < 1 {
                     try? await Task.sleep(nanoseconds: 500_000_000)
-                } else {
+                } else if !Task.isCancelled {
                     failed = true
                 }
             }

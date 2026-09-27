@@ -25,7 +25,7 @@ final class MarkdownFindController: ObservableObject {
         target = view
         if !query.isEmpty {
             _ = view.findAll(query, caseSensitive: false)
-            recount()
+            recountLater()
         }
     }
 
@@ -56,7 +56,11 @@ final class MarkdownFindController: ObservableObject {
     // The registered view calls this after a live reload re-derived
     // its matches, so the displayed total stays honest without
     // re-running the search.
-    func viewDidReapply() { recount() }
+    func viewDidReapply() { recountLater() }
+
+    private func recountLater() {
+        DispatchQueue.main.async { [weak self] in self?.recount() }
+    }
 
     private func recount() {
         matchCount = target?.liveFindCount ?? 0

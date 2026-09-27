@@ -47,6 +47,7 @@ struct ShareButton: View {
     var compact: Bool = true
     @State private var pdfURL: URL?
     @State private var pdfThumb: Image?
+    @State private var ticket = 0
 
     var body: some View {
         Group {
@@ -73,9 +74,14 @@ struct ShareButton: View {
         .task(id: text) {
             let title = fileURL?.deletingPathExtension().lastPathComponent ??
                         "Document"
-            let url = await exportPDF(text: text, title: title)
-            let thumb = url.flatMap { firstPageThumbnail(of: $0) }
-            await MainActor.run {
+            ticket += 1
+            let mine = ticket
+            let url = await exportPDF(text: text, title: title, tag: mine)
+            let thumb = url.flatMap { u in firstPageThumbnail(of: u) }
+            if !Task.isCancelled {
+                if let old = pdfURL, old != url {
+                    try? FileManager.default.removeItem(at: old)
+                }
                 pdfURL = url
                 pdfThumb = thumb
             }

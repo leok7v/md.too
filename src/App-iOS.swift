@@ -26,6 +26,7 @@ struct IOSDocumentRoot: View {
         Group {
             if let url {
                 ContentView(text: text, fileURL: url, onClose: close)
+                    .id(url)
             } else {
                 empty
             }

@@ -29,7 +29,7 @@ final class QuickLookViewController: NSViewController, QLPreviewingController {
             }
             for sub in view.subviews { sub.removeFromSuperview() }
             let root = AnyView(
-                QLContent(text: text)
+                QLContent(text: text, blocks: blocks)
                     .environment(\.prefetchedImages, prefetched)
             )
             let host = NSHostingController(rootView: root)
@@ -71,6 +71,7 @@ final class QuickLookViewController: NSViewController, QLPreviewingController {
 struct QLContent: View {
 
     let text: String
+    let blocks: [Block]
 
     @AppStorage("themeMode")
     private var themeRaw: String = ThemeMode.system.rawValue
@@ -106,7 +107,6 @@ struct QLContent: View {
             SelectableText(attributed: AttributedString(text),
                            role: .mono)
         } else {
-            let blocks = Markdown.parse(text)
             VStack(alignment: .leading, spacing: 12) {
                 ForEach(Array(blocks.enumerated()),
                         id: \.offset) { _, block in

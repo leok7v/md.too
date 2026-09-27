@@ -110,23 +110,24 @@ enum DocumentText {
         for (i, block) in blocks.enumerated() {
             var entry = cache?.entries[i]
             let owed = tableBudget(block, measure)
+            let named = imagesNamed(by: block, in: seen)
             let stale = entry?.block != block ||
-                        entry?.style != style || entry?.images != seen ||
+                        entry?.style != style || entry?.images != named ||
                         entry?.budget != owed
             if stale || entry?.column != column {
                 let plain = stale
                     ? completed(render(block, at: i, style: style,
-                                       images: images, seen: seen,
+                                       images: images, seen: named,
                                        cache: cache, budget: measure),
                                 style: style)
                     : entry?.plain ?? NSAttributedString()
                 let need = column == nil ? 0
                     : minimumWidth(of: block, at: i, style: style,
-                                   images: images, seen: seen,
+                                   images: images, seen: named,
                                    cache: cache)
                 entry = RenderCache.Entry(
                     block: block, style: style, column: column,
-                    images: seen, budget: owed, plain: plain,
+                    images: named, budget: owed, plain: plain,
                     text: column.map { c in
                         placed(plain, need: need, in: c)
                     } ?? plain)
@@ -270,6 +271,16 @@ enum DocumentText {
     // Only a block holding a table reads the budget, so only such a
     // block's cache entry is keyed on it.
 
+    private static func imagesNamed(by block: Block,
+                                    in seen: [URL: ObjectIdentifier])
+        -> [URL: ObjectIdentifier] {
+        var result: [URL: ObjectIdentifier] = [:]
+        for url in ImagePrefetch.collectURLs(in: [block]) {
+            if let id = seen[url] { result[url] = id }
+        }
+        return result
+    }
+
     private static func tableBudget(_ block: Block,
                                     _ budget: CGFloat) -> CGFloat {
         var result: CGFloat = 0
@@ -351,13 +362,14 @@ enum DocumentText {
         var live: [Int: RenderCache.Minimum] = [:]
         for (i, block) in blocks.enumerated() {
             var known = cache?.minimums[i]
+            let named = imagesNamed(by: block, in: seen)
             let stale = known?.block != block || known?.style != style ||
-                        known?.images != seen
+                        known?.images != named
             if stale {
                 known = RenderCache.Minimum(
-                    block: block, style: style, images: seen,
+                    block: block, style: style, images: named,
                     width: minimumWidth(of: block, at: i, style: style,
-                                        images: images, seen: seen,
+                                        images: images, seen: named,
                                         cache: cache))
             }
             if let known {

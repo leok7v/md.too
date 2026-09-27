@@ -16,6 +16,14 @@ enum TempPDFs {
         try? FileManager.default.createDirectory(
             at: dir, withIntermediateDirectories: true)
     }
+
+    static func name(_ title: String, tag: Int, suffix: String) -> String {
+        let safe = title
+            .replacingOccurrences(of: "/", with: "_")
+            .replacingOccurrences(of: ":", with: "_")
+        let mark = tag == 0 ? "" : "-\(tag)"
+        return "\(safe)\(mark).\(suffix)"
+    }
 }
 
 func exportPDFDataSync(text: String, title: String) -> Data? {
@@ -23,16 +31,15 @@ func exportPDFDataSync(text: String, title: String) -> Data? {
     return PDFExport.data(blocks: blocks, title: title)
 }
 
-func exportPDF(text: String, title: String) async -> URL? {
+func exportPDF(text: String, title: String,
+               tag: Int = 0) async -> URL? {
     let blocks = Markdown.parse(text)
     let images = await PDFExport.prefetchImages(in: blocks)
-    let safe = title
-        .replacingOccurrences(of: "/", with: "_")
-        .replacingOccurrences(of: ":", with: "_")
     let dir = TempPDFs.directory
     try? FileManager.default.createDirectory(
         at: dir, withIntermediateDirectories: true)
-    let temp = dir.appendingPathComponent("\(safe).pdf")
+    let temp = dir.appendingPathComponent(
+        TempPDFs.name(title, tag: tag, suffix: "pdf"))
     try? FileManager.default.removeItem(at: temp)
     var result: URL? = nil
     do {
@@ -47,17 +54,16 @@ func exportPDF(text: String, title: String) async -> URL? {
     return result
 }
 
-func exportHTML(text: String, title: String) async -> URL? {
+func exportHTML(text: String, title: String,
+                tag: Int = 0) async -> URL? {
     let blocks = Markdown.parse(text)
     let images = await HtmlExport.prefetchImages(in: blocks)
     let html = HtmlExport.render(blocks, title: title, images: images)
-    let safe = title
-        .replacingOccurrences(of: "/", with: "_")
-        .replacingOccurrences(of: ":", with: "_")
     let dir = TempPDFs.directory
     try? FileManager.default.createDirectory(
         at: dir, withIntermediateDirectories: true)
-    let temp = dir.appendingPathComponent("\(safe).html")
+    let temp = dir.appendingPathComponent(
+        TempPDFs.name(title, tag: tag, suffix: "html"))
     try? FileManager.default.removeItem(at: temp)
     var result: URL? = nil
     let data = html.data(using: .utf8)

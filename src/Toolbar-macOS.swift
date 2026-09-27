@@ -75,6 +75,7 @@ struct ShareMenu: View {
     @State private var pdfURL: URL?
     @State private var htmlURL: URL?
     @State private var pdfThumb: Image?
+    @State private var ticket = 0
 
     var body: some View {
         Menu {
@@ -99,14 +100,28 @@ struct ShareMenu: View {
         .disabled(pdfURL == nil && htmlURL == nil)
         .help("Share as PDF or HTML")
         .task(id: text) {
-            pdfURL = await exportPDF(text: text, title: title)
-            pdfThumb = pdfURL.flatMap { url in firstPageThumbnail(of: url) }
-            htmlURL = await exportHTML(text: text, title: title)
+            ticket += 1
+            let mine = ticket
+            let pdf = await exportPDF(text: text, title: title, tag: mine)
+            if !Task.isCancelled {
+                replace(&pdfURL, with: pdf)
+                pdfThumb = pdf.flatMap { url in firstPageThumbnail(of: url) }
+                let html = await exportHTML(text: text, title: title,
+                                            tag: mine)
+                if !Task.isCancelled { replace(&htmlURL, with: html) }
+            }
         }
     }
 
     private var title: String {
         fileURL?.deletingPathExtension().lastPathComponent ?? "Document"
+    }
+
+    private func replace(_ published: inout URL?, with fresh: URL?) {
+        if let old = published, old != fresh {
+            try? FileManager.default.removeItem(at: old)
+        }
+        published = fresh
     }
 
     private func firstPageThumbnail(of url: URL) -> Image? {
