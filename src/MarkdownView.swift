@@ -94,12 +94,13 @@ struct MarkdownView: View, Equatable {
     // key and the dependency SwiftUI re-renders on are one value.
 
     private var documentTextView: some View {
-        let blocks = Markdown.parse(displayText)
+        let blocks = traced("parse") { Markdown.parse(displayText) }
         let style = MarkdownStyle.at(zoom: Zoom.scale(zoom))
         let fits = max(viewport - 40, 0)
-        let need = DocumentText.minimumWidth(of: blocks,
-                                             images: documentImages,
-                                             cache: cache, style: style)
+        let need = traced("minimum") {
+            DocumentText.minimumWidth(of: blocks, images: documentImages,
+                                      cache: cache, style: style)
+        }
         let columned = readingColumn && fits >= style.columnWidth
         let measure = columned ? style.columnWidth : fits
         let width = max(measure, need)
@@ -109,12 +110,13 @@ struct MarkdownView: View, Equatable {
                 width: measure)
             : nil
         let urls = ImagePrefetch.collectURLs(in: blocks)
+        let surface = traced("surface") {
+            DocumentText.attributed(from: blocks, images: documentImages,
+                                    cache: cache, style: style,
+                                    budget: measure, column: column)
+        }
         return ScrollView(.horizontal, showsIndicators: width > fits) {
-            SelectableText(
-                nsAttributed: DocumentText.attributed(
-                    from: blocks, images: documentImages, cache: cache,
-                    style: style, budget: measure, column: column),
-                role: .body, find: find)
+            SelectableText(nsAttributed: surface, role: .body, find: find)
                 .frame(width: viewport > 0 ? width : nil,
                        alignment: .leading)
                 .frame(width: viewport > 0 ? max(fits, width) : nil,
@@ -130,6 +132,28 @@ struct MarkdownView: View, Equatable {
                 documentImages.merge(fetched) { _, fresh in fresh }
             }
         }
+    }
+
+    // Wall time of one stage of a rebuild on stderr, in a debug build
+    // run with MDTOO_TRACE set; a release build pays nothing.
+
+    private func traced<T>(_ stage: String, _ work: () -> T) -> T {
+        let start = ContinuousClock.now
+        let result = work()
+        if MarkdownView.tracing {
+            let took = ContinuousClock.now - start
+            FileHandle.standardError.write(
+                Data("md.too \(stage): \(took)\n".utf8))
+        }
+        return result
+    }
+
+    private static var tracing: Bool {
+        var on = false
+        #if DEBUG
+        on = ProcessInfo.processInfo.environment["MDTOO_TRACE"] != nil
+        #endif
+        return on
     }
 
     private var rendered: some View {

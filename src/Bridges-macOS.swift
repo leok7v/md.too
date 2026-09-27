@@ -223,13 +223,38 @@ extension NativeText: NSViewRepresentable {
 
         func activeMatchFraction() -> CGFloat? {
             var result: CGFloat? = nil
+            if let rect = activeMatchRect(), let lm = layoutManager,
+               let tc = textContainer {
+                let used = lm.usedRect(for: tc)
+                if used.height > 0 { result = rect.midY / used.height }
+            }
+            return result
+        }
+
+        // visibleRect is what the enclosing clip view shows of this
+        // view, in this view's coordinates, so the match rect only has
+        // to move by the container origin to compare.
+        func activeMatchOnScreen() -> Bool {
+            var result = false
+            if let rect = activeMatchRect() {
+                let origin = textContainerOrigin
+                result = visibleRect.contains(
+                    rect.offsetBy(dx: origin.x, dy: origin.y))
+            }
+            return result
+        }
+
+        // A match recorded before a reload may end past the storage
+        // now, and the layout manager raises on such a range.
+        private func activeMatchRect() -> NSRect? {
+            var result: NSRect? = nil
+            let len = textStorage?.length ?? 0
             if let i = activeIndex, i >= 0, i < findMatches.count,
+               NSMaxRange(findMatches[i]) <= len,
                let lm = layoutManager, let tc = textContainer {
                 let gr = lm.glyphRange(forCharacterRange: findMatches[i],
                                        actualCharacterRange: nil)
-                let rect = lm.boundingRect(forGlyphRange: gr, in: tc)
-                let used = lm.usedRect(for: tc)
-                if used.height > 0 { result = rect.midY / used.height }
+                result = lm.boundingRect(forGlyphRange: gr, in: tc)
             }
             return result
         }
@@ -322,7 +347,7 @@ extension NativeText: NSViewRepresentable {
                 board.clearContents()
                 let lone = Self.lonePDF(slice, dark: self.isDark)
                 var types: [NSPasteboard.PasteboardType] =
-                    [.rtfd, .rtf, .string]
+                    [.rtfd, .rtf, .html, .string]
                 if lone != nil { types.insert(.pdf, at: 1) }
                 board.declareTypes(types, owner: nil)
                 if let lone { board.setData(lone, forType: .pdf) }
@@ -333,11 +358,22 @@ extension NativeText: NSViewRepresentable {
                     board.setData(data, forType: .rtfd)
                 }
                 let spelled = Self.spelled(slice)
+                let whole = NSRange(location: 0, length: spelled.length)
                 board.setString(spelled.string, forType: .string)
-                if let data = spelled.rtf(
-                    from: NSRange(location: 0, length: spelled.length),
-                    documentAttributes: [:]) {
+                if let data = spelled.rtf(from: whole,
+                                          documentAttributes: [:]) {
                     board.setData(data, forType: .rtf)
+                }
+                // The HTML is written from the same spelled slice, so a
+                // web editor gets exactly the selection with its bold,
+                // its tables and its formulas' TeX.
+                if let data = try? spelled.data(
+                    from: whole,
+                    documentAttributes: [
+                        .documentType: NSAttributedString.DocumentType.html,
+                        .characterEncoding: String.Encoding.utf8.rawValue,
+                    ]) {
+                    board.setData(data, forType: .html)
                 }
             } else {
                 super.copy(sender)

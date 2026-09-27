@@ -309,6 +309,19 @@ final class SurfaceTests: XCTestCase {
         let manager: NSLayoutManager
     }
 
+    // Find reads past case and accents: "cafe" finds "Cafe" and "cafe"
+    // alike, and an empty query finds nothing.
+    func testFindIgnoresCaseAndDiacritics() {
+        let text = "Cafe, caf\u{E9}, and a CAF\u{C9}."
+        let hits = markdownFindRanges(in: text, query: "cafe",
+                                      caseSensitive: false)
+        XCTAssertEqual(hits.map { r in r.location }, [0, 6, 18])
+        XCTAssertEqual(markdownFindRanges(in: text, query: "cafe",
+                                          caseSensitive: true).count, 1)
+        XCTAssertEqual(markdownFindRanges(in: "aaa", query: "",
+                                          caseSensitive: false), [])
+    }
+
     private func laidOut(_ text: NSAttributedString,
                          width: CGFloat) -> Laid {
         let storage = NSTextStorage(attributedString: text)

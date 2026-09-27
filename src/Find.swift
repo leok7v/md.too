@@ -74,7 +74,10 @@ final class MarkdownFindController: ObservableObject {
             cursor = ((cursor + (forward ? 1 : -1)) % matchCount
                       + matchCount) % matchCount
             view.setActive(cursor)
-            if let fraction = view.activeMatchFraction() {
+            // A match already on screen stays where the eye found it;
+            // scrolling to re-centre it reads as a jump.
+            if !view.activeMatchOnScreen(),
+               let fraction = view.activeMatchFraction() {
                 scrollTo?(fraction)
             }
             currentMatch = cursor + 1
@@ -86,7 +89,8 @@ final class MarkdownFindController: ObservableObject {
 // Implemented by the platform text views. findAll highlights every
 // match without selecting; setActive selects one (or clears with
 // nil); activeMatchFraction is the active match's vertical position
-// as a fraction of the laid-out text height.
+// as a fraction of the laid-out text height; activeMatchOnScreen says
+// whether that match is wholly inside the part of the view showing.
 
 @MainActor
 protocol FindableTextView: AnyObject {
@@ -95,18 +99,22 @@ protocol FindableTextView: AnyObject {
     func clearFind()
     var liveFindCount: Int { get }
     func activeMatchFraction() -> CGFloat?
+    func activeMatchOnScreen() -> Bool
 }
 
 // All non-overlapping ranges of query in text. Non-advancing matches
-// are guarded so a degenerate query terminates.
+// are guarded so a degenerate query terminates. Accents are ignored
+// along with case: a reader typing "cafe" means the "cafe" they saw,
+// on whatever keyboard.
 
 func markdownFindRanges(in text: String, query: String,
                         caseSensitive: Bool) -> [NSRange] {
     var result: [NSRange] = []
     if !query.isEmpty {
         let ns = text as NSString
-        let opts: NSString.CompareOptions =
-            caseSensitive ? [] : .caseInsensitive
+        let opts: NSString.CompareOptions = caseSensitive
+            ? .diacriticInsensitive
+            : [.caseInsensitive, .diacriticInsensitive]
         var start = 0
         var searching = true
         while searching {
