@@ -41,7 +41,20 @@ list loose:
     paragraph: and the step still reads as one thought.|
   item 3.:
     paragraph: Close the file. That was the whole recipe.|
-=== example-3-math-the-small-kind
+=== example-3-lines-that-must-not-reflow-and-a-code-wo
+heading 2: Lines that |must not{i}| reflow, and a |code{c}| word in a heading|
+paragraph: A verse is the one place a writer means every line end. Two trailing spaces are the CommonMark hard break, and a stanza is a blank line; this viewer keeps both, so the shape survives a window of any width. The accents are here on purpose too: find "cafe" and the café turns up.|
+paragraph: A short one, for the road (2026){i}|
+paragraph: The café in Zürich closes when it rains,\u2028the façade of the Straße drips on the tram;\u2028a naïve señor reads Dvořák on the train\u2028and the Ærø ferry forgets where it came from.|
+paragraph: „Wer liest, der reist“, sagt die Großmutter leise,\u2028„und wer schreibt, der bleibt.“ So geht die Reise:\u2028ein Übermut aus Öl und Äpfeln, ein Fuß im Schnee,\u2028und überall die kleinen Punkte über dem e.|
+paragraph: The lines above break where the poem breaks, not where the window does.|
+=== example-4-where-nabla-2-u-0-holds-so-does-a-headin
+heading 2: Where |∇² u = 0{math=$\\nabla^2 u = 0$}| holds, so does a heading|
+paragraph: Inline maths in a heading is set at the heading's size, in the heading's weight, on the heading's baseline, and the copy button on the display below hands back the TeX it was drawn from. A Jacobian, with the dots that let a matrix stand for any size:|
+math: \\mathbf\{J\} = \\begin\{bmatrix\} \\dfrac\{\\partial f_1\}\{\\partial x_1\} & \\cdots & \\dfrac\{\\partial f_1\}\{\\partial x_n\} \\\\ \\vdots & \\ddots & \\vdots \\\\ \\dfrac\{\\partial f_m\}\{\\partial x_1\} & \\cdots & \\dfrac\{\\partial f_m\}\{\\partial x_n\} \\end\{bmatrix\}
+paragraph: The same engine sets a wave equation with its hats and its \\hbar, and a Gaussian integral with bounds at both infinities:|
+math: i\\hbar\\,\\frac\{\\partial\}\{\\partial t\}\\Psi(\\mathbf\{r\}, t) = \\hat\{H\}\\,\\Psi(\\mathbf\{r\}, t) \\qquad \\int_\{-\\infty\}^\{\\infty\} e^\{-x^2\}\\,dx = \\sqrt\{\\pi\}
+=== example-5-math-the-small-kind
 heading 2: Math, the small kind|
 paragraph: Two engines, split by which delimiter you used, and you never pick.|
 paragraph: Inline maths is typeset in the line, at the size of the words around it: |α + β = γ{math=$\\alpha + \\beta = \\gamma$}|, the right triangle staple |x² + y² = z²{math=$x^2 + y^2 = z^2$}|, Gauss's schoolboy trick |∑(i=1)ⁿ i{math=$\\sum_\{i=1\}^\{n\} i$}| (he was nine, allegedly), and |x ∈ ℝ{math=$x \\in \\mathbb\{R\}$}|. It works in a heading, |e(iπ) + 1 = 0{math=$e^\{i\\pi\} + 1 = 0$}| included, and in a table cell; a copy gives back the TeX it was written from.|
@@ -71,7 +84,7 @@ paragraph: Tools that lift equations out of a PDF often forget the delimiters an
 math: \\frac \{ D x N \} \{ \\frac \{ ( \\text \{Truth\} ) \} \{ 1 6 0 0 \\, x \\, 1 4 \} \} \\\\ \\frac \{ 4 2 8 \\, x \\, 1 0 \} \{ ( 1 ) \} \\\\ \\frac \{ 2 9 \\, x \\, 9 5 \} \{ ( 2 3 ) \}
 paragraph: That is three separate tests, and prose fails all but the first: |\\alpha is the first letter{c}| parses perfectly well as alpha times i times s and so on, and is caught by the run of ordinary letters. Rows separated by |\\\\{c}|, and columns by |&{c}|, work without naming an environment.|
 paragraph: There are still limits. No |\\def{c}| or |\\newcommand{c}|, no |\\color{c}|, and no line breaking inside a formula. A display the engine will not accept falls back to the inline spelling rather than showing you nothing, and copying any display gives you back the TeX you wrote.|
-=== example-4-footprints
+=== example-6-footprints
 heading 2: Footprints|
 paragraph: A few napkin numbers for context. Sizes are rough installer or app bundle measurements on macOS and they drift; spirit holds.|
 table 3x6: left,right,left
@@ -82,7 +95,30 @@ table 3x6: left,right,left
   r: [Visual Studio Code] [370 MB] [code, prose, your hopes]
   r: [Obsidian] [250 MB] [notes, plus a graph]
   r: [Typora] [120 MB] [Markdown only]
-=== example-5-what-we-shipped-and-what-we-are-still-ch
+=== example-7-tables-that-earn-their-width
+heading 2: Tables that earn their width|
+paragraph: A table is as wide as what is in it and no wider, so a short one sits at the left like a list. Columns align the way the delimiter row says, and a cell can carry maths, code, emphasis and a date range:|
+table 3x4: none,center,right
+  h: [Term] [What it is] [Since]
+  r: [Markdown] [*A plain-text format*, and a program that reads it] [2004]
+  r: [CommonMark] [The spec, $\\approx 30$ pages of edge cases] [2014]
+  r: [Hard break] [Two trailing spaces, or `<br>`] [forever]
+  r: [This app] [A viewer, $M \\le c \\cdot N$] [2026]
+paragraph: When the content is wider than the page, cells wrap instead of the table spilling, and the longest word in a column sets its floor:|
+table 2x3: none,none
+  h: [Reader] [What they said about the last editor they tried]
+  r: [A novelist] [It opened in nine seconds, asked to sign in, offered a workspace, and then showed the first paragraph in a font it had chosen for me, which was the moment I closed it and went looking for something that would simply show the file.]
+  r: [A physicist] [The preview was fine until the third integral, which it drew as a box, and the fourth, which it drew as nothing at all, so I went back to reading the TeX with my eyes like it was 1994.]
+  r: [A student] [It was free, then it was a trial, then it was a plan, and somewhere in there my notes became a database I could not open with anything else on the machine.]
+paragraph: And when there are simply too many columns, the table scrolls sideways on its own rather than crushing every cell to a sliver:|
+table 10x5: none,right,none,none,none,none,none,none,none,center
+  h: [Language] [Year] [Typing] [Memory] [First compiler] [Package manager] [Mascot] [Hello world] [Notable for] [Still in use]
+  r: [C] [1972] [static, weak] [manual] [PDP-11] [none] [none] [`printf("hi\\n");`] [Everything runs on it] [yes]
+  r: [OCaml] [1996] [static, inferred] [garbage collected] [native and bytecode] [opam] [a camel] [`print_endline "hi"`] [Types you never write] [yes]
+  r: [Swift] [2014] [static, inferred] [reference counted] [LLVM] [SwiftPM] [a swift] [`print("hi")`] [Optionals as a type] [yes]
+  r: [Rust] [2015] [static, inferred] [ownership] [LLVM] [cargo] [Ferris the crab] [`println!("hi");`] [Borrows checked at compile time] [yes]
+  r: [Python] [1991] [dynamic, strong] [garbage collected] [CPython] [pip] [a snake, sort of] [`print("hi")`] [Reads like the pseudocode] [yes]
+=== example-8-what-we-shipped-and-what-we-are-still-ch
 heading 2: What we shipped, and what we are still chewing on|
 list tight:
   item • [x]:
@@ -95,7 +131,13 @@ list tight:
     paragraph: keep the source under 2,500 lines,|
   item • [x]:
     paragraph: decide whether tables should support inline images (yes, image only cells).|
-=== example-6-code-that-travels-well
+  item • [ ]:
+    paragraph: a Find that reads past accents, so "cafe" finds the café (done, still ticking as we type this),|
+  item • [ ]:
+    paragraph: an iOS control for the reading column,|
+  item • [ ]:
+    paragraph: nothing else{b,i}|, which is the hard part.|
+=== example-9-code-that-travels-well
 heading 2: Code that travels well|
 paragraph: Each fence below should color the way you expect. If a block looks plain, the language tag is probably misspelled or the language is one we have not added yet.|
 paragraph: Swift:|
@@ -117,6 +159,7 @@ code[python]: from dataclasses import dataclass\n\n@dataclass\nclass User:\n    
 paragraph: Rust, with attributes:|
 code[rust]: #![allow(dead_code)]\n\nfn greet(name: &str) -> String \{\n    format!("Hello, \{\}!", name)\n\}\n\nfn main() \{\n    let v: Vec<i32> = (1..=5).collect();\n    println!("\{:?\}", v);\n\}
 paragraph: Go:|
+code[ocaml]: (* A stack that remembers its own maximum: push is O(1), max is O(1). *)\ntype 'a max_stack =\n  \| Empty\n  \| Node of \{ value : 'a; max : 'a; next : 'a max_stack \}\n\nlet push x = function\n  \| Empty -> Node \{ value = x; max = x; next = Empty \}\n  \| Node \{ max; _ \} as s -> Node \{ value = x; max = Stdlib.max x max; next = s \}\n\nlet top_max = function Empty -> None \| Node \{ max; _ \} -> Some max
 code[go]: package main\n\nimport "fmt"\n\nfunc main() \{\n    nums := []int\{1, 2, 3\}\n    for i, n := range nums \{\n        fmt.Printf("%d: %d\\n", i, n)\n    \}\n\}
 paragraph: Ruby:|
 code[ruby]: class Greeter\n  attr_reader :name\n  def initialize(name) = @name = name\n  def greet = "Hello, #\{name\}!"\nend\n\nputs Greeter.new("World").greet
@@ -141,7 +184,7 @@ code[]: no language => no highlighting, just the monospace font\nthe [copy] butt
 paragraph: An indented code block (four spaces) renders the same way:|
 code[]: int x = 0;\nfor (int i = 0; i < 10; ++i) x += i;
 rule
-=== example-7-a-quick-combined-block
+=== example-10-a-quick-combined-block
 heading 2: A quick combined block|
 paragraph: Just to confirm everything composes:|
 quote:
@@ -168,7 +211,7 @@ table 2x3: none,none
   r: [K<sub>a</sub> [m<sup>2</sup>/g]] [0.1]
   r: [C<sub>p</sub> [J kg<sup>-1</sup> K<sup>-1</sup>]] [4184]
 paragraph: Copy that table as plain text and the scripts come back as Unicode, because a monospaced paste has no baseline to shift.|
-=== example-8-a-picture-is-worth-a-few-hundred-bytes
+=== example-11-a-picture-is-worth-a-few-hundred-bytes
 heading 2: A picture is worth a few hundred bytes|
 paragraph: Block level images load from any URL the document points at. If the load fails, we render a captioned placeholder so the layout never collapses around a missing image. A trailing |\{width=NNN\}{c}| (GitLab style) caps the rendered width; |\{height=NNN\}{c}| does the obvious thing.|
 paragraph: Images can also live inside table cells, one image per cell. Setting the same |height{c}| on both lines them up at the same vertical extent even though one is portrait and the other landscape:|
@@ -179,7 +222,7 @@ table 2x2: center,center
 paragraph: The next image points to a deliberately broken URL so you can see the captioned-placeholder fallback. Layout doesn't collapse around the missing content; the alt text becomes a small box with a photo icon and the caption right where the image would have gone:|
 image alt=image not found url=https://example.com/some-image.png w=- h=-
 rule
-=== example-9-html-the-models-write
+=== example-12-html-the-models-write
 heading 2: HTML the models write|
 paragraph: Markdown has no spelling for a few things, so a model, or a README author, reaches for HTML. The short list that is understood: a line break (\u2028) inside a paragraph\u2028like this one, |small print{small}|, |Cmd{c}|-|C{c}| for a key, |bold{b}| and |italic{i}| the old way, and a link written as |a tag{link=https://commonmark.org}|. A comment is dropped, and a centred wrapper centres what it holds:|
 paragraph: Centred, the way a README opens.{center}|
@@ -187,7 +230,7 @@ paragraph: A |<details>{c}| block is drawn open, its summary in bold:|
 paragraph: The part that folds elsewhere{b}|
 paragraph: Shown here, because a viewer has nothing to fold.|
 paragraph: Anything else stays as written, so nothing is lost: |<blink>|this|</blink>| keeps its tags. Entities decode, © and — and a non-breaking space, except inside code, where |&nbsp;{c}| is the six characters.|
-=== example-10-memory-and-performance
+=== example-13-memory-and-performance
 heading 2: Memory and performance|
 paragraph: A Markdown file is just bytes. The most this reader needs to hold in memory is roughly the file size, |M ≤ c · N{math=$M \\le c \\cdot N$}|. A typical 40 KB README weighs about 50 KB once parsed, and renders in under one frame.|
 paragraph: A popular Electron-based editor uses ~240 MB on disk and ~400 MB of memory per window for the same job:|
@@ -208,7 +251,7 @@ heading 3: Time you actually spend|
 paragraph: Adults read prose at about 250 words per minute. A 10,000-word document is ~40 minutes of reading. Any feature that adds a few seconds to startup quietly steals from those 40 minutes before the reader has seen a single word.|
 paragraph: Optimizing for the small things is just respect.|
 rule
-=== example-11-closing-thought
+=== example-14-closing-thought
 heading 2: Closing thought|
 paragraph: Good prose is short. Good code is short. Good tools are smaller than you think they need to be.|
 paragraph: If you scrolled this far without your CPU pinning, the layout loop is holding. The Share button in the toolbar exports this entire document, code blocks and tables and image captions and all, to a paginated PDF.|

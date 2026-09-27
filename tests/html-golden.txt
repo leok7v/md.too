@@ -47,7 +47,22 @@
 <li><p>Close the file. That was the whole recipe.</p>
 </li>
 </ol>
-=== example-3-math-the-small-kind
+=== example-3-lines-that-must-not-reflow-and-a-code-wo
+<h2>Lines that <em>must not</em> reflow, and a <code style="background:rgba(128,128,128,0.14);padding:1px 4px;border-radius:3px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:0.92em;">code</code> word in a heading</h2>
+<p>A verse is the one place a writer means every line end. Two trailing spaces are the CommonMark hard break, and a stanza is a blank line; this viewer keeps both, so the shape survives a window of any width. The accents are here on purpose too: find "cafe" and the café turns up.</p>
+<p><em>A short one, for the road (2026)</em></p>
+<p>The café in Zürich closes when it rains,<br>the façade of the Straße drips on the tram;<br>a naïve señor reads Dvořák on the train<br>and the Ærø ferry forgets where it came from.</p>
+<p>„Wer liest, der reist“, sagt die Großmutter leise,<br>„und wer schreibt, der bleibt.“ So geht die Reise:<br>ein Übermut aus Öl und Äpfeln, ein Fuß im Schnee,<br>und überall die kleinen Punkte über dem e.</p>
+<p>The lines above break where the poem breaks, not where the window does.</p>
+=== example-4-where-nabla-2-u-0-holds-so-does-a-headin
+<h2>Where ∇² u = 0 holds, so does a heading</h2>
+<p>Inline maths in a heading is set at the heading's size, in the heading's weight, on the heading's baseline, and the copy button on the display below hands back the TeX it was drawn from. A Jacobian, with the dots that let a matrix stand for any size:</p>
+<p style="text-align:center;font-style:italic;margin:0.8em 0;">\mathbfJ = \beginbmatrix \dfrac∂ f₁∂ x₁ &amp; ⋯ &amp; \dfrac∂ f₁∂ xₙ 
+ ⋮ &amp; \ddots &amp; ⋮ 
+ \dfrac∂ fₘ∂ x₁ &amp; ⋯ &amp; \dfrac∂ fₘ∂ xₙ \endbmatrix</p>
+<p>The same engine sets a wave equation with its hats and its \hbar, and a Gaussian integral with bounds at both infinities:</p>
+<p style="text-align:center;font-style:italic;margin:0.8em 0;">iℏ ∂⁄∂ tΨ(\mathbfr, t) = \hatH Ψ(\mathbfr, t) \qquad ∫(-∞)(∞) e(-x^2) dx = √π</p>
+=== example-5-math-the-small-kind
 <h2>Math, the small kind</h2>
 <p>Two engines, split by which delimiter you used, and you never pick.</p>
 <p>Inline maths is typeset in the line, at the size of the words around it: α + β = γ, the right triangle staple x² + y² = z², Gauss's schoolboy trick ∑(i=1)ⁿ i (he was nine, allegedly), and x ∈ ℝ. It works in a heading, e(iπ) + 1 = 0 included, and in a table cell; a copy gives back the TeX it was written from.</p>
@@ -83,7 +98,7 @@
   2 9   x   9 5 ⁄ ( 2 3 )</p>
 <p>That is three separate tests, and prose fails all but the first: <code style="background:rgba(128,128,128,0.14);padding:1px 4px;border-radius:3px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:0.92em;">\alpha is the first letter</code> parses perfectly well as alpha times i times s and so on, and is caught by the run of ordinary letters. Rows separated by <code style="background:rgba(128,128,128,0.14);padding:1px 4px;border-radius:3px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:0.92em;">\\</code>, and columns by <code style="background:rgba(128,128,128,0.14);padding:1px 4px;border-radius:3px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:0.92em;">&amp;</code>, work without naming an environment.</p>
 <p>There are still limits. No <code style="background:rgba(128,128,128,0.14);padding:1px 4px;border-radius:3px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:0.92em;">\def</code> or <code style="background:rgba(128,128,128,0.14);padding:1px 4px;border-radius:3px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:0.92em;">\newcommand</code>, no <code style="background:rgba(128,128,128,0.14);padding:1px 4px;border-radius:3px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:0.92em;">\color</code>, and no line breaking inside a formula. A display the engine will not accept falls back to the inline spelling rather than showing you nothing, and copying any display gives you back the TeX you wrote.</p>
-=== example-4-footprints
+=== example-6-footprints
 <h2>Footprints</h2>
 <p>A few napkin numbers for context. Sizes are rough installer or app bundle measurements on macOS and they drift; spirit holds.</p>
 <table style="border-collapse:collapse;margin:0.5em 0;">
@@ -125,7 +140,137 @@
 </tr>
 </tbody>
 </table>
-=== example-5-what-we-shipped-and-what-we-are-still-ch
+=== example-7-tables-that-earn-their-width
+<h2>Tables that earn their width</h2>
+<p>A table is as wide as what is in it and no wider, so a short one sits at the left like a list. Columns align the way the delimiter row says, and a cell can carry maths, code, emphasis and a date range:</p>
+<table style="border-collapse:collapse;margin:0.5em 0;">
+<thead><tr style="background:rgba(128,128,128,0.14);">
+<th style="padding:6px 14px;text-align:left;border-bottom:1px solid rgba(128,128,128,0.3);border-right:1px solid rgba(128,128,128,0.20);">Term</th>
+<th style="padding:6px 14px;text-align:left;border-bottom:1px solid rgba(128,128,128,0.3);border-right:1px solid rgba(128,128,128,0.20);text-align:center;">What it is</th>
+<th style="padding:6px 14px;text-align:left;border-bottom:1px solid rgba(128,128,128,0.3);text-align:right;">Since</th>
+</tr></thead>
+<tbody>
+<tr>
+<td style="padding:6px 14px;border-bottom:1px solid rgba(128,128,128,0.12);border-right:1px solid rgba(128,128,128,0.20);">Markdown</td>
+<td style="padding:6px 14px;border-bottom:1px solid rgba(128,128,128,0.12);border-right:1px solid rgba(128,128,128,0.20);text-align:center;"><em>A plain-text format</em>, and a program that reads it</td>
+<td style="padding:6px 14px;border-bottom:1px solid rgba(128,128,128,0.12);text-align:right;">2004</td>
+</tr>
+<tr style="background:rgba(128,128,128,0.07);">
+<td style="padding:6px 14px;border-bottom:1px solid rgba(128,128,128,0.12);border-right:1px solid rgba(128,128,128,0.20);">CommonMark</td>
+<td style="padding:6px 14px;border-bottom:1px solid rgba(128,128,128,0.12);border-right:1px solid rgba(128,128,128,0.20);text-align:center;">The spec, ≈ 30 pages of edge cases</td>
+<td style="padding:6px 14px;border-bottom:1px solid rgba(128,128,128,0.12);text-align:right;">2014</td>
+</tr>
+<tr>
+<td style="padding:6px 14px;border-bottom:1px solid rgba(128,128,128,0.12);border-right:1px solid rgba(128,128,128,0.20);">Hard break</td>
+<td style="padding:6px 14px;border-bottom:1px solid rgba(128,128,128,0.12);border-right:1px solid rgba(128,128,128,0.20);text-align:center;">Two trailing spaces, or <code style="background:rgba(128,128,128,0.14);padding:1px 4px;border-radius:3px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:0.92em;">&lt;br&gt;</code></td>
+<td style="padding:6px 14px;border-bottom:1px solid rgba(128,128,128,0.12);text-align:right;">forever</td>
+</tr>
+<tr style="background:rgba(128,128,128,0.07);">
+<td style="padding:6px 14px;border-bottom:1px solid rgba(128,128,128,0.12);border-right:1px solid rgba(128,128,128,0.20);">This app</td>
+<td style="padding:6px 14px;border-bottom:1px solid rgba(128,128,128,0.12);border-right:1px solid rgba(128,128,128,0.20);text-align:center;">A viewer, M ≤ c · N</td>
+<td style="padding:6px 14px;border-bottom:1px solid rgba(128,128,128,0.12);text-align:right;">2026</td>
+</tr>
+</tbody>
+</table>
+<p>When the content is wider than the page, cells wrap instead of the table spilling, and the longest word in a column sets its floor:</p>
+<table style="border-collapse:collapse;margin:0.5em 0;">
+<thead><tr style="background:rgba(128,128,128,0.14);">
+<th style="padding:6px 14px;text-align:left;border-bottom:1px solid rgba(128,128,128,0.3);border-right:1px solid rgba(128,128,128,0.20);">Reader</th>
+<th style="padding:6px 14px;text-align:left;border-bottom:1px solid rgba(128,128,128,0.3);">What they said about the last editor they tried</th>
+</tr></thead>
+<tbody>
+<tr>
+<td style="padding:6px 14px;border-bottom:1px solid rgba(128,128,128,0.12);border-right:1px solid rgba(128,128,128,0.20);">A novelist</td>
+<td style="padding:6px 14px;border-bottom:1px solid rgba(128,128,128,0.12);">It opened in nine seconds, asked to sign in, offered a workspace, and then showed the first paragraph in a font it had chosen for me, which was the moment I closed it and went looking for something that would simply show the file.</td>
+</tr>
+<tr style="background:rgba(128,128,128,0.07);">
+<td style="padding:6px 14px;border-bottom:1px solid rgba(128,128,128,0.12);border-right:1px solid rgba(128,128,128,0.20);">A physicist</td>
+<td style="padding:6px 14px;border-bottom:1px solid rgba(128,128,128,0.12);">The preview was fine until the third integral, which it drew as a box, and the fourth, which it drew as nothing at all, so I went back to reading the TeX with my eyes like it was 1994.</td>
+</tr>
+<tr>
+<td style="padding:6px 14px;border-bottom:1px solid rgba(128,128,128,0.12);border-right:1px solid rgba(128,128,128,0.20);">A student</td>
+<td style="padding:6px 14px;border-bottom:1px solid rgba(128,128,128,0.12);">It was free, then it was a trial, then it was a plan, and somewhere in there my notes became a database I could not open with anything else on the machine.</td>
+</tr>
+</tbody>
+</table>
+<p>And when there are simply too many columns, the table scrolls sideways on its own rather than crushing every cell to a sliver:</p>
+<table style="border-collapse:collapse;margin:0.5em 0;">
+<thead><tr style="background:rgba(128,128,128,0.14);">
+<th style="padding:6px 14px;text-align:left;border-bottom:1px solid rgba(128,128,128,0.3);border-right:1px solid rgba(128,128,128,0.20);">Language</th>
+<th style="padding:6px 14px;text-align:left;border-bottom:1px solid rgba(128,128,128,0.3);border-right:1px solid rgba(128,128,128,0.20);text-align:right;">Year</th>
+<th style="padding:6px 14px;text-align:left;border-bottom:1px solid rgba(128,128,128,0.3);border-right:1px solid rgba(128,128,128,0.20);">Typing</th>
+<th style="padding:6px 14px;text-align:left;border-bottom:1px solid rgba(128,128,128,0.3);border-right:1px solid rgba(128,128,128,0.20);">Memory</th>
+<th style="padding:6px 14px;text-align:left;border-bottom:1px solid rgba(128,128,128,0.3);border-right:1px solid rgba(128,128,128,0.20);">First compiler</th>
+<th style="padding:6px 14px;text-align:left;border-bottom:1px solid rgba(128,128,128,0.3);border-right:1px solid rgba(128,128,128,0.20);">Package manager</th>
+<th style="padding:6px 14px;text-align:left;border-bottom:1px solid rgba(128,128,128,0.3);border-right:1px solid rgba(128,128,128,0.20);">Mascot</th>
+<th style="padding:6px 14px;text-align:left;border-bottom:1px solid rgba(128,128,128,0.3);border-right:1px solid rgba(128,128,128,0.20);">Hello world</th>
+<th style="padding:6px 14px;text-align:left;border-bottom:1px solid rgba(128,128,128,0.3);border-right:1px solid rgba(128,128,128,0.20);">Notable for</th>
+<th style="padding:6px 14px;text-align:left;border-bottom:1px solid rgba(128,128,128,0.3);text-align:center;">Still in use</th>
+</tr></thead>
+<tbody>
+<tr>
+<td style="padding:6px 14px;border-bottom:1px solid rgba(128,128,128,0.12);border-right:1px solid rgba(128,128,128,0.20);">C</td>
+<td style="padding:6px 14px;border-bottom:1px solid rgba(128,128,128,0.12);border-right:1px solid rgba(128,128,128,0.20);text-align:right;">1972</td>
+<td style="padding:6px 14px;border-bottom:1px solid rgba(128,128,128,0.12);border-right:1px solid rgba(128,128,128,0.20);">static, weak</td>
+<td style="padding:6px 14px;border-bottom:1px solid rgba(128,128,128,0.12);border-right:1px solid rgba(128,128,128,0.20);">manual</td>
+<td style="padding:6px 14px;border-bottom:1px solid rgba(128,128,128,0.12);border-right:1px solid rgba(128,128,128,0.20);">PDP-11</td>
+<td style="padding:6px 14px;border-bottom:1px solid rgba(128,128,128,0.12);border-right:1px solid rgba(128,128,128,0.20);">none</td>
+<td style="padding:6px 14px;border-bottom:1px solid rgba(128,128,128,0.12);border-right:1px solid rgba(128,128,128,0.20);">none</td>
+<td style="padding:6px 14px;border-bottom:1px solid rgba(128,128,128,0.12);border-right:1px solid rgba(128,128,128,0.20);"><code style="background:rgba(128,128,128,0.14);padding:1px 4px;border-radius:3px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:0.92em;">printf("hi\n");</code></td>
+<td style="padding:6px 14px;border-bottom:1px solid rgba(128,128,128,0.12);border-right:1px solid rgba(128,128,128,0.20);">Everything runs on it</td>
+<td style="padding:6px 14px;border-bottom:1px solid rgba(128,128,128,0.12);text-align:center;">yes</td>
+</tr>
+<tr style="background:rgba(128,128,128,0.07);">
+<td style="padding:6px 14px;border-bottom:1px solid rgba(128,128,128,0.12);border-right:1px solid rgba(128,128,128,0.20);">OCaml</td>
+<td style="padding:6px 14px;border-bottom:1px solid rgba(128,128,128,0.12);border-right:1px solid rgba(128,128,128,0.20);text-align:right;">1996</td>
+<td style="padding:6px 14px;border-bottom:1px solid rgba(128,128,128,0.12);border-right:1px solid rgba(128,128,128,0.20);">static, inferred</td>
+<td style="padding:6px 14px;border-bottom:1px solid rgba(128,128,128,0.12);border-right:1px solid rgba(128,128,128,0.20);">garbage collected</td>
+<td style="padding:6px 14px;border-bottom:1px solid rgba(128,128,128,0.12);border-right:1px solid rgba(128,128,128,0.20);">native and bytecode</td>
+<td style="padding:6px 14px;border-bottom:1px solid rgba(128,128,128,0.12);border-right:1px solid rgba(128,128,128,0.20);">opam</td>
+<td style="padding:6px 14px;border-bottom:1px solid rgba(128,128,128,0.12);border-right:1px solid rgba(128,128,128,0.20);">a camel</td>
+<td style="padding:6px 14px;border-bottom:1px solid rgba(128,128,128,0.12);border-right:1px solid rgba(128,128,128,0.20);"><code style="background:rgba(128,128,128,0.14);padding:1px 4px;border-radius:3px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:0.92em;">print_endline "hi"</code></td>
+<td style="padding:6px 14px;border-bottom:1px solid rgba(128,128,128,0.12);border-right:1px solid rgba(128,128,128,0.20);">Types you never write</td>
+<td style="padding:6px 14px;border-bottom:1px solid rgba(128,128,128,0.12);text-align:center;">yes</td>
+</tr>
+<tr>
+<td style="padding:6px 14px;border-bottom:1px solid rgba(128,128,128,0.12);border-right:1px solid rgba(128,128,128,0.20);">Swift</td>
+<td style="padding:6px 14px;border-bottom:1px solid rgba(128,128,128,0.12);border-right:1px solid rgba(128,128,128,0.20);text-align:right;">2014</td>
+<td style="padding:6px 14px;border-bottom:1px solid rgba(128,128,128,0.12);border-right:1px solid rgba(128,128,128,0.20);">static, inferred</td>
+<td style="padding:6px 14px;border-bottom:1px solid rgba(128,128,128,0.12);border-right:1px solid rgba(128,128,128,0.20);">reference counted</td>
+<td style="padding:6px 14px;border-bottom:1px solid rgba(128,128,128,0.12);border-right:1px solid rgba(128,128,128,0.20);">LLVM</td>
+<td style="padding:6px 14px;border-bottom:1px solid rgba(128,128,128,0.12);border-right:1px solid rgba(128,128,128,0.20);">SwiftPM</td>
+<td style="padding:6px 14px;border-bottom:1px solid rgba(128,128,128,0.12);border-right:1px solid rgba(128,128,128,0.20);">a swift</td>
+<td style="padding:6px 14px;border-bottom:1px solid rgba(128,128,128,0.12);border-right:1px solid rgba(128,128,128,0.20);"><code style="background:rgba(128,128,128,0.14);padding:1px 4px;border-radius:3px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:0.92em;">print("hi")</code></td>
+<td style="padding:6px 14px;border-bottom:1px solid rgba(128,128,128,0.12);border-right:1px solid rgba(128,128,128,0.20);">Optionals as a type</td>
+<td style="padding:6px 14px;border-bottom:1px solid rgba(128,128,128,0.12);text-align:center;">yes</td>
+</tr>
+<tr style="background:rgba(128,128,128,0.07);">
+<td style="padding:6px 14px;border-bottom:1px solid rgba(128,128,128,0.12);border-right:1px solid rgba(128,128,128,0.20);">Rust</td>
+<td style="padding:6px 14px;border-bottom:1px solid rgba(128,128,128,0.12);border-right:1px solid rgba(128,128,128,0.20);text-align:right;">2015</td>
+<td style="padding:6px 14px;border-bottom:1px solid rgba(128,128,128,0.12);border-right:1px solid rgba(128,128,128,0.20);">static, inferred</td>
+<td style="padding:6px 14px;border-bottom:1px solid rgba(128,128,128,0.12);border-right:1px solid rgba(128,128,128,0.20);">ownership</td>
+<td style="padding:6px 14px;border-bottom:1px solid rgba(128,128,128,0.12);border-right:1px solid rgba(128,128,128,0.20);">LLVM</td>
+<td style="padding:6px 14px;border-bottom:1px solid rgba(128,128,128,0.12);border-right:1px solid rgba(128,128,128,0.20);">cargo</td>
+<td style="padding:6px 14px;border-bottom:1px solid rgba(128,128,128,0.12);border-right:1px solid rgba(128,128,128,0.20);">Ferris the crab</td>
+<td style="padding:6px 14px;border-bottom:1px solid rgba(128,128,128,0.12);border-right:1px solid rgba(128,128,128,0.20);"><code style="background:rgba(128,128,128,0.14);padding:1px 4px;border-radius:3px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:0.92em;">println!("hi");</code></td>
+<td style="padding:6px 14px;border-bottom:1px solid rgba(128,128,128,0.12);border-right:1px solid rgba(128,128,128,0.20);">Borrows checked at compile time</td>
+<td style="padding:6px 14px;border-bottom:1px solid rgba(128,128,128,0.12);text-align:center;">yes</td>
+</tr>
+<tr>
+<td style="padding:6px 14px;border-bottom:1px solid rgba(128,128,128,0.12);border-right:1px solid rgba(128,128,128,0.20);">Python</td>
+<td style="padding:6px 14px;border-bottom:1px solid rgba(128,128,128,0.12);border-right:1px solid rgba(128,128,128,0.20);text-align:right;">1991</td>
+<td style="padding:6px 14px;border-bottom:1px solid rgba(128,128,128,0.12);border-right:1px solid rgba(128,128,128,0.20);">dynamic, strong</td>
+<td style="padding:6px 14px;border-bottom:1px solid rgba(128,128,128,0.12);border-right:1px solid rgba(128,128,128,0.20);">garbage collected</td>
+<td style="padding:6px 14px;border-bottom:1px solid rgba(128,128,128,0.12);border-right:1px solid rgba(128,128,128,0.20);">CPython</td>
+<td style="padding:6px 14px;border-bottom:1px solid rgba(128,128,128,0.12);border-right:1px solid rgba(128,128,128,0.20);">pip</td>
+<td style="padding:6px 14px;border-bottom:1px solid rgba(128,128,128,0.12);border-right:1px solid rgba(128,128,128,0.20);">a snake, sort of</td>
+<td style="padding:6px 14px;border-bottom:1px solid rgba(128,128,128,0.12);border-right:1px solid rgba(128,128,128,0.20);"><code style="background:rgba(128,128,128,0.14);padding:1px 4px;border-radius:3px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:0.92em;">print("hi")</code></td>
+<td style="padding:6px 14px;border-bottom:1px solid rgba(128,128,128,0.12);border-right:1px solid rgba(128,128,128,0.20);">Reads like the pseudocode</td>
+<td style="padding:6px 14px;border-bottom:1px solid rgba(128,128,128,0.12);text-align:center;">yes</td>
+</tr>
+</tbody>
+</table>
+=== example-8-what-we-shipped-and-what-we-are-still-ch
 <h2>What we shipped, and what we are still chewing on</h2>
 <ul style="margin:0.2em 0;padding-left:1.5em;">
 <li><span style="margin-right:0.4em">&#9745;</span><p>write a parser that fits in a tiny Swift codebase,</p>
@@ -138,8 +283,14 @@
 </li>
 <li><span style="margin-right:0.4em">&#9745;</span><p>decide whether tables should support inline images (yes, image only cells).</p>
 </li>
+<li><span style="margin-right:0.4em">&#9744;</span><p>a Find that reads past accents, so "cafe" finds the café (done, still ticking as we type this),</p>
+</li>
+<li><span style="margin-right:0.4em">&#9744;</span><p>an iOS control for the reading column,</p>
+</li>
+<li><span style="margin-right:0.4em">&#9744;</span><p><strong><em>nothing else</em></strong>, which is the hard part.</p>
+</li>
 </ul>
-=== example-6-code-that-travels-well
+=== example-9-code-that-travels-well
 <h2>Code that travels well</h2>
 <p>Each fence below should color the way you expect. If a block looks plain, the language tag is probably misspelled or the language is one we have not added yet.</p>
 <p>Swift:</p>
@@ -233,6 +384,16 @@ fn main() {
     println!("{:?}", v);
 }</code></pre>
 <p>Go:</p>
+<pre style="background:rgba(128,128,128,0.10);padding:8px 12px;border-radius:4px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:0.92em;overflow-x:auto;white-space:pre;"><code class="language-ocaml">(* A stack that remembers its own maximum: push is O(1), max is O(1). *)
+type 'a max_stack =
+  | Empty
+  | Node of { value : 'a; max : 'a; next : 'a max_stack }
+
+let push x = function
+  | Empty -&gt; Node { value = x; max = x; next = Empty }
+  | Node { max; _ } as s -&gt; Node { value = x; max = Stdlib.max x max; next = s }
+
+let top_max = function Empty -&gt; None | Node { max; _ } -&gt; Some max</code></pre>
 <pre style="background:rgba(128,128,128,0.10);padding:8px 12px;border-radius:4px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:0.92em;overflow-x:auto;white-space:pre;"><code class="language-go">package main
 
 import "fmt"
@@ -311,7 +472,7 @@ the [copy] button still works</code></pre>
 <pre style="background:rgba(128,128,128,0.10);padding:8px 12px;border-radius:4px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:0.92em;overflow-x:auto;white-space:pre;"><code>int x = 0;
 for (int i = 0; i &lt; 10; ++i) x += i;</code></pre>
 <hr style="border:none;border-top:1px solid rgba(128,128,128,0.3);margin:1em 0;">
-=== example-7-a-quick-combined-block
+=== example-10-a-quick-combined-block
 <h2>A quick combined block</h2>
 <p>Just to confirm everything composes:</p>
 <blockquote style="border-left:3px solid rgba(128,128,128,0.5);padding-left:12px;margin-left:0;opacity:0.85;">
@@ -373,7 +534,7 @@ for (int i = 0; i &lt; 10; ++i) x += i;</code></pre>
 </tbody>
 </table>
 <p>Copy that table as plain text and the scripts come back as Unicode, because a monospaced paste has no baseline to shift.</p>
-=== example-8-a-picture-is-worth-a-few-hundred-bytes
+=== example-11-a-picture-is-worth-a-few-hundred-bytes
 <h2>A picture is worth a few hundred bytes</h2>
 <p>Block level images load from any URL the document points at. If the load fails, we render a captioned placeholder so the layout never collapses around a missing image. A trailing <code style="background:rgba(128,128,128,0.14);padding:1px 4px;border-radius:3px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:0.92em;">{width=NNN}</code> (GitLab style) caps the rendered width; <code style="background:rgba(128,128,128,0.14);padding:1px 4px;border-radius:3px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:0.92em;">{height=NNN}</code> does the obvious thing.</p>
 <p>Images can also live inside table cells, one image per cell. Setting the same <code style="background:rgba(128,128,128,0.14);padding:1px 4px;border-radius:3px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:0.92em;">height</code> on both lines them up at the same vertical extent even though one is portrait and the other landscape:</p>
@@ -396,7 +557,7 @@ for (int i = 0; i &lt; 10; ++i) x += i;</code></pre>
 <p>The next image points to a deliberately broken URL so you can see the captioned-placeholder fallback. Layout doesn't collapse around the missing content; the alt text becomes a small box with a photo icon and the caption right where the image would have gone:</p>
 <p style="color:rgba(128,128,128,0.7);font-style:italic;">[image not found]</p>
 <hr style="border:none;border-top:1px solid rgba(128,128,128,0.3);margin:1em 0;">
-=== example-9-html-the-models-write
+=== example-12-html-the-models-write
 <h2>HTML the models write</h2>
 <p>Markdown has no spelling for a few things, so a model, or a README author, reaches for HTML. The short list that is understood: a line break (<br>) inside a paragraph<br>like this one, <small>small print</small>, <code style="background:rgba(128,128,128,0.14);padding:1px 4px;border-radius:3px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:0.92em;">Cmd</code>-<code style="background:rgba(128,128,128,0.14);padding:1px 4px;border-radius:3px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:0.92em;">C</code> for a key, <strong>bold</strong> and <em>italic</em> the old way, and a link written as <a href="https://commonmark.org">a tag</a>. A comment is dropped, and a centred wrapper centres what it holds:</p>
 <p style="text-align:center">Centred, the way a README opens.</p>
@@ -404,7 +565,7 @@ for (int i = 0; i &lt; 10; ++i) x += i;</code></pre>
 <p><strong>The part that folds elsewhere</strong></p>
 <p>Shown here, because a viewer has nothing to fold.</p>
 <p>Anything else stays as written, so nothing is lost: &lt;blink&gt;this&lt;/blink&gt; keeps its tags. Entities decode, © and — and a non-breaking space, except inside code, where <code style="background:rgba(128,128,128,0.14);padding:1px 4px;border-radius:3px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:0.92em;">&amp;nbsp;</code> is the six characters.</p>
-=== example-10-memory-and-performance
+=== example-13-memory-and-performance
 <h2>Memory and performance</h2>
 <p>A Markdown file is just bytes. The most this reader needs to hold in memory is roughly the file size, M ≤ c · N. A typical 40 KB README weighs about 50 KB once parsed, and renders in under one frame.</p>
 <p>A popular Electron-based editor uses ~240 MB on disk and ~400 MB of memory per window for the same job:</p>
@@ -440,7 +601,7 @@ for (int i = 0; i &lt; 10; ++i) x += i;</code></pre>
 <p>Adults read prose at about 250 words per minute. A 10,000-word document is ~40 minutes of reading. Any feature that adds a few seconds to startup quietly steals from those 40 minutes before the reader has seen a single word.</p>
 <p>Optimizing for the small things is just respect.</p>
 <hr style="border:none;border-top:1px solid rgba(128,128,128,0.3);margin:1em 0;">
-=== example-11-closing-thought
+=== example-14-closing-thought
 <h2>Closing thought</h2>
 <p>Good prose is short. Good code is short. Good tools are smaller than you think they need to be.</p>
 <p>If you scrolled this far without your CPU pinning, the layout loop is holding. The Share button in the toolbar exports this entire document, code blocks and tables and image captions and all, to a paginated PDF.</p>

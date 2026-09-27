@@ -43,6 +43,41 @@ A numbered list is the same idea wearing shoes. A small recipe, say:
    and the step still reads as one thought.
 3. Close the file. That was the whole recipe.
 
+## Lines that *must not* reflow, and a `code` word in a heading
+
+A verse is the one place a writer means every line end. Two trailing
+spaces are the CommonMark hard break, and a stanza is a blank line;
+this viewer keeps both, so the shape survives a window of any width.
+The accents are here on purpose too: find "cafe" and the café turns up.
+
+*A short one, for the road (2026)*
+
+The café in Zürich closes when it rains,  
+the façade of the Straße drips on the tram;  
+a naïve señor reads Dvořák on the train  
+and the Ærø ferry forgets where it came from.
+
+„Wer liest, der reist“, sagt die Großmutter leise,  
+„und wer schreibt, der bleibt.“ So geht die Reise:  
+ein Übermut aus Öl und Äpfeln, ein Fuß im Schnee,  
+und überall die kleinen Punkte über dem e.
+
+The lines above break where the poem breaks, not where the window does.
+
+## Where $\nabla^2 u = 0$ holds, so does a heading
+
+Inline maths in a heading is set at the heading's size, in the heading's
+weight, on the heading's baseline, and the copy button on the display
+below hands back the TeX it was drawn from. A Jacobian, with the dots
+that let a matrix stand for any size:
+
+$$\mathbf{J} = \begin{bmatrix} \dfrac{\partial f_1}{\partial x_1} & \cdots & \dfrac{\partial f_1}{\partial x_n} \\ \vdots & \ddots & \vdots \\ \dfrac{\partial f_m}{\partial x_1} & \cdots & \dfrac{\partial f_m}{\partial x_n} \end{bmatrix}$$
+
+The same engine sets a wave equation with its hats and its \hbar,
+and a Gaussian integral with bounds at both infinities:
+
+$$i\hbar\,\frac{\partial}{\partial t}\Psi(\mathbf{r}, t) = \hat{H}\,\Psi(\mathbf{r}, t) \qquad \int_{-\infty}^{\infty} e^{-x^2}\,dx = \sqrt{\pi}$$
+
 ## Math, the small kind
 
 Two engines, split by which delimiter you used, and you never pick.
@@ -114,6 +149,39 @@ A few napkin numbers for context. Sizes are rough installer or app bundle measur
 | Obsidian              |           250 MB | notes, plus a graph     |
 | Typora                |           120 MB | Markdown only           |
 
+## Tables that earn their width
+
+A table is as wide as what is in it and no wider, so a short one sits
+at the left like a list. Columns align the way the delimiter row says,
+and a cell can carry maths, code, emphasis and a date range:
+
+| Term | What it is | Since |
+|---|:---:|---:|
+| Markdown | *A plain-text format*, and a program that reads it | 2004 |
+| CommonMark | The spec, $\approx 30$ pages of edge cases | 2014 |
+| Hard break | Two trailing spaces, or `<br>` | forever |
+| This app | A viewer, $M \le c \cdot N$ | 2026 |
+
+When the content is wider than the page, cells wrap instead of the
+table spilling, and the longest word in a column sets its floor:
+
+| Reader | What they said about the last editor they tried |
+|---|---|
+| A novelist | It opened in nine seconds, asked to sign in, offered a workspace, and then showed the first paragraph in a font it had chosen for me, which was the moment I closed it and went looking for something that would simply show the file. |
+| A physicist | The preview was fine until the third integral, which it drew as a box, and the fourth, which it drew as nothing at all, so I went back to reading the TeX with my eyes like it was 1994. |
+| A student | It was free, then it was a trial, then it was a plan, and somewhere in there my notes became a database I could not open with anything else on the machine. |
+
+And when there are simply too many columns, the table scrolls sideways
+on its own rather than crushing every cell to a sliver:
+
+| Language | Year | Typing | Memory | First compiler | Package manager | Mascot | Hello world | Notable for | Still in use |
+|---|---:|---|---|---|---|---|---|---|:---:|
+| C | 1972 | static, weak | manual | PDP-11 | none | none | `printf("hi\n");` | Everything runs on it | yes |
+| OCaml | 1996 | static, inferred | garbage collected | native and bytecode | opam | a camel | `print_endline "hi"` | Types you never write | yes |
+| Swift | 2014 | static, inferred | reference counted | LLVM | SwiftPM | a swift | `print("hi")` | Optionals as a type | yes |
+| Rust | 2015 | static, inferred | ownership | LLVM | cargo | Ferris the crab | `println!("hi");` | Borrows checked at compile time | yes |
+| Python | 1991 | dynamic, strong | garbage collected | CPython | pip | a snake, sort of | `print("hi")` | Reads like the pseudocode | yes |
+
 ## What we shipped, and what we are still chewing on
 
 * [x] write a parser that fits in a tiny Swift codebase,
@@ -121,6 +189,9 @@ A few napkin numbers for context. Sizes are rough installer or app bundle measur
 * [x] externalize syntax data so adding a language is one line,
 * [x] keep the source under 2,500 lines,
 * [x] decide whether tables should support inline images (yes, image only cells).
+* [ ] a Find that reads past accents, so "cafe" finds the café (done, still ticking as we type this),
+* [ ] an iOS control for the reading column,
+* [ ] ***nothing else***, which is the hard part.
 
 ## Code that travels well
 
@@ -253,6 +324,19 @@ fn main() {
 ```
 
 Go:
+
+```ocaml
+(* A stack that remembers its own maximum: push is O(1), max is O(1). *)
+type 'a max_stack =
+  | Empty
+  | Node of { value : 'a; max : 'a; next : 'a max_stack }
+
+let push x = function
+  | Empty -> Node { value = x; max = x; next = Empty }
+  | Node { max; _ } as s -> Node { value = x; max = Stdlib.max x max; next = s }
+
+let top_max = function Empty -> None | Node { max; _ } -> Some max
+```
 
 ```go
 package main

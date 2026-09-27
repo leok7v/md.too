@@ -184,12 +184,18 @@ extension NativeText: NSViewRepresentable {
             return findMatches.count
         }
 
+        // The caret goes to the match first: the delegate anchors a
+        // drag at the last zero-length selection, and a match set on
+        // top of a stale anchor inside a table or a display would be
+        // stretched to cover both.
         func setActive(_ index: Int?) {
             activeIndex = index
             highlightAll()
             let len = textStorage?.length ?? 0
             if let i = index, i >= 0, i < findMatches.count,
                NSMaxRange(findMatches[i]) <= len {
+                setSelectedRange(NSRange(location: findMatches[i].location,
+                                         length: 0))
                 setSelectedRange(findMatches[i])
             } else {
                 setSelectedRange(NSRange(location: 0, length: 0))
