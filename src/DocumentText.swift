@@ -634,28 +634,49 @@ enum DocumentText {
         return CGRect(x: 0, y: 0, width: fit.width, height: fit.height)
     }
 
+    // The tint is painted by the bridge over the block's line fragments,
+    // not carried as a glyph background, so it reaches the padding the
+    // text is indented by and rounds its corners. Every code line is its
+    // own paragraph, so only the first carries the space above and only
+    // the last the space below; the lines between sit flush.
+
     private static func code(language: String?, text: String, id: String,
                              style: MarkdownStyle) -> NSAttributedString {
         let baseFont = style.codeFont
         let highlighted = Highlight.attribute(text, language: language,
                                               baseFont: baseFont)
         let m = NSMutableAttributedString(attributedString: highlighted)
-        // A trailing newline INSIDE the tinted range so the last code
-        // line's background paints: NSTextView draws no line-fragment
-        // background for a run's final line when it abuts a plain
-        // paragraph break.
-        if !text.hasSuffix("\n") {
-            m.append(NSAttributedString(string: "\n",
-                                        attributes: [.font: baseFont]))
+        m.append(NSAttributedString(string: "\n",
+                                    attributes: [.font: baseFont]))
+        let ns = m.string as NSString
+        var lineStart = 0
+        while lineStart < ns.length {
+            let line = ns.lineRange(for: NSRange(location: lineStart,
+                                                 length: 0))
+            let para = NSMutableParagraphStyle()
+            para.firstLineHeadIndent = style.codePadding
+            para.headIndent = style.codePadding
+            para.tailIndent = -style.codePadding
+            if lineStart == 0 {
+                para.paragraphSpacingBefore = style.codePadding / 2
+            }
+            if NSMaxRange(line) >= ns.length {
+                para.paragraphSpacing = style.codePadding / 2 +
+                                        style.blockSpacing
+            }
+            m.addAttribute(.paragraphStyle, value: para, range: line)
+            lineStart = NSMaxRange(line)
         }
         let full = NSRange(location: 0, length: m.length)
-        m.addAttribute(.backgroundColor,
-                       value: platformWhite(0.5, alpha: 0.10), range: full)
         m.addAttribute(atomicKindKey,
                        value: AtomicKind.code.rawValue, range: full)
         m.addAttribute(atomicIdKey, value: id, range: full)
         m.addAttribute(atomicCopyKey, value: text, range: full)
-        m.append(NSAttributedString(string: "\n"))
+        // The badge shows the language alone: an info string may carry
+        // more (`python title=x`) and the first word is the name.
+        if let word = language?.split(separator: " ").first {
+            m.addAttribute(atomicLabelKey, value: String(word), range: full)
+        }
         return m
     }
 

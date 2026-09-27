@@ -12,18 +12,22 @@ struct CopyBlockSpot: Equatable {
     let id: String
     let rect: CGRect
     let copy: String
+    // A code fence's language, drawn as a badge beside the glyph.
+    var label: String? = nil
     // The block itself, when it has a picture worth putting on the
     // board. Held rather than rendered: this struct is rebuilt and
     // compared on every layout pass, and a formula's PDF is 130KB that
     // most copies never ask for.
     var illustration: PasteboardIllustration? = nil
 
-    // Identity, position and text decide whether the overlay changed.
+    // Identity, position, text and label decide whether the overlay
+    // changed.
     // The illustration is the same object for the same id, so comparing
     // it would only cost a pointer -- but leaving it out keeps the
     // struct comparable without constraining the protocol further.
     static func == (a: CopyBlockSpot, b: CopyBlockSpot) -> Bool {
-        a.id == b.id && a.rect == b.rect && a.copy == b.copy
+        a.id == b.id && a.rect == b.rect && a.copy == b.copy &&
+        a.label == b.label
     }
 }
 
@@ -52,6 +56,59 @@ let atomicIdKey = NSAttributedString.Key("AtomicKind.id")
 // monospaced table serialization) so Copy yields the original markdown,
 // not the flattened on-screen render. Present only on code / table runs.
 let atomicCopyKey = NSAttributedString.Key("AtomicKind.copy")
+// The language a code fence declared, for the badge beside its copy
+// button. Present only on code runs that named one.
+let atomicLabelKey = NSAttributedString.Key("AtomicKind.label")
+
+let codeBlockTint: PlatformColor = platformWhite(0.5, alpha: 0.10)
+
+// The box a code block's tint fills. A line fragment spans the whole
+// container, with the paragraph's indents inside it and its spacing
+// above and below, so the union of a block's fragments is already the
+// box less the block spacing the last line carries under it; the sides
+// come in to the indent minus the padding, which is where the text
+// stepped in from. Only the runs that touch `within` are walked, so a
+// scroll pays for the blocks it shows, and the walk is by maximal
+// atomic run, the way the copy spots are.
+
+func codeBlockRects(in storage: NSAttributedString,
+                    layoutManager lm: NSLayoutManager,
+                    container tc: NSTextContainer,
+                    within: NSRange,
+                    padding: CGFloat, trailing: CGFloat) -> [CGRect] {
+    var rects: [CGRect] = []
+    let full = NSRange(location: 0, length: storage.length)
+    let end = min(NSMaxRange(within), storage.length)
+    var pos = min(within.location, end)
+    while pos < end {
+        var run = NSRange(location: 0, length: 0)
+        let kind = storage.attribute(atomicKindKey, at: pos,
+                                     longestEffectiveRange: &run,
+                                     in: full) as? String
+        if kind == AtomicKind.code.rawValue {
+            let glyphs = lm.glyphRange(forCharacterRange: run,
+                                       actualCharacterRange: nil)
+            let para = storage.attribute(.paragraphStyle, at: run.location,
+                                         effectiveRange: nil)
+                as? NSParagraphStyle
+            let head = max((para?.headIndent ?? 0) - padding, 0)
+            let tail = max(-(para?.tailIndent ?? 0) - padding, 0)
+            var box = CGRect.null
+            lm.enumerateLineFragments(forGlyphRange: glyphs) {
+                rect, _, _, _, _ in
+                box = box.union(rect)
+            }
+            if !box.isNull {
+                box.origin.x += head
+                box.size.width -= head + tail
+                box.size.height -= trailing
+                rects.append(box)
+            }
+        }
+        pos = max(NSMaxRange(run), pos + 1)
+    }
+    return rects
+}
 
 struct SelectableText: View {
 
@@ -124,15 +181,30 @@ private struct BlockCopyButton: View {
     @Environment(\.colorScheme) private var scheme
     @State private var copied = false
 
+    // The badge hangs to the LEFT of the glyph, outside the spot's own
+    // frame: the frame is the 22-point square the bridge measured, and
+    // SwiftUI draws what overflows it, so the label needs no width of
+    // its own reported from the text view.
     var body: some View {
         Button(action: doCopy) {
-            Image(systemName: copied ? "checkmark" : "doc.on.doc")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                .padding(4)
-                .background(Circle().fill(Color.secondary.opacity(0.15)))
+            HStack(spacing: 4) {
+                if let label = spot.label {
+                    Text(label.uppercased())
+                        .font(.caption2.weight(.medium))
+                        .foregroundStyle(.secondary)
+                }
+                Image(systemName: copied ? "checkmark" : "doc.on.doc")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            .padding(.vertical, 4)
+            .padding(.horizontal, spot.label == nil ? 4 : 7)
+            .background(Capsule().fill(Color.secondary.opacity(0.15)))
+            .fixedSize()
         }
         .buttonStyle(.plain)
+        .frame(width: spot.rect.width, height: spot.rect.height,
+               alignment: .trailing)
         .help("Copy")
     }
 

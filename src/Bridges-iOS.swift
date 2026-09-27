@@ -18,6 +18,9 @@ extension NativeText: UIViewRepresentable {
         ]
         v.setContentCompressionResistancePriority(.defaultLow,
                                                   for: .horizontal)
+        // The code boxes are drawn by the view itself, so a new frame
+        // must draw again rather than stretch the old bitmap.
+        v.contentMode = .redraw
         v.nowrap = nowrap
         if nowrap {
             v.textContainer.widthTracksTextView = false
@@ -67,7 +70,33 @@ extension NativeText: UIViewRepresentable {
                 contentGeneration += 1
                 invalidateIntrinsicContentSize()
                 setNeedsLayout()
+                setNeedsDisplay()
             }
+        }
+
+        // The code tint goes under the text: the text itself is drawn by
+        // a subview, so a fill here lies beneath it. Only the runs the
+        // rect reaches are walked.
+        override func draw(_ rect: CGRect) {
+            let style = MarkdownStyle.current
+            let inset = textContainerInset
+            let shown = rect.offsetBy(dx: -inset.left, dy: -inset.top)
+            let glyphs = layoutManager.glyphRange(forBoundingRect: shown,
+                                                  in: textContainer)
+            let chars = layoutManager.characterRange(
+                forGlyphRange: glyphs, actualGlyphRange: nil)
+            codeBlockTint.setFill()
+            for box in codeBlockRects(in: textStorage,
+                                      layoutManager: layoutManager,
+                                      container: textContainer,
+                                      within: chars,
+                                      padding: style.codePadding,
+                                      trailing: style.blockSpacing) {
+                UIBezierPath(roundedRect: box.offsetBy(dx: inset.left,
+                                                       dy: inset.top),
+                             cornerRadius: style.cornerRadius).fill()
+            }
+            super.draw(rect)
         }
 
         override var intrinsicContentSize: CGSize {
@@ -141,6 +170,9 @@ extension NativeText: UIViewRepresentable {
                 let kind = id == nil ? nil
                     : ts.attribute(atomicKindKey, at: run.location,
                                    effectiveRange: nil) as? String
+                let label = id == nil ? nil
+                    : ts.attribute(atomicLabelKey, at: run.location,
+                                   effectiveRange: nil) as? String
                 if let id, let copy {
                     let gr = lm.glyphRange(forCharacterRange: run,
                                            actualCharacterRange: nil)
@@ -168,7 +200,7 @@ extension NativeText: UIViewRepresentable {
                     spots.append(CopyBlockSpot(
                         id: id,
                         rect: CGRect(x: x, y: y, width: 22, height: 22),
-                        copy: copy))
+                        copy: copy, label: label))
                 }
                 pos = max(NSMaxRange(run), pos + 1)
             }

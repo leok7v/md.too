@@ -253,6 +253,32 @@ extension NativeText: NSViewRepresentable {
             }
         }
 
+        // The code tint goes under the text: every block's box, rounded,
+        // before the glyphs are drawn over it. Only the runs the dirty
+        // rect reaches are walked, so a scroll pays for what it shows.
+        override func draw(_ dirtyRect: NSRect) {
+            if let lm = layoutManager, let tc = textContainer,
+               let ts = textStorage {
+                let style = MarkdownStyle.current
+                let origin = textContainerOrigin
+                let shown = dirtyRect.offsetBy(dx: -origin.x, dy: -origin.y)
+                let glyphs = lm.glyphRange(forBoundingRect: shown, in: tc)
+                let chars = lm.characterRange(forGlyphRange: glyphs,
+                                              actualGlyphRange: nil)
+                codeBlockTint.setFill()
+                for box in codeBlockRects(in: ts, layoutManager: lm,
+                                          container: tc, within: chars,
+                                          padding: style.codePadding,
+                                          trailing: style.blockSpacing) {
+                    NSBezierPath(roundedRect: box.offsetBy(dx: origin.x,
+                                                           dy: origin.y),
+                                 xRadius: style.cornerRadius,
+                                 yRadius: style.cornerRadius).fill()
+                }
+            }
+            super.draw(dirtyRect)
+        }
+
         override var intrinsicContentSize: NSSize {
             var result = super.intrinsicContentSize
             if let lm = layoutManager, let tc = textContainer {
@@ -467,6 +493,9 @@ extension NativeText: NSViewRepresentable {
                                             at: run.location,
                                             effectiveRange: nil)
                                 as? NSTextAttachment)?.attachmentCell
+                    let label = id == nil ? nil
+                        : ts.attribute(atomicLabelKey, at: run.location,
+                                       effectiveRange: nil) as? String
                     if let id, let copy {
                         let gr = lm.glyphRange(forCharacterRange: run,
                                                actualCharacterRange: nil)
@@ -499,6 +528,7 @@ extension NativeText: NSViewRepresentable {
                             rect: CGRect(x: x, y: y,
                                          width: 22, height: 22),
                             copy: copy,
+                            label: label,
                             illustration:
                                 cell as? PasteboardIllustration))
                     }

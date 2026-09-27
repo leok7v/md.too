@@ -190,22 +190,22 @@ private struct CodeBlock: View {
     // Built at the zoom the environment carries, so a changed notch
     // re-runs this body: the text view takes the string as built.
     var body: some View {
-        let baseFont = FontRole.mono.platformFont(scale: zoom)
+        let style = MarkdownStyle.at(zoom: zoom)
         let highlighted = Highlight.attribute(text,
                                               language: language,
-                                              baseFont: baseFont)
+                                              baseFont: style.codeFont)
         ScrollView(.horizontal, showsIndicators: false) {
             SelectableText(nsAttributed: highlighted,
                            role: .mono,
                            nowrap: true)
-                .padding(10)
+                .padding(style.codePadding)
         }
         .background(
-            RoundedRectangle(cornerRadius: 6)
+            RoundedRectangle(cornerRadius: style.cornerRadius)
                 .fill(Color.secondary.opacity(0.1))
         )
         .overlay(alignment: .topTrailing) {
-            CopyButton(string: text)
+            CopyButton(string: text, label: language)
                 .padding(6)
         }
     }
@@ -523,15 +523,24 @@ final class TableMeasure {
 private struct CopyButton: View {
 
     let string: String
+    var label: String? = nil
     @State private var copied = false
 
     var body: some View {
         Button(action: copy) {
-            Image(systemName: copied ? "checkmark" : "doc.on.doc")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                .padding(4)
-                .background(Circle().fill(Color.secondary.opacity(0.15)))
+            HStack(spacing: 4) {
+                if let label {
+                    Text(label.uppercased())
+                        .font(.caption2.weight(.medium))
+                        .foregroundStyle(.secondary)
+                }
+                Image(systemName: copied ? "checkmark" : "doc.on.doc")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            .padding(.vertical, 4)
+            .padding(.horizontal, label == nil ? 4 : 7)
+            .background(Capsule().fill(Color.secondary.opacity(0.15)))
         }
         .buttonStyle(.plain)
         .help("Copy")
