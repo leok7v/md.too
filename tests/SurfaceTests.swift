@@ -90,7 +90,7 @@ final class SurfaceTests: XCTestCase {
     // the inset, tails end at the column's far edge, and a tail measured
     // from the trailing edge, a code block's, keeps its distance.
     func testAColumnIndentsProseAndLeavesTables() {
-        let md = "A paragraph.\n\n```\ncode\n```\n\n" +
+        let md = "A paragraph.\n\n```\ncode\nmore\n```\n\n" +
                  "| a | b |\n|---|---|\n| 1 | 2 |"
         let style = MarkdownStyle(bodySize: 13)
         let column = DocumentText.Column(inset: 100, width: 400)
@@ -110,7 +110,21 @@ final class SurfaceTests: XCTestCase {
         XCTAssertEqual(seen["prose"]?.headIndent, 100)
         XCTAssertEqual(seen["prose"]?.tailIndent, 500)
         XCTAssertEqual(seen["code"]?.headIndent, 100 + style.codePadding)
-        XCTAssertEqual(seen["code"]?.tailIndent, 500 - style.codePadding)
+        XCTAssertEqual(seen["code"]?.tailIndent,
+                       500 - style.codePadding -
+                           DocumentText.codeBadgeRoom(label: nil),
+                       "the first line keeps clear of the badge")
+        var lastCode: NSParagraphStyle? = nil
+        text.enumerateAttribute(.paragraphStyle, in: full,
+                                options: []) { value, range, _ in
+            let kind = text.attribute(atomicKindKey, at: range.location,
+                                      effectiveRange: nil) as? String
+            if kind == AtomicKind.code.rawValue {
+                lastCode = value as? NSParagraphStyle
+            }
+        }
+        XCTAssertEqual(lastCode?.tailIndent, 500 - style.codePadding,
+                       "and only the first line does")
         XCTAssertEqual(seen["table"]?.headIndent, 0)
         XCTAssertEqual(seen["table"]?.tailIndent, 0)
     }

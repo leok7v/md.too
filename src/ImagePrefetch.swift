@@ -79,6 +79,11 @@ enum ImagePrefetch {
                 group.addTask {
                     var req = URLRequest(url: u)
                     req.setValue(agent, forHTTPHeaderField: "User-Agent")
+                    // Ask the server whether the cached answer still
+                    // holds rather than trusting it: a 404 met once,
+                    // while a CDN was still catching up with a push,
+                    // otherwise came back from the cache for good.
+                    req.cachePolicy = .reloadRevalidatingCacheData
                     let data = try? await URLSession.shared
                         .data(for: req).0
                     return (u, data)

@@ -76,6 +76,20 @@ enum DocumentText {
         var entries: [Int: Entry] = [:]
         var minimums: [Int: Minimum] = [:]
         var tables: [Int: Table] = [:]
+
+        // The parse of the text last seen, so a host re-render that
+        // changed nothing else (a find keystroke, a toolbar toggle)
+        // costs a string compare rather than a parse.
+        private var parsedText = ""
+        private var parsed: [Block] = []
+
+        func blocks(for text: String) -> [Block] {
+            if text != parsedText {
+                parsed = Markdown.parse(text)
+                parsedText = text
+            }
+            return parsed
+        }
     }
 
     static func attributed(from blocks: [Block],
@@ -905,6 +919,11 @@ enum DocumentText {
         m.append(NSAttributedString(string: "\n",
                                     attributes: [.font: baseFont]))
         let ns = m.string as NSString
+        let word = language?.split(separator: " ").first.map(String.init)
+        // The first line stops short of the copy badge at the box's
+        // top right, or a long line runs under it; the box itself
+        // keeps its full width, since the bridge adds the room back.
+        let room = codeBadgeRoom(label: word)
         var lineStart = 0
         while lineStart < ns.length {
             let line = ns.lineRange(for: NSRange(location: lineStart,
@@ -915,6 +934,8 @@ enum DocumentText {
             para.tailIndent = -style.codePadding
             if lineStart == 0 {
                 para.paragraphSpacingBefore = style.codePadding / 2
+                para.tailIndent = -(style.codePadding + room)
+                m.addAttribute(codeBadgeRoomKey, value: room, range: line)
             }
             if NSMaxRange(line) >= ns.length {
                 para.paragraphSpacing = style.codePadding / 2 +
@@ -930,10 +951,19 @@ enum DocumentText {
         m.addAttribute(atomicCopyKey, value: text, range: full)
         // The badge shows the language alone: an info string may carry
         // more (`python title=x`) and the first word is the name.
-        if let word = language?.split(separator: " ").first {
-            m.addAttribute(atomicLabelKey, value: String(word), range: full)
+        if let word {
+            m.addAttribute(atomicLabelKey, value: word, range: full)
         }
         return m
+    }
+
+    // The badge is the icon, or the label in small capitals beside it,
+    // set in from the box's right edge; the label's width is estimated
+    // from its length, since the badge is a SwiftUI view laid out later.
+
+    static func codeBadgeRoom(label: String?) -> CGFloat {
+        copyButtonGutter + 12 +
+            (label.map { l in CGFloat(l.count) * 7.5 + 14 } ?? 0)
     }
 
     private static func paragraph(_ attr: AttributedString,

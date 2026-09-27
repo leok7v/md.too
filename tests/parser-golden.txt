@@ -158,8 +158,9 @@ paragraph: Python, with a decorator and a triple quoted docstring:|
 code[python]: from dataclasses import dataclass\n\n@dataclass\nclass User:\n    id: int\n    name: str\n\ndef greet(u: User) -> str:\n    """Triple quoted docstring should highlight as a string."""\n    return f"Hello, \{u.name\} (\{u.id\})"
 paragraph: Rust, with attributes:|
 code[rust]: #![allow(dead_code)]\n\nfn greet(name: &str) -> String \{\n    format!("Hello, \{\}!", name)\n\}\n\nfn main() \{\n    let v: Vec<i32> = (1..=5).collect();\n    println!("\{:?\}", v);\n\}
-paragraph: Go:|
+paragraph: OCaml, where a variant and a record share a line:|
 code[ocaml]: (* A stack that remembers its own maximum: push is O(1), max is O(1). *)\ntype 'a max_stack =\n  \| Empty\n  \| Node of \{ value : 'a; max : 'a; next : 'a max_stack \}\n\nlet push x = function\n  \| Empty -> Node \{ value = x; max = x; next = Empty \}\n  \| Node \{ max; _ \} as s -> Node \{ value = x; max = Stdlib.max x max; next = s \}\n\nlet top_max = function Empty -> None \| Node \{ max; _ \} -> Some max
+paragraph: Go:|
 code[go]: package main\n\nimport "fmt"\n\nfunc main() \{\n    nums := []int\{1, 2, 3\}\n    for i, n := range nums \{\n        fmt.Printf("%d: %d\\n", i, n)\n    \}\n\}
 paragraph: Ruby:|
 code[ruby]: class Greeter\n  attr_reader :name\n  def initialize(name) = @name = name\n  def greet = "Hello, #\{name\}!"\nend\n\nputs Greeter.new("World").greet
@@ -217,8 +218,9 @@ paragraph: Block level images load from any URL the document points at. If the l
 paragraph: Images can also live inside table cells, one image per cell. Setting the same |height{c}| on both lines them up at the same vertical extent even though one is portrait and the other landscape:|
 table 2x2: center,center
   h: [Renaissance] [Apollo]
-  r: [![Mona Lisa](https://dn710208.ca.archive.org/0/items/mona-lisa-by-leonardo-da-vinci-from-c-2-rmf-retouched/Mona_Lisa%2C_by_Leonardo_da_Vinci%2C_from_C2RMF_retouched.jpg)\{height=200\}] [![Earthrise](https://archive.org/download/297755main_GPN-2001-000009_full/297755main_GPN-2001-000009_full.jpg)\{height=200\}]
-  r: [Internet Archive] [NASA]
+  r: [![Mona Lisa](https://raw.githubusercontent.com/leok7v/md.too/refs/heads/main/docs/images/mona-lisa.jpg)\{height=200\}] [![Earthrise](https://raw.githubusercontent.com/leok7v/md.too/refs/heads/main/docs/images/earthrise.jpg)\{height=200\}]
+  r: [Leonardo da Vinci, c. 1503] [Apollo 8, 1968]
+paragraph: Both are public domain and served from this project's own repository, downscaled: the Mona Lisa from the C2RMF scan on Wikimedia Commons, Earthrise from NASA (GPN-2001-000009).{small}|
 paragraph: The next image points to a deliberately broken URL so you can see the fallback. Layout doesn't collapse around the missing content; the alt text stands in as a caption, right where the image would have gone:|
 image alt=image not found url=https://example.com/some-image.png w=- h=-
 rule

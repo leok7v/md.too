@@ -323,7 +323,7 @@ fn main() {
 }
 ```
 
-Go:
+OCaml, where a variant and a record share a line:
 
 ```ocaml
 (* A stack that remembers its own maximum: push is O(1), max is O(1). *)
@@ -337,6 +337,8 @@ let push x = function
 
 let top_max = function Empty -> None | Node { max; _ } -> Some max
 ```
+
+Go:
 
 ```go
 package main
@@ -502,8 +504,10 @@ Images can also live inside table cells, one image per cell. Setting the same `h
 
 | Renaissance      | Apollo           |
 | :---:            | :---:            |
-| ![Mona Lisa](https://dn710208.ca.archive.org/0/items/mona-lisa-by-leonardo-da-vinci-from-c-2-rmf-retouched/Mona_Lisa%2C_by_Leonardo_da_Vinci%2C_from_C2RMF_retouched.jpg){height=200} | ![Earthrise](https://archive.org/download/297755main_GPN-2001-000009_full/297755main_GPN-2001-000009_full.jpg){height=200} |
-| Internet Archive | NASA             |
+| ![Mona Lisa](https://raw.githubusercontent.com/leok7v/md.too/refs/heads/main/docs/images/mona-lisa.jpg){height=200} | ![Earthrise](https://raw.githubusercontent.com/leok7v/md.too/refs/heads/main/docs/images/earthrise.jpg){height=200} |
+| Leonardo da Vinci, c. 1503 | Apollo 8, 1968 |
+
+<small>Both are public domain and served from this project's own repository, downscaled: the Mona Lisa from the C2RMF scan on Wikimedia Commons, Earthrise from NASA (GPN-2001-000009).</small>
 
 The next image points to a deliberately broken URL so you can see the fallback. Layout doesn't collapse around the missing content; the alt text stands in as a caption, right where the image would have gone:
 

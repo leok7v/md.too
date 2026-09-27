@@ -59,6 +59,9 @@ let atomicCopyKey = NSAttributedString.Key("AtomicKind.copy")
 // The language a code fence declared, for the badge beside its copy
 // button. Present only on code runs that named one.
 let atomicLabelKey = NSAttributedString.Key("AtomicKind.label")
+// On a code block's first line: the room its tail keeps clear for the
+// copy badge, which the box's right edge adds back.
+let codeBadgeRoomKey = NSAttributedString.Key("AtomicKind.badgeRoom")
 
 let codeBlockTint: PlatformColor = platformWhite(0.5, alpha: 0.10)
 
@@ -93,6 +96,10 @@ func codeBlockRects(in storage: NSAttributedString,
                 as? NSParagraphStyle
             let head = max((para?.headIndent ?? 0) - padding, 0)
             let tailIndent = para?.tailIndent ?? 0
+            let room = (storage.attribute(codeBadgeRoomKey,
+                                          at: run.location,
+                                          effectiveRange: nil) as? CGFloat) ??
+                       0
             var box = CGRect.null
             lm.enumerateLineFragments(forGlyphRange: glyphs) {
                 rect, _, _, _, _ in
@@ -101,9 +108,9 @@ func codeBlockRects(in storage: NSAttributedString,
             if !box.isNull {
                 // A positive tail is a distance from the leading edge, a
                 // negative one from the trailing edge.
-                let right = tailIndent > 0
+                let right = (tailIndent > 0
                     ? box.minX + tailIndent + padding
-                    : box.maxX + tailIndent + padding
+                    : box.maxX + tailIndent + padding) + room
                 box.size.width = right - (box.minX + head)
                 box.origin.x += head
                 box.size.height -= trailing

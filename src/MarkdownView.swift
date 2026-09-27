@@ -7,7 +7,11 @@ private struct ViewportWidthKey: PreferenceKey {
     }
 }
 
-struct MarkdownView: View, Equatable {
+// Not Equatable, on purpose: SwiftUI takes an Equatable view's == as
+// the whole truth about whether it changed, and the images fetched into
+// its state are invisible to ==. A host re-render that changed nothing
+// is cheap instead: the parse and every block's render are cached.
+struct MarkdownView: View {
 
     let displayText: String
     let theme: ThemeMode
@@ -23,16 +27,6 @@ struct MarkdownView: View, Equatable {
     @State private var documentImages: [URL: DocumentText.DocumentImage] = [:]
     @State private var viewport: CGFloat = 0
     @State private var cache = DocumentText.RenderCache()
-
-    // Equatable so a host re-render that changed none of these (a find
-    // keystroke, a toolbar toggle) does not re-parse the document.
-    static func == (a: MarkdownView, b: MarkdownView) -> Bool {
-        a.displayText == b.displayText && a.theme == b.theme &&
-        a.showSource == b.showSource &&
-        a.singleSurface == b.singleSurface &&
-        a.readingColumn == b.readingColumn &&
-        a.find === b.find && a.zoom == b.zoom
-    }
 
     var body: some View {
         ScrollViewReader { proxy in
@@ -94,7 +88,7 @@ struct MarkdownView: View, Equatable {
     // key and the dependency SwiftUI re-renders on are one value.
 
     private var documentTextView: some View {
-        let blocks = traced("parse") { Markdown.parse(displayText) }
+        let blocks = traced("parse") { cache.blocks(for: displayText) }
         let style = MarkdownStyle.at(zoom: Zoom.scale(zoom))
         let fits = max(viewport - 40, 0)
         let need = traced("minimum") {
@@ -130,6 +124,11 @@ struct MarkdownView: View, Equatable {
             if !missing.isEmpty {
                 let fetched = await ImagePrefetch.fetchAndDecode(
                     missing, decode: platformDocumentImage)
+                if MarkdownView.tracing {
+                    let line = "md.too images: \(fetched.count) of " +
+                               "\(missing.count)\n"
+                    FileHandle.standardError.write(Data(line.utf8))
+                }
                 documentImages.merge(fetched) { _, fresh in fresh }
             }
         }
@@ -158,7 +157,7 @@ struct MarkdownView: View, Equatable {
     }
 
     private var rendered: some View {
-        let blocks = Markdown.parse(displayText)
+        let blocks = cache.blocks(for: displayText)
         return VStack(alignment: .leading, spacing: 12) {
             ForEach(Array(blocks.enumerated()),
                     id: \.offset) { _, block in
