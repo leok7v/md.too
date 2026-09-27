@@ -648,6 +648,29 @@
             background: #000;
         }
 
+        /* HOMEBREW */
+        .page-wrap pre.brew {
+            margin: 16px 0;
+            padding: 14px 16px;
+            border-radius: 12px;
+            background: var(--bg2);
+            border: 1px solid var(--border);
+            font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+            font-size: 14px;
+            line-height: 1.6;
+            color: var(--text);
+            overflow-x: auto;
+        }
+        .callout {
+            margin: 16px 0 8px;
+            padding: 12px 16px;
+            border-radius: 12px;
+            border-left: 4px solid #ff9f0a;
+            background: rgba(255,159,10,0.12);
+            font-size: 16px;
+            color: var(--text);
+        }
+
         /* ALSO AVAILABLE */
         .also-lead { margin-bottom: 8px; }
         .also-pair {
@@ -1018,6 +1041,12 @@
                autoplay loop muted playsinline preload="metadata"
                aria-label="md.too rendering EXAMPLE.md on iOS"></video>
     </figure>
+
+    <h2>Install with Homebrew</h2>
+    <p>On macOS, the signed and notarized release installs as a cask:</p>
+    <pre class="brew">brew tap leok7v/md.too https://github.com/leok7v/md.too
+brew install --cask md-too</pre>
+    <p class="callout"><b>Don't do both!</b> The Mac App Store copy and the Homebrew copy are the same app. Install one of them, not both.</p>
 
     <h2>Also available</h2>
     <p class="also-lead"><a href="https://leok7v.github.io/ChatOKF/">ChatOKF</a> is a private AI chat for Mac and iPhone from the same workshop. The model is downloaded once and runs on your device: no account, no server. It keeps what it learns as plain notes you can read, search and delete, and it answers from them.</p>
