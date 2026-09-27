@@ -161,9 +161,11 @@ enum TeX {
             s = s.replacingOccurrences(of: pattern, with: template,
                                        options: .regularExpression)
         }
-        s = expandFractions(s)
-        s = expandScript(s, prefix: "^", map: superscriptMap)
-        s = expandScript(s, prefix: "_", map: subscriptMap)
+        if s.utf8.count <= spelledLimit {
+            s = expandFractions(s)
+            s = expandScript(s, prefix: "^", map: superscriptMap)
+            s = expandScript(s, prefix: "_", map: subscriptMap)
+        }
         s = replaceTokens(s)
         s = s.replacingOccurrences(of: #"\\[A-Za-z]+\s*"#, with: "",
                                    options: .regularExpression)
@@ -176,6 +178,8 @@ enum TeX {
 
     private static let textCommand = try? NSRegularExpression(
         pattern: #"\\(?:text(?!color)[a-z]*|mbox)\s*\{([^{}]*)\}"#)
+
+    private static let spelledLimit = 4096
 
     private static let spelledOut: [(String, String)] = [
         (#"\\(?:begin|end)\s*\{[^{}]*\}"#, ""),

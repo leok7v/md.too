@@ -75,24 +75,51 @@ enum ImagePrefetch {
         await fetch(urls).compactMapValues(decode)
     }
 
+    static let byteLimit = 32 << 20
+    static let timeout: TimeInterval = 20
+
+    static func fetchable(_ url: URL) -> Bool {
+        let scheme = url.scheme?.lowercased()
+        return scheme == "http" || scheme == "https"
+    }
+
     static func fetch(_ urls: Set<URL>) async -> [URL: Data] {
-        let agent = "Markdown.Preview/1.0" +
-                    " (https://github.com/leok7v/md.too)"
-        return await withTaskGroup(of: (URL, Data?).self) { group in
-            for u in urls {
-                group.addTask {
-                    var req = URLRequest(url: u)
-                    req.setValue(agent, forHTTPHeaderField: "User-Agent")
-                    req.cachePolicy = .reloadRevalidatingCacheData
-                    let data = try? await URLSession.shared
-                        .data(for: req).0
-                    return (u, data)
-                }
+        await withTaskGroup(of: (URL, Data?).self) { group in
+            for u in urls where fetchable(u) {
+                group.addTask { (u, await capped(u)) }
             }
             var result: [URL: Data] = [:]
             for await (u, d) in group { if let d { result[u] = d } }
             return result
         }
+    }
+
+    private static func capped(_ url: URL) async -> Data? {
+        let agent = "Markdown.Preview/1.0" +
+                    " (https://github.com/leok7v/md.too)"
+        var req = URLRequest(url: url, timeoutInterval: timeout)
+        req.setValue(agent, forHTTPHeaderField: "User-Agent")
+        req.cachePolicy = .reloadRevalidatingCacheData
+        var result: Data? = nil
+        if let (bytes, response) = try? await URLSession.shared.bytes(
+               for: req),
+           response.expectedContentLength <= Int64(byteLimit) {
+            var data = Data()
+            let deadline = ContinuousClock.now + .seconds(timeout)
+            do {
+                var iterator = bytes.makeAsyncIterator()
+                var byte = try await iterator.next()
+                while let b = byte, data.count <= byteLimit,
+                      ContinuousClock.now <= deadline {
+                    data.append(b)
+                    byte = try await iterator.next()
+                }
+                result = byte == nil ? data : nil
+            } catch {
+                result = nil
+            }
+        }
+        return result
     }
 
 }

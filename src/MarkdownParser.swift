@@ -159,7 +159,7 @@ enum Markdown {
             } else if isFence(line) {
                 blocks.append(consumeFenced(lines, &i))
             } else if isMathFence(line) {
-                blocks.append(consumeMath(&lines, &i))
+                blocks += consumeMath(&lines, &i)
             } else if isHeading(line) {
                 blocks.append(consumeHeading(lines, &i))
             } else if isHR(line) {
@@ -323,8 +323,20 @@ enum Markdown {
         var closed = false
         while i < lines.count, !closed {
             if let end = lines[i].range(of: "-->") {
-                let tail = String(lines[i][end.upperBound...])
-                    .trimmedLeading()
+                var from = end.upperBound
+                var chaining = true
+                while chaining {
+                    let rest = lines[i][from...].drop { c in
+                        c == " " || c == "\t"
+                    }
+                    if rest.hasPrefix("<!--"),
+                       let next = rest.range(of: "-->") {
+                        from = next.upperBound
+                    } else {
+                        chaining = false
+                    }
+                }
+                let tail = String(lines[i][from...]).trimmedLeading()
                 closed = true
                 if tail.trimmedOuter().isEmpty {
                     i += 1
@@ -348,13 +360,14 @@ enum Markdown {
     private struct TagRule {
         let re: NSRegularExpression?
         let template: String
+        let closers: [String]
     }
 
-    private static func tagRule(_ pattern: String,
-                                _ template: String) -> TagRule {
+    private static func tagRule(_ pattern: String, _ template: String,
+                                closers: [String] = []) -> TagRule {
         TagRule(re: try? NSRegularExpression(pattern: pattern,
                                              options: .caseInsensitive),
-                template: template)
+                template: template, closers: closers)
     }
 
     private static let imgRule =
@@ -364,18 +377,24 @@ enum Markdown {
     // as tags, and <img> before <a> so a linked image keeps its picture.
 
     private static let tagRules: [TagRule] = [
-        tagRule(#"<!--.*?-->"#, ""),
+        tagRule(#"<!--(?:(?!<!--).)*?-->"#, "", closers: ["-->"]),
         tagRule(#"<br\s*/?>"#, "\u{2028}"),
         imgRule,
         tagRule(#"<img\b[^>]*?\bsrc\s*=\s*'([^']*)'[^>]*>"#, "![]($1)"),
-        tagRule(#"<a\b[^>]*?\bhref\s*=\s*"([^"]*)"[^>]*>(.*?)</a>"#,
-                "[$2]($1)"),
-        tagRule(#"<a\b[^>]*?\bhref\s*=\s*'([^']*)'[^>]*>(.*?)</a>"#,
-                "[$2]($1)"),
-        tagRule(#"<(b|strong)>(.*?)</\1>"#, "**$2**"),
-        tagRule(#"<(i|em)>(.*?)</\1>"#, "*$2*"),
-        tagRule(#"<(s|del|strike)>(.*?)</\1>"#, "~~$2~~"),
-        tagRule(#"<(code|kbd)>(.*?)</\1>"#, "`$2`"),
+        tagRule(#"<a\b[^>]*?\bhref\s*=\s*"([^"]*)"[^>]*>"# +
+                #"((?:(?!<a\b).)*?)</a>"#,
+                "[$2]($1)", closers: ["</a>"]),
+        tagRule(#"<a\b[^>]*?\bhref\s*=\s*'([^']*)'[^>]*>"# +
+                #"((?:(?!<a\b).)*?)</a>"#,
+                "[$2]($1)", closers: ["</a>"]),
+        tagRule(#"<(b|strong)>((?:(?!<\1>).)*?)</\1>"#, "**$2**",
+                closers: ["</b>", "</strong>"]),
+        tagRule(#"<(i|em)>((?:(?!<\1>).)*?)</\1>"#, "*$2*",
+                closers: ["</i>", "</em>"]),
+        tagRule(#"<(s|del|strike)>((?:(?!<\1>).)*?)</\1>"#, "~~$2~~",
+                closers: ["</s>", "</del>", "</strike>"]),
+        tagRule(#"<(code|kbd)>((?:(?!<\1>).)*?)</\1>"#, "`$2`",
+                closers: ["</code>", "</kbd>"]),
     ]
 
     private static let imgAltRE = try? NSRegularExpression(
@@ -391,7 +410,10 @@ enum Markdown {
         if text.contains("<") {
             result = imagesWithAttributes(result)
             for rule in tagRules {
-                if let re = rule.re {
+                let lower = rule.closers.isEmpty ? "" : result.lowercased()
+                let closed = rule.closers.isEmpty ||
+                             rule.closers.contains { c in lower.contains(c) }
+                if closed, let re = rule.re {
                     let ns = result as NSString
                     result = re.stringByReplacingMatches(
                         in: result,
@@ -674,7 +696,38 @@ enum Markdown {
     // formula below; an unterminated display runs to the document's end.
 
     private static func consumeMath(_ lines: inout [String],
-                                    _ i: inout Int) -> Block {
+                                    _ i: inout Int) -> [Block] {
+        let line = lines[i].trimmedOuter()
+        var blocks: [Block] = []
+        var from = line.startIndex
+        var chaining = true
+        while chaining {
+            let rest = line[from...].drop { c in c == " " || c == "\t" }
+            let inner = rest.dropFirst(2)
+            if rest.hasPrefix("$$"), let end = inner.range(of: "$$") {
+                blocks.append(.math(String(inner[..<end.lowerBound])
+                    .trimmedOuter()))
+                from = end.upperBound
+            } else {
+                chaining = false
+            }
+        }
+        var result = blocks
+        if blocks.isEmpty {
+            result = [consumeOpenMath(&lines, &i)]
+        } else {
+            let tail = String(line[from...]).trimmedOuter()
+            if tail.allSatisfy({ ch in ch == "$" }) {
+                i += 1
+            } else {
+                lines[i] = tail
+            }
+        }
+        return result
+    }
+
+    private static func consumeOpenMath(_ lines: inout [String],
+                                        _ i: inout Int) -> Block {
         var body: [String] = []
         var line = String(lines[i].trimmedOuter().dropFirst(2))
         var closed = false
@@ -1280,14 +1333,22 @@ enum Markdown {
             }
         }
         var out = parseInlineMarkdown(normalizeBreaks(stitched))
-        for (index, piece) in maths.enumerated() {
-            if case .math(let s, let display) = piece,
-               let r = out.range(of: String(sentinel(index))) {
-                var rendered = TeX.render(s, display: display)
-                let fence = display ? "$$" : "$"
-                rendered[InlineMathAttribute.self] = fence + s + fence
-                out.replaceSubrange(r, with: rendered)
+        if !maths.isEmpty {
+            var spliced = AttributedString()
+            var from = out.startIndex
+            for (index, piece) in maths.enumerated() {
+                if case .math(let s, let display) = piece,
+                   let r = out[from...].range(of: String(sentinel(index))) {
+                    var rendered = TeX.render(s, display: display)
+                    let fence = display ? "$$" : "$"
+                    rendered[InlineMathAttribute.self] = fence + s + fence
+                    spliced.append(out[from..<r.lowerBound])
+                    spliced.append(rendered)
+                    from = r.upperBound
+                }
             }
+            spliced.append(out[from...])
+            out = spliced
         }
         applyTag(&out, "u") { sub in sub.underlineStyle = .single }
         applyTag(&out, "sup") { sub in sub[ScriptAttribute.self] = 1 }
@@ -1446,33 +1507,46 @@ enum Markdown {
     private static func applyTag(_ a: inout AttributedString,
                                  _ tag: String,
                                  style: (inout AttributedSubstring) -> Void) {
+        var pairing = true
+        while pairing {
+            pairing = tagPass(&a, tag, style: style)
+        }
+    }
+
+    private static func tagPass(_ a: inout AttributedString, _ tag: String,
+                                style: (inout AttributedSubstring) -> Void)
+        -> Bool {
         let open = "<\(tag)>"
         let close = "</\(tag)>"
+        var out = AttributedString()
         var from = a.startIndex
-        var searching = true
-        while searching {
-            if let o = a[from...].range(of: open, options: .caseInsensitive) {
-                let intent = a.runs[o.lowerBound].inlinePresentationIntent
-                if intent?.contains(.code) == true {
-                    from = o.upperBound
-                } else if let c = a[o.upperBound...].range(
-                    of: close, options: .caseInsensitive) {
-                    var sub = a[o.upperBound..<c.lowerBound]
-                    style(&sub)
-                    let at = a.characters.distance(from: a.startIndex,
-                                                   to: o.lowerBound)
-                    a.replaceSubrange(o.lowerBound..<c.upperBound, with: sub)
-                    from = a.characters.index(a.startIndex, offsetBy: at)
-                } else {
-                    let at = a.characters.distance(from: a.startIndex,
-                                                   to: o.lowerBound)
-                    a.removeSubrange(o)
-                    from = a.characters.index(a.startIndex, offsetBy: at)
-                }
+        var paired = false
+        var closerAhead = true
+        while let o = a[from...].range(of: open, options: .caseInsensitive) {
+            let intent = a.runs[o.lowerBound].inlinePresentationIntent
+            let c = closerAhead && intent?.contains(.code) != true
+                ? a[o.upperBound...].range(of: close,
+                                           options: .caseInsensitive)
+                : nil
+            if intent?.contains(.code) == true {
+                out.append(a[from..<o.upperBound])
+                from = o.upperBound
+            } else if let c {
+                out.append(a[from..<o.lowerBound])
+                var sub = a[o.upperBound..<c.lowerBound]
+                style(&sub)
+                out.append(sub)
+                from = c.upperBound
+                paired = true
             } else {
-                searching = false
+                out.append(a[from..<o.lowerBound])
+                from = o.upperBound
+                closerAhead = false
             }
         }
+        out.append(a[from...])
+        a = out
+        return paired
     }
 
 }

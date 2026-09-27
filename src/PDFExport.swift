@@ -111,7 +111,7 @@ enum PDFExport {
             let r = PDFRenderer(ctx: ctx, pageSize: pageSize,
                                 title: title, images: images)
             r.startPage()
-            for block in blocks { r.draw(block) }
+            for block in blocks where !Task.isCancelled { r.draw(block) }
             r.endPage()
             ctx.closePDF()
         } else {
@@ -137,7 +137,7 @@ enum PDFExport {
                 let r = PDFRenderer(ctx: ctx, pageSize: pageSize,
                                     title: title, images: images)
                 r.startPage()
-                for block in blocks { r.draw(block) }
+                for block in blocks where !Task.isCancelled { r.draw(block) }
                 r.endPage()
                 ctx.closePDF()
                 result = buffer as Data

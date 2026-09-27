@@ -513,6 +513,27 @@ final class SurfaceTests: XCTestCase {
         XCTAssertLessThan(ContinuousClock.now - start, .seconds(1))
     }
 
+    func testHostileCodeHighlightsWithinItsBudget() {
+        let hostile = [("js", String(repeating: "/* ", count: 20_000)),
+                       ("rust", String(repeating: "\" x ", count: 20_000))]
+        for (language, code) in hostile {
+            let start = ContinuousClock.now
+            _ = Highlight.attribute(code, language: language,
+                                    baseFont: monoFont(at: 12))
+            XCTAssertLessThan(ContinuousClock.now - start, .seconds(1),
+                              language)
+        }
+    }
+
+    func testOnlyWebImagesAreFetched() throws {
+        XCTAssertTrue(ImagePrefetch.fetchable(
+            try XCTUnwrap(URL(string: "https://e.com/a.png"))))
+        XCTAssertFalse(ImagePrefetch.fetchable(
+            URL(fileURLWithPath: "/dev/zero")))
+        XCTAssertFalse(ImagePrefetch.fetchable(
+            try XCTUnwrap(URL(string: "images/a.png"))))
+    }
+
     func testQuickLookMeasuresACellAsItIsShown() {
         XCTAssertEqual(TableMeasure.shown("**bold** [l](http://e.com/long)"),
                        "bold l")

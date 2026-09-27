@@ -188,6 +188,15 @@ final class ExportRoundTripTests: XCTestCase {
         XCTAssertTrue(text.contains("line 300"), "the row was cut off")
     }
 
+    func testOneHugeParagraphExportsInLinearTime() throws {
+        let words = Array(repeating: "word", count: 32_768)
+            .joined(separator: " ")
+        let start = ContinuousClock.now
+        let doc = try pdf(words)
+        XCTAssertLessThan(ContinuousClock.now - start, .seconds(3))
+        XCTAssertGreaterThan(doc.pageCount, 1)
+    }
+
     func testADisplayTallerThanAPageFitsOnOne() throws {
         let rows = (1...160).map { n in String(n) }
             .joined(separator: " \\\\ ")

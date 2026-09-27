@@ -13,24 +13,38 @@ enum Highlight {
             let lower = language.lowercased()
             let key = data.aliases[lower] ?? lower
             if let spec = data.languages[key] {
+                var spans: [Span] = []
+                let deadline = ContinuousClock.now + budget
                 var mask = [Bool](repeating: false, count: full.length)
                 tokenize([(spec.blockComment, data.comment),
                           (spec.lineComment, data.comment),
                           (spec.attr, data.attr),
                           (spec.string, data.string)],
-                         code: code, full: full, into: ns, mask: &mask)
+                         code: code, full: full, into: &spans, mask: &mask,
+                         deadline: deadline)
                 apply(spec.meta, code: code, full: full,
-                      color: data.builtin, into: ns, mask: &mask)
+                      color: data.builtin, into: &spans, mask: &mask,
+                      deadline: deadline)
                 apply(spec.tag, code: code, full: full,
-                      color: data.variable, into: ns, mask: &mask)
+                      color: data.variable, into: &spans, mask: &mask,
+                      deadline: deadline)
                 apply(spec.type, code: code, full: full,
-                      color: data.type, into: ns, mask: &mask)
+                      color: data.type, into: &spans, mask: &mask,
+                      deadline: deadline)
                 apply(spec.builtin, code: code, full: full,
-                      color: data.builtin, into: ns, mask: &mask)
+                      color: data.builtin, into: &spans, mask: &mask,
+                      deadline: deadline)
                 apply(spec.number, code: code, full: full,
-                      color: data.number, into: ns, mask: &mask)
+                      color: data.number, into: &spans, mask: &mask,
+                      deadline: deadline)
                 applyKeywords(spec.keywords, code: code, full: full,
-                              color: data.keyword, into: ns, mask: mask)
+                              color: data.keyword, into: &spans, mask: mask,
+                              deadline: deadline)
+                spans.sort { a, b in a.0.location < b.0.location }
+                for (range, color) in spans {
+                    ns.addAttribute(.foregroundColor, value: color,
+                                    range: range)
+                }
             }
         }
         return ns
@@ -40,11 +54,13 @@ enum Highlight {
                                    code: String,
                                    full: NSRange,
                                   color: PlatformColor,
-                                into ns: NSMutableAttributedString,
-                                   mask: inout [Bool]) {
+                                into spans: inout [Span],
+                                   mask: inout [Bool],
+                               deadline: ContinuousClock.Instant) {
         if let re {
-            re.enumerateMatches(in: code, options: [],
-                             range: full) { m, _, _ in
+            re.enumerateMatches(in: code, options: .reportProgress,
+                             range: full) { m, _, stop in
+                if ContinuousClock.now > deadline { stop.pointee = true }
                 if let m {
                     let r = m.range
                     let lo = r.location
@@ -53,8 +69,7 @@ enum Highlight {
                     let collide = inside && (lo..<hi).contains { i in mask[i] }
                     if inside && !collide {
                         for i in lo..<hi { mask[i] = true }
-                        ns.addAttribute(.foregroundColor, value: color,
-                                                          range: r)
+                        spans.append((r, color))
                     }
                 }
             }
@@ -64,9 +79,11 @@ enum Highlight {
     private static func tokenize(
         _ classes: [(NSRegularExpression?, PlatformColor)],
         code: String, full: NSRange,
-        into ns: NSMutableAttributedString, mask: inout [Bool]) {
+        into spans: inout [Span], mask: inout [Bool],
+        deadline: ContinuousClock.Instant) {
         var next = classes.map { entry in
-            firstMatch(entry.0, in: code, from: 0, full: full)
+            firstMatch(entry.0, in: code, from: 0, full: full,
+                       deadline: deadline)
         }
         var position = 0
         var pending = true
@@ -74,7 +91,8 @@ enum Highlight {
             for k in next.indices {
                 if let r = next[k], r.location < position {
                     next[k] = firstMatch(classes[k].0, in: code,
-                                         from: position, full: full)
+                                         from: position, full: full,
+                                         deadline: deadline)
                 }
             }
             let best = next.indices.compactMap { k in
@@ -87,9 +105,7 @@ enum Highlight {
             if let best, NSMaxRange(best.range) <= mask.count {
                 let hi = NSMaxRange(best.range)
                 for i in best.range.location..<hi { mask[i] = true }
-                ns.addAttribute(.foregroundColor,
-                                value: classes[best.rank].1,
-                                range: best.range)
+                spans.append((best.range, classes[best.rank].1))
                 position = hi
             } else {
                 pending = false
@@ -98,23 +114,20 @@ enum Highlight {
     }
 
     private static func firstMatch(_ re: NSRegularExpression?, in code: String,
-                                   from start: Int,
-                                   full: NSRange) -> NSRange? {
+                                   from start: Int, full: NSRange,
+                                   deadline: ContinuousClock.Instant)
+        -> NSRange? {
         var result: NSRange? = nil
-        var from = start
-        var searching = re != nil
-        while searching, from <= full.length {
-            let m = re?.firstMatch(
-                in: code, options: [.withTransparentBounds,
-                                    .withoutAnchoringBounds],
-                range: NSRange(location: from, length: full.length - from))
+        re?.enumerateMatches(
+            in: code, options: [.reportProgress, .withTransparentBounds,
+                                .withoutAnchoringBounds],
+            range: NSRange(location: start, length: full.length - start)) {
+            m, _, stop in
             if let m, m.range.length > 0 {
                 result = m.range
-                searching = false
-            } else if let m {
-                from = m.range.location + 1
-            } else {
-                searching = false
+                stop.pointee = true
+            } else if ContinuousClock.now > deadline {
+                stop.pointee = true
             }
         }
         return result
@@ -124,11 +137,13 @@ enum Highlight {
                                          code: String,
                                          full: NSRange,
                                         color: PlatformColor,
-                                      into ns: NSMutableAttributedString,
-                                         mask: [Bool]) {
+                                      into spans: inout [Span],
+                                         mask: [Bool],
+                                     deadline: ContinuousClock.Instant) {
         if let re {
-            re.enumerateMatches(in: code, options: [],
-                             range: full) { m, _, _ in
+            re.enumerateMatches(in: code, options: .reportProgress,
+                             range: full) { m, _, stop in
+                if ContinuousClock.now > deadline { stop.pointee = true }
                 if let m {
                     let r = m.range
                     let lo = r.location
@@ -138,8 +153,7 @@ enum Highlight {
                         mask[i]
                     }
                     if inside && !collide {
-                        ns.addAttribute(.foregroundColor,
-                                        value: color, range: r)
+                        spans.append((r, color))
                     }
                 }
             }
@@ -167,7 +181,10 @@ enum Highlight {
         return out
     }
 
+    private typealias Span = (NSRange, PlatformColor)
+
     private static let defaultFg = platformDefaultTextColor
+    static let budget: Duration = .milliseconds(250)
 
     private struct Spec {
         let keywords: NSRegularExpression?

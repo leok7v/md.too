@@ -2334,15 +2334,17 @@ final class Layouter {
 
     func extensibleBox(_ cp: UInt32, _ over: [Node], _ under: [Node]?,
                        _ o: Opts) -> Box {
-        let scripts = o.with(style: o.style.sup())
-        let label = max(build(over, scripts).width,
-                        under.map { u in build(u, scripts).width } ?? 0)
+        let upper = build(over, o.with(style: o.style.sup()))
+        let lower = under.map { u in
+            build(u, o.with(style: o.style.sub(), cramped: true))
+        }
+        let label = max(upper.width, lower?.width ?? 0)
         let glyph = font.glyph(cp)
         var arrow = glyphBox(cp, o.size)
         if glyph != 0 {
             arrow = stretchedHorizontal(glyph, over: label + o.size, o)
         }
-        let stacked = limitsBox(arrow, over, under, o)
+        let stacked = stackLimits(arrow, upper, lower, o)
         return Box.hbox([Box.kern(3 * o.mu), stacked, Box.kern(3 * o.mu)])
     }
 
@@ -2525,6 +2527,11 @@ final class Layouter {
         let lower = sub.map { n in
             build(n, o.with(style: o.style.sub(), cramped: true))
         }
+        return stackLimits(opBox, upper, lower, o)
+    }
+
+    func stackLimits(_ opBox: Box, _ upper: Box?, _ lower: Box?,
+                     _ o: Opts) -> Box {
         let width = max(opBox.width, max(upper?.width ?? 0, lower?.width ?? 0))
 
         var items: [(box: Box, dx: CGFloat, dy: CGFloat)] = []

@@ -261,45 +261,57 @@ final class PDFRenderer {
     }
 
     private func flow(_ attr: NSAttributedString) {
-        if attr.length > 0 {
-            let fs = CTFramesetterCreateWithAttributedString(attr)
-            var consumed = 0
-            while consumed < attr.length {
-                ensureSpace(20)
-                let avail = remaining
-                let fresh = y >= contentTop
-                let line = fresh ? firstLine(fs, attr, from: consumed) : 0
-                let rem = CFRange(location: consumed,
-                                  length: attr.length - consumed)
-                var rect = CGRect(x: contentLeft, y: contentBottom,
-                                  width: contentWidth, height: avail)
-                var frame = CTFramesetterCreateFrame(
-                    fs, rem, CGPath(rect: rect, transform: nil), nil)
-                var visible = CTFrameGetVisibleStringRange(frame)
-                if visible.length == 0, line > 0 {
-                    let tall: CGFloat = 1_000_000
-                    rect = CGRect(x: contentLeft, y: y - tall,
-                                  width: contentWidth, height: tall)
-                    frame = CTFramesetterCreateFrame(
-                        fs, CFRange(location: consumed, length: line),
-                        CGPath(rect: rect, transform: nil), nil)
-                    visible = CTFrameGetVisibleStringRange(frame)
-                }
-                if visible.length == 0 {
-                    newPage()
-                } else {
-                    let used = lineHeightUsed(frame: frame, in: rect)
-                    placeMarkers(baseline: rect.minY +
-                                           firstBaseline(frame))
-                    CTFrameDraw(frame, ctx)
-                    drawInlineMath(in: frame, rect: rect)
-                    annotateLinks(in: frame, rect: rect)
-                    y -= used
-                    consumed = visible.location + visible.length
-                    if consumed < attr.length { newPage() }
-                }
+        var consumed = 0
+        while consumed < attr.length {
+            ensureSpace(20)
+            let piece = attr.attributedSubstring(from: window(attr, consumed))
+            let fs = CTFramesetterCreateWithAttributedString(piece)
+            let fresh = y >= contentTop
+            let line = fresh ? firstLine(fs, piece, from: 0) : 0
+            var rect = CGRect(x: contentLeft, y: contentBottom,
+                              width: contentWidth, height: remaining)
+            var frame = CTFramesetterCreateFrame(
+                fs, CFRange(location: 0, length: 0),
+                CGPath(rect: rect, transform: nil), nil)
+            var visible = CTFrameGetVisibleStringRange(frame)
+            if visible.length == 0, line > 0 {
+                let tall: CGFloat = 1_000_000
+                rect = CGRect(x: contentLeft, y: y - tall,
+                              width: contentWidth, height: tall)
+                frame = CTFramesetterCreateFrame(
+                    fs, CFRange(location: 0, length: line),
+                    CGPath(rect: rect, transform: nil), nil)
+                visible = CTFrameGetVisibleStringRange(frame)
+            }
+            if visible.length == 0 {
+                consumed += fresh ? 1 : 0
+                newPage()
+            } else {
+                let used = lineHeightUsed(frame: frame, in: rect)
+                placeMarkers(baseline: rect.minY + firstBaseline(frame))
+                CTFrameDraw(frame, ctx)
+                drawInlineMath(in: frame, rect: rect)
+                annotateLinks(in: frame, rect: rect)
+                y -= used
+                consumed += visible.length
+                let filled = visible.length < piece.length
+                if filled, consumed < attr.length { newPage() }
             }
         }
+    }
+
+    private func window(_ attr: NSAttributedString,
+                        _ start: Int) -> NSRange {
+        let ns = attr.string as NSString
+        var end = min(start + 12_000, attr.length)
+        if end < attr.length {
+            let space = ns.rangeOfCharacter(
+                from: .whitespacesAndNewlines,
+                range: NSRange(location: end,
+                               length: min(400, attr.length - end)))
+            if space.location != NSNotFound { end = space.location + 1 }
+        }
+        return NSRange(location: start, length: end - start)
     }
 
     private func firstBaseline(_ frame: CTFrame) -> CGFloat {

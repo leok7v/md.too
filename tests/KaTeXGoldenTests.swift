@@ -235,6 +235,14 @@ final class KaTeXGoldenTests: XCTestCase {
         XCTAssertGreaterThanOrEqual(widest, base.width - 1)
     }
 
+    func testNestedArrowsLayOutInLinearTime() {
+        var tex = "x"
+        for _ in 0..<24 { tex = "\\xrightarrow[u]{" + tex + "}" }
+        let start = ContinuousClock.now
+        XCTAssertNotNil(TeX.layout(tex, size: 20))
+        XCTAssertLessThan(ContinuousClock.now - start, .seconds(1))
+    }
+
     func testTheFallbackSpellsNoTeX() {
         let spelled = String(TeX.render("e^\\pi \\mathrm{d}x \\foo{y}",
                                         display: false).characters)

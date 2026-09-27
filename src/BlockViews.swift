@@ -91,36 +91,16 @@ private struct ImageBlockView: View {
     private func load() async {
         image = nil
         failed = false
-        var req = URLRequest(url: url)
-        let agent = "Markdown.Preview/1.0" +
-                    " (https://github.com/leok7v/md.too)"
-        req.setValue(agent, forHTTPHeaderField: "User-Agent")
-        var done = false
         var attempt = 0
-        while attempt < 2, !done, !Task.isCancelled {
-            do {
-                let (data, response) =
-                    try await URLSession.shared.data(for: req)
-                if let http = response as? HTTPURLResponse,
-                   !(200...299).contains(http.statusCode) {
-                    throw URLError(.badServerResponse)
-                }
-                let decoded = platformDecodeImage(data)
-                if let decoded {
-                    image = decoded
-                    done = true
-                } else {
-                    throw URLError(.cannotDecodeContentData)
-                }
-            } catch {
-                if attempt < 1 {
-                    try? await Task.sleep(nanoseconds: 500_000_000)
-                } else if !Task.isCancelled {
-                    failed = true
-                }
+        while attempt < 2, image == nil, !Task.isCancelled {
+            let data = await ImagePrefetch.fetch([url])[url]
+            image = data.flatMap { bytes in platformDecodeImage(bytes) }
+            if image == nil, attempt == 0 {
+                try? await Task.sleep(nanoseconds: 500_000_000)
             }
             attempt += 1
         }
+        if image == nil, !Task.isCancelled { failed = true }
     }
 
     private func placeholder(_ text: String) -> some View {

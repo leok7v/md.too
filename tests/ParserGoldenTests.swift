@@ -188,12 +188,20 @@ final class ParserGoldenTests: XCTestCase {
     }
 
     func testLongParagraphsParseInLinearTime() {
-        for piece in ["$5 ", "a &lt; b ", "<u>a</u> "] {
+        for piece in ["$5 ", "a &lt; b ", "<u>a</u> ", "<u>", "<b>",
+                      "x <!-- y ", "<!-- c --> ", "$$x$$ ", "$b$ "] {
             let start = ContinuousClock.now
-            _ = Markdown.parse(String(repeating: piece, count: 4000))
+            _ = Markdown.parse(String(repeating: piece, count: 8000))
             XCTAssertLessThan(ContinuousClock.now - start, .seconds(2),
                               piece)
         }
+    }
+
+    func testTheSpelledFallbackIsBoundedOnHugeSources() {
+        let start = ContinuousClock.now
+        _ = TeX.render(String(repeating: "\\frac{", count: 40_000),
+                       display: true)
+        XCTAssertLessThan(ContinuousClock.now - start, .seconds(1))
     }
 
     func testFixturesCoverEveryBlockKind() throws {
