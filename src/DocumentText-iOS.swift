@@ -24,8 +24,10 @@ extension DocumentText {
     // rebuild on trait change or an NSTextAttachmentViewProvider.
 
     static func mathAttachment(_ layout: MathLayout,
-                               inset: CGFloat = 4) -> NSTextAttachment {
-        let attachment = NSTextAttachment()
+                               inset: CGFloat = 4,
+                               scalesToLine: Bool) -> NSTextAttachment {
+        let attachment = MathAttachment(descent: layout.descent,
+                                        scalesToLine: scalesToLine)
         attachment.image = raster(layout, scale: UIScreen.main.scale,
                                   inset: inset,
                                   ink: platformDefaultTextColor.cgColor)
@@ -33,6 +35,19 @@ extension DocumentText {
                                    width: layout.width + inset * 2,
                                    height: layout.height)
         return attachment
+    }
+
+    // A tab-stop table is a paragraph, so a cell moves the way a
+    // paragraph does and its stops travel with it.
+
+    static func movedCell(_ existing: NSParagraphStyle?, by amount: CGFloat,
+                          tables: inout [ObjectIdentifier: MovedTable])
+        -> NSMutableParagraphStyle {
+        shifted(existing, by: amount)
+    }
+
+    static func attachmentWidth(_ attachment: NSTextAttachment) -> CGFloat {
+        attachment.bounds.width
     }
 
     // The raster entry keeps its layout so the box the key names cannot
@@ -55,19 +70,6 @@ extension DocumentText {
         return result
     }
 
-    // What this builder actually lays out, not what the content would
-    // like: the tab stops below are pinned to tabStopExtent whatever the
-    // view is, and cells truncate rather than overflow, so asking the
-    // view to be wider than that would buy empty space and nothing else.
-    // Single surface is off by default on iOS; when that changes, the
-    // stops want deriving from the cell minimums and this with them.
-
-    private static var tabStopExtent: CGFloat { 320 }
-
-    static func tableMinimumWidth(_ cells: TableCells) -> CGFloat {
-        cells.cols > 0 ? tabStopExtent : 0
-    }
-
     // A horizontal rule as an attachment that sizes itself to the line
     // it sits on and draws a hairline across it.
 
@@ -75,18 +77,23 @@ extension DocumentText {
         RuleAttachment(height: height)
     }
 
+    // A row is one paragraph with a stop per column, each stop at the
+    // far edge of the column before it, so a table is as wide as the
+    // same content widths the macOS table draws with. A cell truncates
+    // rather than wraps: a tab stop has no second line.
+
     static func table(_ cells: TableCells, id: String,
-                      style: MarkdownStyle) -> NSAttributedString {
+                      style: MarkdownStyle,
+                      budget: CGFloat) -> NSAttributedString {
         let m = NSMutableAttributedString()
         if cells.cols > 0 {
             let atomicId = id
-            let widths = TableMetrics.pointWidths(headers: cells.headers,
-                                                  rows: cells.rows,
-                                                  available: tabStopExtent)
+            let widths = tableWidths(cells, budget: budget)
+            let pad = cellPadding(style)
             var stops: [NSTextTab] = []
             var x: CGFloat = 0
             for (col, w) in widths.enumerated() {
-                x += w
+                x += w + pad * 2
                 stops.append(NSTextTab(
                     textAlignment: tabAlignment(cells.alignment(col + 1)),
                     location: x))
@@ -165,6 +172,43 @@ extension DocumentText {
                        value: AtomicKind.table.rawValue, range: full)
         m.addAttribute(atomicIdKey, value: atomicId, range: full)
         return m
+    }
+
+}
+
+// A display scales to the line it is offered, since it has no break to
+// give and TextKit would clip it; an inline formula wraps like a word
+// instead. The image is drawn into whatever bounds are answered here.
+
+final class MathAttachment: NSTextAttachment {
+
+    private let descent: CGFloat
+    private let scalesToLine: Bool
+
+    init(descent: CGFloat, scalesToLine: Bool) {
+        self.descent = descent
+        self.scalesToLine = scalesToLine
+        super.init(data: nil, ofType: nil)
+    }
+
+    required init?(coder: NSCoder) {
+        fatalError("MathAttachment is not decodable")
+    }
+
+    override func attachmentBounds(for textContainer: NSTextContainer?,
+                                   proposedLineFragment lineFrag: CGRect,
+                                   glyphPosition position: CGPoint,
+                                   characterIndex: Int) -> CGRect {
+        var result = bounds
+        if scalesToLine {
+            let fitted = DocumentText.mathFit(
+                natural: bounds.size,
+                available: DocumentText.mathRoom(in: lineFrag.width))
+            let scale = bounds.width > 0 ? fitted.width / bounds.width : 1
+            result = CGRect(x: 0, y: -descent * scale,
+                            width: fitted.width, height: fitted.height)
+        }
+        return result
     }
 
 }

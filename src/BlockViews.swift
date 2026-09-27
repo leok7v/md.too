@@ -489,28 +489,26 @@ final class TableMeasure {
         let r = rows.map { row in row.map { s in TableMetrics.normalize(s) } }
         let n = TableMetrics.columnCount(headers: h, rows: r)
         let body = FontRole.body.platformFont
-        let bodyAttrs: [NSAttributedString.Key: Any] = [.font: body]
-        let boldAttrs: [NSAttributedString.Key: Any] = [
-            .font: boldFont(of: body),
-        ]
+        let bold = boldFont(of: body)
         var naturals = [CGFloat](repeating: 0, count: n)
         var minimums = [CGFloat](repeating: 0, count: n)
         for c in 0..<n {
-            var maxW: CGFloat = 0
+            var natural: CGFloat = 0
+            var minimum: CGFloat = 0
             if c < h.count {
-                let s = (TeX.scriptsToUnicode(h[c]) as NSString)
-                    .size(withAttributes: boldAttrs).width
-                if s > maxW { maxW = s }
+                let visible = TeX.scriptsToUnicode(h[c])
+                natural = TableMetrics.naturalWidth(visible, font: bold)
+                minimum = TableMetrics.minimumWidth(visible, font: bold)
             }
             for row in r where c < row.count {
-                let s = (TeX.scriptsToUnicode(row[c]) as NSString)
-                    .size(withAttributes: bodyAttrs).width
-                if s > maxW { maxW = s }
+                let visible = TeX.scriptsToUnicode(row[c])
+                let s = TableMetrics.naturalWidth(visible, font: body)
+                let w = TableMetrics.minimumWidth(visible, font: body)
+                if s > natural { natural = s }
+                if w > minimum { minimum = w }
             }
-            naturals[c] = ceil(maxW) + 4
-            let word = TableMetrics.longestWord(headers: h, rows: r, col: c)
-            let w = (word as NSString).size(withAttributes: bodyAttrs).width
-            minimums[c] = ceil(w) + 4
+            naturals[c] = ceil(natural) + 4
+            minimums[c] = ceil(minimum) + 4
         }
         return Measured(headers: h, rows: r, cols: n, naturals: naturals,
                         minimums: minimums,

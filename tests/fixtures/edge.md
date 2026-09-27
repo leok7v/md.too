@@ -102,3 +102,11 @@ first paragraph
 <!-- a comment
 over two lines -->
 second paragraph
+
+## Quoted table
+
+> A table inside a quote keeps its marker column out of the table:
+>
+> | Key | Value |
+> |---|---|
+> | one | 1 |

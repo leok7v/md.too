@@ -37,6 +37,9 @@ enum DocumentText {
             let style: MarkdownStyle
             let column: Column?
             let images: [URL: ObjectIdentifier]
+            // The width a table in the block was laid out for; zero for
+            // a block holding none, so a budget change leaves it alone.
+            let budget: CGFloat
             // The block as rendered, and the same moved into the column;
             // a column change re-stamps the first, it does not render.
             let plain: NSAttributedString
@@ -46,6 +49,9 @@ enum DocumentText {
         struct Minimum {
             let block: Block
             let style: MarkdownStyle
+            // A cell holding an image is as wide as the image once it
+            // has arrived and as its placeholder text before.
+            let images: [URL: ObjectIdentifier]
             let width: CGFloat
         }
 
@@ -65,20 +71,25 @@ enum DocumentText {
                            images: [URL: DocumentImage] = [:],
                            cache: RenderCache? = nil,
                            style: MarkdownStyle = .current,
+                           budget: CGFloat? = nil,
                            column: Column? = nil)
         -> NSAttributedString {
         let m = NSMutableAttributedString()
         let seen = images.mapValues { image in ObjectIdentifier(image) }
+        let measure = budget ?? style.columnWidth
         var live: [Int: RenderCache.Entry] = [:]
         for (i, block) in blocks.enumerated() {
             var entry = cache?.entries[i]
+            let owed = tableBudget(block, measure)
             let stale = entry?.block != block ||
-                        entry?.style != style || entry?.images != seen
+                        entry?.style != style || entry?.images != seen ||
+                        entry?.budget != owed
             if stale || entry?.column != column {
                 let plain = stale
                     ? completed(render(block, at: i, style: style,
                                        images: images, seen: seen,
-                                       cache: cache), style: style)
+                                       cache: cache, budget: measure),
+                                style: style)
                     : entry?.plain ?? NSAttributedString()
                 let wide = column.map { c in
                     minimumWidth(of: block, at: i, style: style,
@@ -87,7 +98,7 @@ enum DocumentText {
                 } ?? false
                 entry = RenderCache.Entry(
                     block: block, style: style, column: column,
-                    images: seen, plain: plain,
+                    images: seen, budget: owed, plain: plain,
                     text: wide ? plain : columned(plain, column: column))
             }
             if let entry {
@@ -127,44 +138,65 @@ enum DocumentText {
         return m
     }
 
-    // Every paragraph of a block moves into the column: its head indents
-    // and tab stops shift by the inset and its tail ends at the column's
-    // far edge. A tail that was measured from the trailing edge, the way
-    // a code block's is, keeps its distance from the new edge instead.
-    // A table cell's paragraph is left alone, since an indent on it is
-    // applied inside the cell; a block whose minimum exceeds the column
-    // never comes here and takes the surface whole.
+    // Every paragraph of a block moves into the column by the inset,
+    // and every tail ends at the column's far edge. A tail that was
+    // measured from the trailing edge, the way a code block's is, keeps
+    // its distance from the new edge instead. A block whose minimum
+    // exceeds the column never comes here and takes the surface whole.
 
     private static func columned(_ text: NSAttributedString,
                                  column: Column?) -> NSAttributedString {
         var result = text
         if let column {
             let m = NSMutableAttributedString(attributedString: text)
-            let full = NSRange(location: 0, length: m.length)
-            m.enumerateAttribute(.paragraphStyle, in: full,
-                                 options: []) { value, range, _ in
-                let kind = m.attribute(atomicKindKey, at: range.location,
-                                       effectiveRange: nil) as? String
-                if kind != AtomicKind.table.rawValue {
-                    let para = shifted(value as? NSParagraphStyle,
-                                       by: column.inset)
-                    let trailing = para.tailIndent < 0 ? -para.tailIndent : 0
-                    para.tailIndent = column.inset + column.width - trailing
-                    m.addAttribute(.paragraphStyle, value: para,
-                                   range: range)
-                }
-            }
+            move(m, by: column.inset, column: column)
             result = m
         }
         return result
     }
 
-    // A paragraph moved right by `amount`: both head indents and every
-    // tab stop, since a stop is measured from the line's edge and a
-    // list item's body sits at one.
+    // Every paragraph in `m` moved right by `amount`: head indents and
+    // tab stops together, since a stop is measured from the line's edge
+    // and a list item's body sits at one. A table cell goes through the
+    // platform's own move, because on macOS an indent on a cell indents
+    // inside the cell and the table has to carry the shift itself; one
+    // moved table serves every cell of the original. With a column, a
+    // paragraph's tail is set to the column's far edge as well.
 
-    private static func shifted(_ existing: NSParagraphStyle?,
-                                by amount: CGFloat) -> NSMutableParagraphStyle {
+    // A moved table beside the one it was built from: the original is
+    // held so the identity the map is keyed on cannot be recycled while
+    // the move is under way.
+
+    struct MovedTable {
+        let original: AnyObject
+        let moved: AnyObject
+    }
+
+    static func move(_ m: NSMutableAttributedString, by amount: CGFloat,
+                     column: Column? = nil) {
+        let full = NSRange(location: 0, length: m.length)
+        var tables: [ObjectIdentifier: MovedTable] = [:]
+        m.enumerateAttribute(.paragraphStyle, in: full,
+                             options: []) { value, range, _ in
+            let kind = m.attribute(atomicKindKey, at: range.location,
+                                   effectiveRange: nil) as? String
+            let existing = value as? NSParagraphStyle
+            let para: NSMutableParagraphStyle
+            if kind == AtomicKind.table.rawValue {
+                para = movedCell(existing, by: amount, tables: &tables)
+            } else {
+                para = shifted(existing, by: amount)
+                if let column {
+                    let trailing = para.tailIndent < 0 ? -para.tailIndent : 0
+                    para.tailIndent = column.inset + column.width - trailing
+                }
+            }
+            m.addAttribute(.paragraphStyle, value: para, range: range)
+        }
+    }
+
+    static func shifted(_ existing: NSParagraphStyle?,
+                        by amount: CGFloat) -> NSMutableParagraphStyle {
         let para = NSMutableParagraphStyle()
         if let existing { para.setParagraphStyle(existing) }
         para.headIndent += amount
@@ -176,6 +208,28 @@ enum DocumentText {
         return para
     }
 
+    // Only a block holding a table reads the budget, so only such a
+    // block's cache entry is keyed on it.
+
+    private static func tableBudget(_ block: Block,
+                                    _ budget: CGFloat) -> CGFloat {
+        var result: CGFloat = 0
+        switch block {
+            case .table:
+                result = budget
+            case .quote(let inner):
+                result = inner.contains { b in tableBudget(b, budget) > 0 }
+                    ? budget : 0
+            case .list(let items, _):
+                result = items.contains { item in
+                    item.blocks.contains { b in tableBudget(b, budget) > 0 }
+                } ? budget : 0
+            default:
+                result = 0
+        }
+        return result
+    }
+
     // A top-level table's cells are built once and read by the measure
     // and the render alike; a table nested in a quote or a list builds
     // its own on the way through render(_:id:images:).
@@ -184,14 +238,16 @@ enum DocumentText {
                                style: MarkdownStyle,
                                images: [URL: DocumentImage],
                                seen: [URL: ObjectIdentifier],
-                               cache: RenderCache?) -> NSAttributedString {
+                               cache: RenderCache?,
+                               budget: CGFloat) -> NSAttributedString {
         let result: NSAttributedString
         if let cells = tableCells(of: block, at: i, style: style,
                                   images: images, seen: seen, cache: cache) {
-            result = table(cells, id: String(i), style: style)
+            result = table(cells, id: String(i), style: style,
+                           budget: budget)
         } else {
             result = render(block, id: String(i), style: style,
-                            images: images)
+                            images: images, budget: budget)
         }
         return result
     }
@@ -236,10 +292,11 @@ enum DocumentText {
         var live: [Int: RenderCache.Minimum] = [:]
         for (i, block) in blocks.enumerated() {
             var known = cache?.minimums[i]
-            let stale = known?.block != block || known?.style != style
+            let stale = known?.block != block || known?.style != style ||
+                        known?.images != seen
             if stale {
                 known = RenderCache.Minimum(
-                    block: block, style: style,
+                    block: block, style: style, images: seen,
                     width: minimumWidth(of: block, at: i, style: style,
                                         images: images, seen: seen,
                                         cache: cache))
@@ -263,38 +320,46 @@ enum DocumentText {
                                   images: images, seen: seen, cache: cache) {
             result = tableMinimumWidth(cells)
         } else {
-            result = minimumWidth(ofBlock: block, style: style)
+            result = minimumWidth(ofBlock: block, style: style,
+                                  images: images)
         }
         return result
     }
 
     private static func widestMinimum(in blocks: [Block],
-                                      style: MarkdownStyle) -> CGFloat {
+                                      style: MarkdownStyle,
+                                      images: [URL: DocumentImage])
+        -> CGFloat {
         var widest: CGFloat = 0
         for block in blocks {
-            let w = minimumWidth(ofBlock: block, style: style)
+            let w = minimumWidth(ofBlock: block, style: style,
+                                 images: images)
             if w > widest { widest = w }
         }
         return widest
     }
 
     private static func minimumWidth(ofBlock block: Block,
-                                     style: MarkdownStyle) -> CGFloat {
+                                     style: MarkdownStyle,
+                                     images: [URL: DocumentImage])
+        -> CGFloat {
         var result: CGFloat = 0
         switch block {
             case .table(let headers, let rows, let alignments):
                 result = tableMinimumWidth(headers: headers, rows: rows,
                                            alignments: alignments,
-                                           style: style)
+                                           style: style, images: images)
             case .math(let tex):
                 result = mathMinimumWidth(tex, style: style)
             case .quote(let inner):
-                result = indented(widestMinimum(in: inner, style: style),
+                result = indented(widestMinimum(in: inner, style: style,
+                                                images: images),
                                   by: style.quoteIndent)
             case .list(let items, _):
                 for item in items {
                     let w = indented(widestMinimum(in: item.blocks,
-                                                   style: style),
+                                                   style: style,
+                                                   images: images),
                                      by: style.listIndent)
                     if w > result { result = w }
                 }
@@ -304,9 +369,9 @@ enum DocumentText {
         return result
     }
 
-    // A formula has no line breaks to give and the single surface has
-    // no way to scroll one on its own, so the surface has to be wide
-    // enough to hold it whole -- the same bargain the tables strike.
+    // A formula has no line breaks to give, so it scales to the line it
+    // is offered, down to half its size; past that the surface widens
+    // to hold it, the same bargain the tables strike.
     //
     // Wide enough for the copy button too. The paragraph is centred, so
     // the slack is split between the two margins and a gutter on the
@@ -318,9 +383,33 @@ enum DocumentText {
         let size = TeX.displaySize(body: style.bodySize)
         var result: CGFloat = 0
         if let layout = TeX.layout(tex, size: size) {
-            result = ceil(layout.width) + 8 + copyButtonGutter * 2
+            result = ceil(layout.width * mathFloor) + mathSlack
         }
         return result
+    }
+
+    private static var mathFloor: CGFloat { 0.5 }
+
+    // The copy button's gutter on both sides of a display, plus air.
+    private static var mathSlack: CGFloat { 8 + copyButtonGutter * 2 }
+
+    // The size a display draws at on a line `available` wide: its own
+    // when it fits, else scaled down to fit, never below half.
+
+    static func mathFit(natural: CGSize, available: CGFloat) -> CGSize {
+        var scale: CGFloat = 1
+        if natural.width > available {
+            scale = max(available / natural.width, mathFloor)
+        }
+        return CGSize(width: natural.width * scale,
+                      height: natural.height * scale)
+    }
+
+    // The room a display has on a line: the line less the slack the
+    // minimum asked for.
+
+    static func mathRoom(in lineWidth: CGFloat) -> CGFloat {
+        lineWidth - mathSlack
     }
 
     // An indent only widens a document that had something to widen it;
@@ -333,25 +422,63 @@ enum DocumentText {
 
     static func tableMinimumWidth(headers: [String], rows: [[String]],
                                   alignments: [Alignment],
-                                  style: MarkdownStyle) -> CGFloat {
+                                  style: MarkdownStyle,
+                                  images: [URL: DocumentImage] = [:])
+        -> CGFloat {
         tableMinimumWidth(tableCells(headers: headers, rows: rows,
                                      alignments: alignments,
-                                     style: style, images: [:]))
+                                     style: style, images: images))
     }
 
     static func table(headers: [String], rows: [[String]],
                       alignments: [Alignment], id: String,
                       style: MarkdownStyle,
-                      images: [URL: DocumentImage]) -> NSAttributedString {
+                      images: [URL: DocumentImage],
+                      budget: CGFloat) -> NSAttributedString {
         table(tableCells(headers: headers, rows: rows,
                          alignments: alignments, style: style,
                          images: images),
-              id: id, style: style)
+              id: id, style: style, budget: budget)
+    }
+
+    // Air on either side of a cell's text. The widths the layout hands a
+    // table are content widths; the cells add this to each side.
+
+    static func cellPadding(_ style: MarkdownStyle) -> CGFloat {
+        (style.bodySize * 0.5).rounded()
+    }
+
+    // The copy button sits inside the header band at the table's right
+    // edge, the way a code block's does, so the last column keeps this
+    // much clear past its text and the table's budget pays for it.
+
+    static var tableButtonRoom: CGFloat { copyButtonGutter + 4 }
+
+    static func tableMinimumWidth(_ cells: TableCells) -> CGFloat {
+        cells.minimums.reduce(0, +) +
+            cellPadding(cells.style) * 2 * CGFloat(cells.cols) +
+            tableButtonRoom
+    }
+
+    // The content width of each column inside `budget`: the naturals
+    // when they fit, so a narrow table stays narrow; otherwise shared
+    // out and wrapped; otherwise the minimums, and the surface widens.
+
+    static func tableWidths(_ cells: TableCells,
+                            budget: CGFloat) -> [CGFloat] {
+        let taken = cellPadding(cells.style) * 2 * CGFloat(cells.cols) +
+                    tableButtonRoom
+        return TableMetrics.columnLayout(headers: cells.headers,
+                                         rows: cells.rows,
+                                         naturals: cells.naturals,
+                                         minimums: cells.minimums,
+                                         available: max(budget - taken, 0))
     }
 
     struct TableCell {
         let text: NSAttributedString
         let minimum: CGFloat
+        let natural: CGFloat
     }
 
     struct TableCells {
@@ -363,6 +490,7 @@ enum DocumentText {
         let header: [TableCell]
         let body: [[TableCell]]
         let minimums: [CGFloat]
+        let naturals: [CGFloat]
 
         // The column's alignment, or leading where the row said nothing.
 
@@ -386,15 +514,18 @@ enum DocumentText {
             }
         }
         var minimums = [CGFloat](repeating: 0, count: cols)
+        var naturals = [CGFloat](repeating: 0, count: cols)
         for row in [header] + built {
             for (c, cell) in row.enumerated() where c < cols {
                 if cell.minimum > minimums[c] { minimums[c] = cell.minimum }
+                if cell.natural > naturals[c] { naturals[c] = cell.natural }
             }
         }
         return TableCells(headers: headers, rows: rows,
                           alignments: alignments, style: style, cols: cols,
                           header: header, body: built,
-                          minimums: minimums.map { w in ceil(w) })
+                          minimums: minimums.map { w in ceil(w) },
+                          naturals: naturals.map { w in ceil(w) })
     }
 
     // The minimum is the widest token the cell will DRAW, not the markdown
@@ -406,16 +537,13 @@ enum DocumentText {
                           style: MarkdownStyle,
                           images: [URL: DocumentImage]) -> TableCell {
         let m = NSMutableAttributedString()
-        var drawn = TeX.scriptsToUnicode(text)
         if let first = Markdown.parseCell(text).first {
             switch first {
                 case .image(let alt, let url, let w, let h):
                     appendImage(alt: alt, url: url, width: w, height: h,
                                 base: base, images: images, into: m)
-                    drawn = ""
                 case .paragraph(let attr):
                     translateInline(attr, base: base, style: style, into: m)
-                    drawn = String(attr.characters)
                 default:
                     m.append(NSAttributedString(
                         string: text,
@@ -425,8 +553,9 @@ enum DocumentText {
                         ]))
             }
         }
-        return TableCell(text: m,
-                         minimum: longestWordWidth(drawn, font: base))
+        let extent = cellExtent(m)
+        return TableCell(text: m, minimum: extent.minimum,
+                         natural: extent.natural)
     }
 
     private static func appendImage(alt: String, url: URL, width: CGFloat?,
@@ -450,35 +579,55 @@ enum DocumentText {
         }
     }
 
-    // Measured against the WIDEST face the cell could end up in, not the
-    // one it probably will. A run marked as code becomes monospaced and
-    // one marked strong becomes bold, either of which outgrows the plain
-    // body face -- and a token that outgrows its column is exactly the
-    // thing this number exists to prevent.
+    // Measured on the cell as drawn, in the faces it draws in, so a bold
+    // header or an italic word claims the room it takes: the widest line
+    // is the natural, the widest unbreakable run the minimum. An
+    // attachment is counted at its own width on top, since CoreText
+    // sees only the replacement character it stands in. The point of
+    // slack is not decoration: the typographic width and TextKit's
+    // wrapping decision disagree by a fraction, enough for a column
+    // sized to the report to break the very run it was sized for.
 
-    private static func longestWordWidth(_ drawn: String,
-                                         font: PlatformFont) -> CGFloat {
-        var widest: CGFloat = 0
-        let faces = widestFaces(of: font)
-        for word in drawn.split(separator: " ") {
-            let ns = String(word) as NSString
-            for face in faces {
-                let w = ns.size(withAttributes: [.font: face]).width
-                if w > widest { widest = w }
+    private static func cellExtent(_ m: NSAttributedString)
+        -> (minimum: CGFloat, natural: CGFloat) {
+        let text = m.string as NSString
+        var minimum: CGFloat = 0
+        var natural: CGFloat = 0
+        for run in TableMetrics.unbreakableRuns(text) {
+            let w = spanWidth(m, run)
+            if w > minimum { minimum = w }
+        }
+        var start = 0
+        for i in 0...text.length {
+            if i == text.length || text.character(at: i) == 0x2028 {
+                let w = spanWidth(m, NSRange(location: start,
+                                             length: i - start))
+                if w > natural { natural = w }
+                start = i + 1
             }
         }
-        return widest
+        return (minimum: ceil(minimum) + 1, natural: ceil(natural) + 1)
     }
 
-    private static func widestFaces(of base: PlatformFont)
-        -> [PlatformFont] {
-        [platformBoldItalicFont(of: base, bold: true, italic: true),
-         monoFont(at: base.pointSize)]
+    private static func spanWidth(_ m: NSAttributedString,
+                                  _ range: NSRange) -> CGFloat {
+        let span = m.attributedSubstring(from: range)
+        let line = CTLineCreateWithAttributedString(span)
+        var width = CGFloat(CTLineGetTypographicBounds(line, nil, nil, nil))
+        span.enumerateAttribute(.attachment,
+                                in: NSRange(location: 0, length: span.length),
+                                options: []) { value, _, _ in
+            if let attachment = value as? NSTextAttachment {
+                width += attachmentWidth(attachment)
+            }
+        }
+        return width
     }
 
     private static func render(_ block: Block, id: String,
                                style: MarkdownStyle,
-                               images: [URL: DocumentImage])
+                               images: [URL: DocumentImage],
+                               budget: CGFloat)
                                -> NSAttributedString {
         var result: NSAttributedString
         switch block {
@@ -490,14 +639,16 @@ enum DocumentText {
                 result = code(language: lang, text: text, id: id,
                               style: style)
             case .quote(let inner):
-                result = quote(inner, id: id, style: style, images: images)
+                result = quote(inner, id: id, style: style, images: images,
+                               budget: budget)
             case .list(let items, let tight):
                 result = list(items: items, tight: tight, depth: 0, id: id,
-                              style: style, images: images)
+                              style: style, images: images, budget: budget)
             case .table(let headers, let rows, let alignments):
                 result = table(headers: headers, rows: rows,
                                alignments: alignments, id: id,
-                               style: style, images: images)
+                               style: style, images: images,
+                               budget: budget)
             case .math(let tex):
                 result = math(tex, id: id, style: style)
             case .rule:
@@ -521,7 +672,8 @@ enum DocumentText {
         let m = NSMutableAttributedString()
         let size = TeX.displaySize(body: style.bodySize)
         if let layout = TeX.layout(tex, size: size) {
-            m.append(NSAttributedString(attachment: mathAttachment(layout)))
+            m.append(NSAttributedString(
+                attachment: mathAttachment(layout, scalesToLine: true)))
         } else {
             translateInline(TeX.render(tex, display: true), base: base,
                             style: style, into: m)
@@ -543,20 +695,17 @@ enum DocumentText {
 
     private static func quote(_ blocks: [Block], id: String,
                               style: MarkdownStyle,
-                              images: [URL: DocumentImage])
+                              images: [URL: DocumentImage],
+                              budget: CGFloat)
                               -> NSAttributedString {
         let m = NSMutableAttributedString()
         for (i, inner) in blocks.enumerated() {
             m.append(render(inner, id: id + "." + String(i), style: style,
-                            images: images))
+                            images: images,
+                            budget: budget - style.quoteIndent))
         }
+        move(m, by: style.quoteIndent)
         let full = NSRange(location: 0, length: m.length)
-        m.enumerateAttribute(.paragraphStyle,
-                             in: full, options: []) { value, range, _ in
-            let merged = shifted(value as? NSParagraphStyle,
-                                 by: style.quoteIndent)
-            m.addAttribute(.paragraphStyle, value: merged, range: range)
-        }
         m.addAttribute(.backgroundColor,
                        value: platformWhite(0.5, alpha: 0.06),
                        range: full)
@@ -565,7 +714,8 @@ enum DocumentText {
 
     private static func list(items: [ListItem], tight: Bool, depth: Int,
                              id: String, style: MarkdownStyle,
-                             images: [URL: DocumentImage])
+                             images: [URL: DocumentImage],
+                             budget: CGFloat)
         -> NSAttributedString {
         let m = NSMutableAttributedString()
         let indent = CGFloat(depth + 1) * style.listIndent
@@ -586,7 +736,8 @@ enum DocumentText {
             }
             m.append(listItem(item, para: para, tight: tight,
                               depth: depth, id: id + "." + String(idx),
-                              style: style, images: images))
+                              style: style, images: images,
+                              budget: budget))
         }
         return m
     }
@@ -594,7 +745,8 @@ enum DocumentText {
     private static func listItem(_ item: ListItem, para: NSParagraphStyle,
                                  tight: Bool, depth: Int, id: String,
                                  style: MarkdownStyle,
-                                 images: [URL: DocumentImage])
+                                 images: [URL: DocumentImage],
+                                 budget: CGFloat)
         -> NSAttributedString {
         let marker: String
         if let c = item.checked {
@@ -624,36 +776,36 @@ enum DocumentText {
                 case .list(let inner, let innerTight):
                     line.append(list(items: inner, tight: innerTight,
                                      depth: depth + 1, id: id + ".0",
-                                     style: style, images: images))
+                                     style: style, images: images,
+                                     budget: budget))
                     headHandled = true
                 default:
                     break
             }
         }
+        let contIndent = para.headIndent
         if !headHandled, let first = item.blocks.first {
-            line.append(render(first, id: id + ".0", style: style,
-                               images: images))
+            let rendered = NSMutableAttributedString(
+                attributedString: render(first, id: id + ".0", style: style,
+                                         images: images,
+                                         budget: budget - contIndent))
+            move(rendered, by: contIndent)
+            line.append(rendered)
         }
         line.append(NSAttributedString(string: "\n"))
-        let contIndent = para.headIndent
         for (k, rest) in item.blocks.enumerated().dropFirst() {
             let restId = id + "." + String(k)
             if case .list(let inner, let innerTight) = rest {
                 line.append(list(items: inner, tight: innerTight,
                                  depth: depth + 1, id: restId,
-                                 style: style, images: images))
+                                 style: style, images: images,
+                                 budget: budget))
             } else {
                 let rendered = NSMutableAttributedString(
                     attributedString: render(rest, id: restId, style: style,
-                                             images: images))
-                let full = NSRange(location: 0, length: rendered.length)
-                rendered.enumerateAttribute(.paragraphStyle, in: full,
-                                            options: []) { value, r, _ in
-                    let merged = shifted(value as? NSParagraphStyle,
-                                         by: contIndent)
-                    rendered.addAttribute(.paragraphStyle,
-                                          value: merged, range: r)
-                }
+                                             images: images,
+                                             budget: budget - contIndent))
+                move(rendered, by: contIndent)
                 line.append(rendered)
             }
         }
@@ -824,7 +976,8 @@ enum DocumentText {
             }
             if let source, let layout {
                 let formula = NSMutableAttributedString(
-                    attachment: mathAttachment(layout, inset: 1))
+                    attachment: mathAttachment(layout, inset: 1,
+                                               scalesToLine: false))
                 let full = NSRange(location: 0, length: formula.length)
                 formula.addAttributes(attrs, range: full)
                 formula.addAttribute(atomicCopyKey, value: source,

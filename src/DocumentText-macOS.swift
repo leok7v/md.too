@@ -11,10 +11,12 @@ final class MathAttachmentCell: NSTextAttachmentCell,
 
     private let layout: MathLayout
     private let inset: CGFloat
+    private let scalesToLine: Bool
 
-    init(layout: MathLayout, inset: CGFloat) {
+    init(layout: MathLayout, inset: CGFloat, scalesToLine: Bool) {
         self.layout = layout
         self.inset = inset
+        self.scalesToLine = scalesToLine
         super.init()
     }
 
@@ -49,12 +51,41 @@ final class MathAttachmentCell: NSTextAttachmentCell,
         NSPoint(x: 0, y: -layout.descent)
     }
 
+    // A display scales to the line it is offered, since it has no break
+    // to give and TextKit would clip it. An inline formula does not: a
+    // line's remainder is not its measure, it wraps to the next line
+    // like a word. Asked more than once per layout, so it answers from
+    // the width offered and remembers nothing between calls.
+    override func cellFrame(for textContainer: NSTextContainer,
+                            proposedLineFragment lineFrag: NSRect,
+                            glyphPosition position: NSPoint,
+                            characterIndex: Int) -> NSRect {
+        var size = cellSize()
+        if scalesToLine {
+            size = DocumentText.mathFit(
+                natural: size,
+                available: DocumentText.mathRoom(in: lineFrag.width))
+        }
+        // The frame's origin is the baseline offset, so the descent
+        // hangs below the line at the same scale as the rest.
+        let scale = cellSize().width > 0 ? size.width / cellSize().width : 1
+        return NSRect(origin: NSPoint(x: 0, y: -layout.descent * scale),
+                      size: size)
+    }
+
+    // The scale is read back off the frame, since draw is never told
+    // the width the frame was fitted to.
     override func draw(withFrame cellFrame: NSRect, in controlView: NSView?) {
         if let ctx = NSGraphicsContext.current?.cgContext {
-            let origin = CGPoint(x: cellFrame.minX + inset, y: cellFrame.minY)
-            layout.draw(in: ctx, at: origin,
+            let natural = cellSize().width
+            let scale = natural > 0 ? cellFrame.width / natural : 1
+            ctx.saveGState()
+            ctx.translateBy(x: cellFrame.minX, y: cellFrame.minY)
+            ctx.scaleBy(x: scale, y: scale)
+            layout.draw(in: ctx, at: CGPoint(x: inset, y: 0),
                         color: NSColor.textColor.cgColor,
                         flipped: controlView?.isFlipped ?? true)
+            ctx.restoreGState()
         }
     }
 
@@ -159,10 +190,11 @@ extension DocumentText {
     // A display gets four points of air each side; an inline formula
     // one, so it sits in its sentence like a word.
     static func mathAttachment(_ layout: MathLayout,
-                               inset: CGFloat = 4) -> NSTextAttachment {
+                               inset: CGFloat = 4,
+                               scalesToLine: Bool) -> NSTextAttachment {
         let attachment = NSTextAttachment()
-        attachment.attachmentCell = MathAttachmentCell(layout: layout,
-                                                       inset: inset)
+        attachment.attachmentCell = MathAttachmentCell(
+            layout: layout, inset: inset, scalesToLine: scalesToLine)
         return attachment
     }
 
@@ -172,67 +204,29 @@ extension DocumentText {
         return attachment
     }
 
-    // Horizontal cell padding, as a percentage of the table width so it
-    // can be subtracted from the column-share budget in the same unit.
-    private static var cellPad: CGFloat { 0.6 }
-
-    // Solved against the SHARES the table will actually be built with,
-    // not against the bare sum of the minimums. A column's share is a
-    // fixed fraction of the table width, so the width at which column c
-    // finally holds its widest token is min[c] / share[c], and the table
-    // needs the largest of those. Summing the minimums instead answers a
-    // question nobody asked -- the shares are weighted by character
-    // count, so the sum can be reached with a column still starved.
-
-    static func tableMinimumWidth(_ cells: TableCells) -> CGFloat {
-        var result: CGFloat = 0
-        if cells.cols > 0 {
-            let fractions = TableMetrics.pointWidths(
-                headers: cells.headers, rows: cells.rows,
-                available: contentBudget(cols: cells.cols) / 100)
-            for c in 0..<cells.cols where c < fractions.count
-                                          && fractions[c] > 0 {
-                let need = cells.minimums[c] / fractions[c]
-                if need > result { result = need }
-            }
-            result = ceil(result)
-        }
-        return result
-    }
-
-    private static func contentBudget(cols: Int) -> CGFloat {
-        max(100 - CGFloat(cols) * cellPad * 2, 50)
-    }
+    // Every cell is given its column's width in points, so the table is
+    // exactly as wide as its content asked for and sits at the leading
+    // edge; a percentage would stretch a two-column table across the
+    // surface and hand the first column most of it. Automatic, not
+    // fixed, layout: a fixed cell whose content outgrows its width
+    // spills over the next column instead of widening.
 
     static func table(_ cells: TableCells, id: String,
-                      style: MarkdownStyle) -> NSAttributedString {
+                      style: MarkdownStyle,
+                      budget: CGFloat) -> NSAttributedString {
         let m = NSMutableAttributedString()
         let cols = cells.cols
         if cols > 0 {
             let atomicId = id
             let textTable = NSTextTable()
             textTable.numberOfColumns = cols
-            // Automatic, not fixed: fixed layout is CSS table-layout:
-            // fixed, where a cell whose content outgrows its declared
-            // width spills OVER the next column instead of widening --
-            // headers printed on top of each other. The column shares
-            // below are weighted by character count and cannot know the
-            // rendered size, so any font the widths were not computed
-            // for (a zoom step, a narrow window) overflowed them.
             textTable.layoutAlgorithm = .automaticLayoutAlgorithm
-            // The shares have to leave room for the padding, or the
-            // table demands 100% plus cellPad * 2 * cols and the last
-            // columns are squeezed off the edge. Percentage padding
-            // keeps that arithmetic in one unit.
-            let budget = contentBudget(cols: cols)
-            let shares = TableMetrics.pointWidths(headers: cells.headers,
-                                                  rows: cells.rows,
-                                                  available: budget)
+            let widths = tableWidths(cells, budget: budget)
             var rowIdx = 0
             if !cells.header.isEmpty {
                 m.append(tableRow(cells: cells.header, table: textTable,
                                   rowIdx: rowIdx, cols: cols,
-                                  shares: shares, layout: cells,
+                                  widths: widths, layout: cells,
                                   bold: true,
                                   tint: platformWhite(0.5, alpha: 0.14),
                                   atomicId: atomicId))
@@ -243,7 +237,7 @@ extension DocumentText {
                     ? platformWhite(0.5, alpha: 0.07) : platformClearColor
                 m.append(tableRow(cells: row, table: textTable,
                                   rowIdx: rowIdx, cols: cols,
-                                  shares: shares, layout: cells,
+                                  widths: widths, layout: cells,
                                   bold: false, tint: tint,
                                   atomicId: atomicId))
                 rowIdx += 1
@@ -280,7 +274,7 @@ extension DocumentText {
     private static func tableRow(cells: [TableCell],
                                  table: NSTextTable,
                                  rowIdx: Int, cols: Int,
-                                 shares: [CGFloat],
+                                 widths: [CGFloat],
                                  layout: TableCells,
                                  bold: Bool,
                                  tint: PlatformColor,
@@ -289,6 +283,7 @@ extension DocumentText {
         let m = NSMutableAttributedString()
         let body = layout.style.bodyFont
         let base = bold ? boldFont(of: body) : body
+        let pad = cellPadding(layout.style)
         for col in 0..<cols {
             let text = col < cells.count ? cells[col].text
                                          : NSAttributedString()
@@ -296,14 +291,14 @@ extension DocumentText {
                                          startingRow: rowIdx, rowSpan: 1,
                                          startingColumn: col,
                                          columnSpan: 1)
-            if col < shares.count {
-                block.setValue(shares[col],
-                               type: .percentageValueType,
+            if col < widths.count {
+                block.setValue(widths[col], type: .absoluteValueType,
                                for: .width)
             }
-            block.setWidth(cellPad, type: .percentageValueType,
+            block.setWidth(pad, type: .absoluteValueType,
                            for: .padding, edge: .minX)
-            block.setWidth(cellPad, type: .percentageValueType,
+            block.setWidth(col == cols - 1 ? pad + tableButtonRoom : pad,
+                           type: .absoluteValueType,
                            for: .padding, edge: .maxX)
             block.setWidth(3, type: .absoluteValueType,
                            for: .padding, edge: .minY)
@@ -311,15 +306,13 @@ extension DocumentText {
                            for: .padding, edge: .maxY)
             block.backgroundColor = tint
             let para = NSMutableParagraphStyle()
-            // Word wrapping is safe here only because the view refuses
-            // to be narrower than tableMinimumWidth: NSTextTable cannot
-            // lay out a row holding a token wider than its column -- it
-            // widens that column, gives up on the rest, and stacks every
-            // remaining cell at the widened column's origin, so the row
-            // reads as overlapping glyphs. No column-width spelling
-            // avoids it (percentage, absolute, none at all, fixed
-            // algorithm, minimumWidth -- all collapse alike); only never
-            // posing the question does.
+            // Word wrapping is safe here only because no column is ever
+            // narrower than its widest unbreakable run: NSTextTable
+            // cannot lay out a row holding a run wider than its column
+            // -- it widens that column, gives up on the rest, and stacks
+            // every remaining cell at the widened column's origin, so
+            // the row reads as overlapping glyphs. No column-width
+            // spelling avoids it; only never posing the question does.
             para.lineBreakMode = .byWordWrapping
             para.textBlocks = [block]
             para.alignment = nsAlignment(layout.alignment(col))
@@ -342,6 +335,70 @@ extension DocumentText {
             m.append(NSAttributedString(string: "\n"))
         }
         return m
+    }
+
+    // A table cell moved right: a paragraph indent on a cell indents
+    // inside the cell, so the table's own leading margin carries the
+    // shift. The table and the cell's block are rebuilt on the moved
+    // margin rather than changed in place, so the string the cell came
+    // from keeps its geometry; `tables` maps each original table to its
+    // moved copy so every cell of one table lands in one copy.
+
+    static func movedCell(_ existing: NSParagraphStyle?, by amount: CGFloat,
+                          tables: inout [ObjectIdentifier: MovedTable])
+        -> NSMutableParagraphStyle {
+        let para = NSMutableParagraphStyle()
+        if let existing { para.setParagraphStyle(existing) }
+        if let block = existing?.textBlocks.first as? NSTextTableBlock {
+            let key = ObjectIdentifier(block.table)
+            let moved = tables[key]?.moved as? NSTextTable ??
+                        movedTable(block.table, by: amount)
+            tables[key] = MovedTable(original: block.table, moved: moved)
+            para.textBlocks = [rebased(block, onto: moved)]
+        }
+        return para
+    }
+
+    private static func movedTable(_ table: NSTextTable,
+                                   by amount: CGFloat) -> NSTextTable {
+        let moved = NSTextTable()
+        moved.numberOfColumns = table.numberOfColumns
+        moved.layoutAlgorithm = table.layoutAlgorithm
+        let margin = table.width(for: .margin, edge: .minX)
+        moved.setWidth(margin + amount, type: .absoluteValueType,
+                       for: .margin, edge: .minX)
+        return moved
+    }
+
+    private static func rebased(_ block: NSTextTableBlock,
+                                onto table: NSTextTable) -> NSTextTableBlock {
+        let copy = NSTextTableBlock(table: table,
+                                    startingRow: block.startingRow,
+                                    rowSpan: block.rowSpan,
+                                    startingColumn: block.startingColumn,
+                                    columnSpan: block.columnSpan)
+        copy.setValue(block.value(for: .width),
+                      type: block.valueType(for: .width), for: .width)
+        for edge in [NSRectEdge.minX, .maxX, .minY, .maxY] {
+            copy.setWidth(block.width(for: .padding, edge: edge),
+                          type: block.widthValueType(for: .padding,
+                                                     edge: edge),
+                          for: .padding, edge: edge)
+        }
+        copy.backgroundColor = block.backgroundColor
+        return copy
+    }
+
+    // An attachment drawn through a cell has no bounds of its own; the
+    // cell knows its size. Bounds first: an image's bounds are the fit
+    // the document asked for, and a cell AppKit made from the image
+    // would answer the picture's own size.
+
+    static func attachmentWidth(_ attachment: NSTextAttachment) -> CGFloat {
+        let cell = attachment.attachmentCell as? NSTextAttachmentCell
+        return attachment.bounds.width > 0
+            ? attachment.bounds.width
+            : cell?.cellSize().width ?? 0
     }
 
 }

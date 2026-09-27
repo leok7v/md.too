@@ -96,6 +96,99 @@ enum TableMetrics {
         return result
     }
 
+    // The widths a table draws its columns at: every column its natural
+    // width when the row of naturals fits, otherwise the weighted shares
+    // floored at the minimums and capped at the naturals, with the slack
+    // a column did not want handed to the ones still short of theirs.
+    // The minimums alone when even they do not fit: a column narrower
+    // than its longest run cannot wrap down to it, and the caller lets
+    // the table overflow rather than the cells overlap.
+
+    static func columnLayout(headers: [String], rows: [[String]],
+                             naturals: [CGFloat], minimums: [CGFloat],
+                             available: CGFloat) -> [CGFloat] {
+        var result = naturals
+        if minimums.reduce(0, +) > available {
+            result = minimums
+        } else if naturals.reduce(0, +) > available {
+            let shared = pointWidths(headers: headers, rows: rows,
+                                     available: available,
+                                     minimums: minimums)
+            result = capped(shared, naturals)
+        }
+        return result
+    }
+
+    private static func capped(_ widths: [CGFloat],
+                               _ naturals: [CGFloat]) -> [CGFloat] {
+        var out = widths
+        let want = (0..<out.count).map { c in max(naturals[c] - out[c], 0) }
+        let short = want.reduce(0, +)
+        var slack: CGFloat = 0
+        for c in 0..<out.count where out[c] > naturals[c] {
+            slack += out[c] - naturals[c]
+            out[c] = naturals[c]
+        }
+        let give = min(slack, short)
+        if short > 0 {
+            for c in 0..<out.count { out[c] += give * want[c] / short }
+        }
+        return out
+    }
+
+    // Where a cell's text can break: at a space, a hard break, and after
+    // a hyphen, slash or dash that sits between words. "-0.614" stays
+    // one run, so a column sized as though the number could split never
+    // renders it as "-0.61" over "4".
+
+    static func unbreakableRuns(_ text: NSString) -> [NSRange] {
+        var out: [NSRange] = []
+        var start = 0
+        for i in 0..<text.length {
+            let c = text.character(at: i)
+            let next = i + 1 < text.length ? text.character(at: i + 1) : 0
+            let space = c == 0x20 || c == 0x09 || c == 0x0A || c == 0x2028
+            let soft = [0x2D, 0x2F, 0x2013, 0x2014].contains(c) &&
+                       !(0x30...0x39).contains(next)
+            if space || soft {
+                let end = space ? i : i + 1
+                if end > start {
+                    out.append(NSRange(location: start, length: end - start))
+                }
+                start = i + 1
+            }
+        }
+        if text.length > start {
+            out.append(NSRange(location: start, length: text.length - start))
+        }
+        return out
+    }
+
+    // The widest line of a cell, and its widest unbreakable run, both in
+    // the face the cell draws in.
+
+    static func naturalWidth(_ text: String, font: PlatformFont) -> CGFloat {
+        var widest: CGFloat = 0
+        for line in text.split(separator: "\u{2028}",
+                               omittingEmptySubsequences: false) {
+            let w = (String(line) as NSString)
+                .size(withAttributes: [.font: font]).width
+            if w > widest { widest = w }
+        }
+        return widest
+    }
+
+    static func minimumWidth(_ text: String, font: PlatformFont) -> CGFloat {
+        let ns = text as NSString
+        var widest: CGFloat = 0
+        for run in unbreakableRuns(ns) {
+            let w = ns.substring(with: run)
+                .size(withAttributes: [.font: font]).width
+            if w > widest { widest = w }
+        }
+        return widest
+    }
+
     static func normalize(_ s: String) -> String {
         let trimmed = s.trimmingCharacters(in: .whitespaces)
         var out = ""

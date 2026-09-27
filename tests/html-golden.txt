@@ -576,6 +576,23 @@ for (int i = 0; i &lt; 10; ++i) x += i;</code></pre>
 <h2>A comment between paragraphs</h2>
 <p>first paragraph</p>
 <p>second paragraph</p>
+=== edge-14-quoted-table
+<h2>Quoted table</h2>
+<blockquote style="border-left:3px solid rgba(128,128,128,0.5);padding-left:12px;margin-left:0;opacity:0.85;">
+<p>A table inside a quote keeps its marker column out of the table:</p>
+<table style="border-collapse:collapse;margin:0.5em 0;">
+<thead><tr style="background:rgba(128,128,128,0.14);">
+<th style="padding:6px 14px;text-align:left;border-bottom:1px solid rgba(128,128,128,0.3);border-right:1px solid rgba(128,128,128,0.20);">Key</th>
+<th style="padding:6px 14px;text-align:left;border-bottom:1px solid rgba(128,128,128,0.3);">Value</th>
+</tr></thead>
+<tbody>
+<tr>
+<td style="padding:6px 14px;border-bottom:1px solid rgba(128,128,128,0.12);border-right:1px solid rgba(128,128,128,0.20);">one</td>
+<td style="padding:6px 14px;border-bottom:1px solid rgba(128,128,128,0.12);">1</td>
+</tr>
+</tbody>
+</table>
+</blockquote>
 === html-intro
 <h1>HTML the models write</h1>
 <p>Fragments that arrive inside markdown from models and README authors, handled by the allow-list and nothing else.</p>

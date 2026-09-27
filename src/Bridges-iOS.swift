@@ -195,7 +195,15 @@ extension NativeText: UIViewRepresentable {
                             forGlyphAt: gr.location,
                             effectiveRange: nil).maxX
                         : block.maxX
-                    let x = right + inset.left - copyButtonGutter
+                    // A table is as wide as its content, so one narrower
+                    // than the surface leaves room beside it where the
+                    // button covers no cell; one that fills the surface
+                    // keeps the button inside.
+                    let beside = kind == AtomicKind.table.rawValue &&
+                        block.maxX + 4 + 22 <= tc.size.width
+                    let x = beside
+                        ? block.maxX + inset.left + 4
+                        : right + inset.left - copyButtonGutter
                     let y = line.minY + inset.top + (line.height - 22) / 2
                     spots.append(CopyBlockSpot(
                         id: id,

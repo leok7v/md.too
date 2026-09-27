@@ -126,10 +126,13 @@ enum Markdown {
             } else if isHR(line) {
                 if case .rule = blocks.last { } else { blocks.append(.rule) }
                 i += 1
+            } else if isQuoteStart(line) {
+                // Before the table test: a quoted table's rows start
+                // with the marker and its delimiter row still passes,
+                // which read as a table whose first column was ">".
+                blocks.append(consumeQuote(lines, &i))
             } else if isTableStart(lines, i) {
                 blocks.append(consumeTable(lines, &i))
-            } else if isQuoteStart(line) {
-                blocks.append(consumeQuote(lines, &i))
             } else if isListStart(line) {
                 blocks.append(consumeList(lines, &i))
             } else if isIndentedCode(line) {

@@ -113,7 +113,7 @@ struct MarkdownView: View, Equatable {
             SelectableText(
                 nsAttributed: DocumentText.attributed(
                     from: blocks, images: documentImages, cache: cache,
-                    style: style, column: column),
+                    style: style, budget: measure, column: column),
                 role: .body, find: find)
                 .frame(width: viewport > 0 ? width : nil,
                        alignment: .leading)

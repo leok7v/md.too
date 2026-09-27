@@ -300,6 +300,13 @@ math: a <b> b
 heading 2: A comment between paragraphs|
 paragraph: first paragraph|
 paragraph: second paragraph|
+=== edge-14-quoted-table
+heading 2: Quoted table|
+quote:
+  paragraph: A table inside a quote keeps its marker column out of the table:|
+  table 2x1: none,none
+    h: [Key] [Value]
+    r: [one] [1]
 === html-intro
 heading 1: HTML the models write|
 paragraph: Fragments that arrive inside markdown from models and README authors, handled by the allow-list and nothing else.|

@@ -502,48 +502,43 @@ final class PDFRenderer {
         return floors
     }
 
-    // Break opportunities per UAX #14: a space, and a hyphen BETWEEN
-    // WORDS. "Pre-training" is two tokens, "NEUCOM'24" is one, and
-    // "-0.614" is one -- a hyphen stays welded to the number after it,
-    // so a column sized as though a negative value could split renders
-    // it as "-0.61" over "4".
+    // The width each column would take on one line, so a table whose
+    // content is narrow draws narrow instead of across the page.
+
+    private func columnNaturals(headers: [String], rows: [[String]],
+                                cols: Int) -> [CGFloat] {
+        let pad = cellPadding()
+        var naturals: [CGFloat] = []
+        for c in 0..<cols {
+            var widest: CGFloat = 0
+            if c < headers.count, ImagePrefetch.imageInCell(headers[c]) == nil {
+                let w = cellRenderedWidth(headers[c], bold: true)
+                if w > widest { widest = w }
+            }
+            for row in rows where c < row.count &&
+                                  ImagePrefetch.imageInCell(row[c]) == nil {
+                let w = cellRenderedWidth(row[c], bold: false)
+                if w > widest { widest = w }
+            }
+            naturals.append(widest + 2 * pad + 1)
+        }
+        return naturals
+    }
+
+    // An image cell has no words to break. Its size is settled against
+    // the drawn bitmap; measuring the markdown would read the URL as one
+    // enormous unbreakable run and shrink the whole table to make room
+    // for text nobody sees.
 
     private func longestTokenWidth(_ text: String, bold: Bool) -> CGFloat {
         var widest: CGFloat = 0
-        var token = ""
-        var tokens: [String] = []
-        // An image cell has no words to break. Its size is settled
-        // further down against the drawn bitmap; measuring the markdown
-        // would read the URL as one enormous unbreakable token and
-        // shrink the whole table to make room for text nobody sees.
         let source = ImagePrefetch.imageInCell(text) == nil ? text : ""
-        let chars = Array(source)
-        for (i, ch) in chars.enumerated() {
-            if ch == " " {
-                if !token.isEmpty { tokens.append(token); token = "" }
-            } else {
-                token.append(ch)
-                if ch == "-", hyphenBreaks(after: i, in: chars) {
-                    tokens.append(token)
-                    token = ""
-                }
-            }
-        }
-        if !token.isEmpty { tokens.append(token) }
-        for t in tokens {
-            let w = cellRenderedWidth(t, bold: bold)
+        let ns = source as NSString
+        for run in TableMetrics.unbreakableRuns(ns) {
+            let w = cellRenderedWidth(ns.substring(with: run), bold: bold)
             if w > widest { widest = w }
         }
         return widest
-    }
-
-    private func hyphenBreaks(after i: Int, in chars: [Character]) -> Bool {
-        var result = false
-        if i + 1 < chars.count {
-            let next = chars[i + 1]
-            result = !next.isNumber && next != " " && next != "-"
-        }
-        return result
     }
 
     private func drawTableImpl(headers: [String], rows: [[String]],
@@ -555,10 +550,11 @@ final class PDFRenderer {
         let cellPad = cellPadding()
         let minWidths = columnFloors(headers: headers, rows: rows,
                                      cols: cols)
-        var colWidths = TableMetrics.pointWidths(headers: headers,
-                                                 rows: rows,
-                                                 available: contentWidth,
-                                                 minimums: minWidths)
+        var colWidths = TableMetrics.columnLayout(
+            headers: headers, rows: rows,
+            naturals: columnNaturals(headers: headers, rows: rows,
+                                     cols: cols),
+            minimums: minWidths, available: contentWidth)
         let allRows: [[String]] = headers.isEmpty ? rows : [headers] + rows
         for r in allRows {
             for c in 0..<cols where c < r.count {
@@ -580,6 +576,9 @@ final class PDFRenderer {
             let scale = contentWidth / total
             colWidths = colWidths.map { v in v * scale }
         }
+        // The table is as wide as its columns, not the page: its bands
+        // and rules stop where the last column does.
+        let tableRight = contentLeft + colWidths.reduce(0, +)
         func drawRow(_ cells: [String], bold: Bool, shade: CGColor?) {
             let built = (0..<cols).map { c in
                 cellContent(c < cells.count ? cells[c] : "", bold: bold,
@@ -606,7 +605,7 @@ final class PDFRenderer {
                 ctx.setFillColor(shade)
                 ctx.fill(CGRect(x: contentLeft,
                                 y: savedY - rowH - rowPad,
-                                width: contentWidth,
+                                width: tableRight - contentLeft,
                                 height: rowH + 2 * rowPad))
             }
             var maxUsed: CGFloat = 0
@@ -632,7 +631,7 @@ final class PDFRenderer {
             ctx.setStrokeColor(secondaryColor)
             ctx.setLineWidth(0.5)
             ctx.move(to: CGPoint(x: contentLeft, y: y))
-            ctx.addLine(to: CGPoint(x: contentRight, y: y))
+            ctx.addLine(to: CGPoint(x: tableRight, y: y))
             ctx.strokePath()
             // Interior column dividers, thinner than the row rules so the
             // grid reads as columns first. The band starts at the previous

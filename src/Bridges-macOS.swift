@@ -508,18 +508,33 @@ extension NativeText: NSViewRepresentable {
                         // tables, whose first row sits below padding).
                         let line = lm.lineFragmentUsedRect(
                             forGlyphAt: gr.location, effectiveRange: nil)
-                        // A code fence and a table start at the left
-                        // margin, so a button set just inside their right
-                        // edge lands in empty corner. A display is
-                        // CENTRED, so that same inset lands on the
-                        // formula -- it has to go out to the margin
-                        // instead, which is where the eye looks for it
-                        // anyway.
-                        let right = kind == AtomicKind.math.rawValue
-                            ? lm.lineFragmentRect(
+                        // A code fence starts at the left margin, so a
+                        // button set just inside its right edge lands
+                        // in empty corner. A display is CENTRED, so
+                        // that same inset lands on the formula -- it
+                        // has to go out to the margin instead, which is
+                        // where the eye looks for it anyway. A table's
+                        // glyphs stop at its widest text; its band
+                        // runs to the room the last column keeps clear,
+                        // and the button sits flush in that band.
+                        let table = kind == AtomicKind.table.rawValue
+                            ? ((ts.attribute(.paragraphStyle,
+                                             at: run.location,
+                                             effectiveRange: nil)
+                                as? NSParagraphStyle)?.textBlocks.first
+                                as? NSTextTableBlock)?.table
+                            : nil
+                        let right: CGFloat
+                        if kind == AtomicKind.math.rawValue {
+                            right = lm.lineFragmentRect(
                                 forGlyphAt: gr.location,
                                 effectiveRange: nil).maxX
-                            : block.maxX
+                        } else if let table {
+                            right = lm.boundsRect(for: table,
+                                                  glyphRange: gr).maxX
+                        } else {
+                            right = block.maxX
+                        }
                         let x = right + origin.x - copyButtonGutter
                         let y = line.minY + origin.y +
                                 (line.height - 22) / 2
