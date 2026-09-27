@@ -126,6 +126,10 @@ $$\alpha \beta \gamma \delta \epsilon \zeta \eta \theta \iota \kappa \lambda \mu
 
 $$\Gamma \Delta \Theta \Lambda \Xi \Pi \Sigma \Phi \Psi \Omega$$
 
+Decorations, the kind a lecture note reaches for: braces with a label, a box around the result, a struck-out term, an arrow that stretches over its label, a symbol negated, and ink in a colour of the author's choosing.
+
+$$\overbrace{a + b + c}^{\text{three terms}} \quad \underbrace{x_1 x_2 \cdots x_k}_{k} \quad \boxed{E = mc^2} \quad \cancel{2x} + \underline{y} \quad A \xrightarrow{\ f\ } B \quad a \overset{?}{=} b \not= c \quad \textcolor{#d81b60}{\text{rose}} + \color{teal}\text{teal}$$
+
 Operators and a corner of set theory: $\le \ge \neq \approx \pm \times \cdot \div \to \Rightarrow$, $\forall x \in \mathbb{N}, \exists y \in \mathbb{Z}$, $A \cap B$, $A \cup B$, $\varnothing$.
 
 Tools that lift equations out of a PDF often forget the delimiters and leave the bare TeX sitting in a paragraph. A paragraph that opens with a control word and parses cleanly as TeX, with no ordinary words in it, is read as a display anyway:
@@ -134,7 +138,7 @@ Tools that lift equations out of a PDF often forget the delimiters and leave the
 
 That is three separate tests, and prose fails all but the first: `\alpha is the first letter` parses perfectly well as alpha times i times s and so on, and is caught by the run of ordinary letters. Rows separated by `\\`, and columns by `&`, work without naming an environment.
 
-There are still limits. No `\def` or `\newcommand`, no `\color`, and no line breaking inside a formula. A display the engine will not accept falls back to the inline spelling rather than showing you nothing, and copying any display gives you back the TeX you wrote.
+There are still limits. No `\def` or `\newcommand`, and no line breaking inside a formula. A display the engine will not accept falls back to the inline spelling rather than showing you nothing, and copying any display gives you back the TeX you wrote.
 
 ## Footprints
 

@@ -65,12 +65,19 @@ extension NativeText: UIViewRepresentable {
         private var contentGeneration = 0
         private var overlayGeneration = -1
 
+        private var lastApplied: NSAttributedString? = nil
+
+        // The same instance again is the same document: the render
+        // cache hands one back while nothing changed.
         func applyResolved(_ next: NSAttributedString) {
-            if applyIncremental(textStorage, next) {
-                contentGeneration += 1
-                invalidateIntrinsicContentSize()
-                setNeedsLayout()
-                setNeedsDisplay()
+            if next !== lastApplied {
+                lastApplied = next
+                if applyIncremental(textStorage, next) {
+                    contentGeneration += 1
+                    invalidateIntrinsicContentSize()
+                    setNeedsLayout()
+                    setNeedsDisplay()
+                }
             }
         }
 

@@ -76,6 +76,10 @@ enum DocumentText {
         var entries: [Int: Entry] = [:]
         var minimums: [Int: Minimum] = [:]
         var tables: [Int: Table] = [:]
+        // The surface as last assembled, handed back as the same
+        // instance while no entry moved, so a host re-render that
+        // changed nothing costs neither the assembly nor the splice.
+        var surface: NSAttributedString? = nil
 
         // The parse of the text last seen, so a host re-render that
         // changed nothing else (a find keystroke, a toolbar toggle)
@@ -132,13 +136,21 @@ enum DocumentText {
                 m.append(entry.text)
             }
         }
+        // An entry that was kept holds the very text object the cache
+        // had; one that was rebuilt holds a fresh one.
+        let unchanged = live.count == cache?.entries.count &&
+            live.allSatisfy { pair in
+                pair.value.text === cache?.entries[pair.key]?.text
+            }
+        let result = unchanged ? cache?.surface ?? m : m
         if let cache {
             cache.entries = live
             cache.tables = cache.tables.filter { pair in
                 live[pair.key] != nil
             }
+            cache.surface = result
         }
-        return m
+        return result
     }
 
     // Every run leaves here with a font and a colour, so the text view

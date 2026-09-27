@@ -156,12 +156,20 @@ extension NativeText: NSViewRepresentable {
 
         var liveFindCount: Int { findMatches.count }
 
+        private var lastApplied: NSAttributedString? = nil
+
+        // The same instance again is the same document: the render
+        // cache hands one back while nothing changed, and the splice
+        // would only scan it end to end to find that out.
         func applyResolved(_ next: NSAttributedString) {
-            if let ts = textStorage, applyIncremental(ts, next) {
-                contentGeneration += 1
-                invalidateIntrinsicContentSize()
-                needsLayout = true
-                reapplyFind()
+            if next !== lastApplied, let ts = textStorage {
+                lastApplied = next
+                if applyIncremental(ts, next) {
+                    contentGeneration += 1
+                    invalidateIntrinsicContentSize()
+                    needsLayout = true
+                    reapplyFind()
+                }
             }
         }
 
