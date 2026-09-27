@@ -566,6 +566,10 @@ extension NativeText: NSViewRepresentable {
                                 as? NSParagraphStyle)?.textBlocks.first
                                 as? NSTextTableBlock)?.table
                             : nil
+                        // A code block's glyph rect spans the surface;
+                        // its box ends at the paragraph's tail, which is
+                        // where the tint stops and the button belongs.
+                        let style = MarkdownStyle.current
                         let right: CGFloat
                         if kind == AtomicKind.math.rawValue {
                             right = lm.lineFragmentRect(
@@ -574,6 +578,12 @@ extension NativeText: NSViewRepresentable {
                         } else if let table {
                             right = lm.boundsRect(for: table,
                                                   glyphRange: gr).maxX
+                        } else if kind == AtomicKind.code.rawValue {
+                            right = codeBlockRects(
+                                in: ts, layoutManager: lm, container: tc,
+                                within: run, padding: style.codePadding,
+                                trailing: style.blockSpacing)
+                                .first?.maxX ?? block.maxX
                         } else {
                             right = block.maxX
                         }

@@ -190,11 +190,24 @@ extension NativeText: UIViewRepresentable {
                     // inset lands on the formula -- it has to go out to
                     // the margin instead, which is the line fragment
                     // rather than the ink.
-                    let right = kind == AtomicKind.math.rawValue
-                        ? lm.lineFragmentRect(
+                    // A code block's glyph rect spans the surface; its
+                    // box ends at the paragraph's tail, where the tint
+                    // stops and the button belongs.
+                    let style = MarkdownStyle.current
+                    let right: CGFloat
+                    if kind == AtomicKind.math.rawValue {
+                        right = lm.lineFragmentRect(
                             forGlyphAt: gr.location,
                             effectiveRange: nil).maxX
-                        : block.maxX
+                    } else if kind == AtomicKind.code.rawValue {
+                        right = codeBlockRects(
+                            in: ts, layoutManager: lm, container: tc,
+                            within: run, padding: style.codePadding,
+                            trailing: style.blockSpacing)
+                            .first?.maxX ?? block.maxX
+                    } else {
+                        right = block.maxX
+                    }
                     // A table is as wide as its content, so one narrower
                     // than the surface leaves room beside it where the
                     // button covers no cell; one that fills the surface
