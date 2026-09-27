@@ -648,6 +648,299 @@
             background: #000;
         }
 
+        /* ALSO AVAILABLE */
+        .also-lead { margin-bottom: 8px; }
+        .also-pair {
+            display: flex;
+            gap: 22px;
+            align-items: flex-end;
+            justify-content: center;
+            flex-wrap: wrap;
+            margin: 28px 0 8px;
+        }
+        .also-shot { text-align: center; }
+        .also-shot figcaption {
+            margin-top: 12px;
+            font-size: 13px;
+            color: var(--text2);
+        }
+        .mock-phone {
+            position: relative;
+            width: 216px;
+            height: 440px;
+            padding: 3px;
+            border-radius: 42px;
+            background: linear-gradient(145deg, #f2f2f5 0%, #9a9aa0 22%,
+                        #e6e6ea 45%, #75757b 70%, #d4d4d9 100%);
+            box-shadow: 0 18px 40px rgba(0,0,0,0.22),
+                        inset 0 0 0 1px rgba(255,255,255,0.5);
+            text-align: left;
+            font-size: 11px;
+        }
+        .mock-phone::before, .mock-phone::after {
+            content: "";
+            position: absolute;
+            width: 3px;
+            border-radius: 2px;
+            background: linear-gradient(90deg, #7c7c82, #d8d8dc);
+        }
+        .mock-phone::before { left: -3px; top: 96px; height: 48px;
+            box-shadow: 0 60px 0 #a1a1a6; }
+        .mock-phone::after { right: -3px; top: 120px; height: 64px; }
+        .mock-screen {
+            position: relative;
+            height: 100%;
+            border-radius: 39px;
+            border: 6px solid #0b0b0c;
+            background: var(--bg);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        .mock-island {
+            position: absolute;
+            top: 7px;
+            left: 50%;
+            width: 62px;
+            height: 17px;
+            margin-left: -31px;
+            border-radius: 10px;
+            background: #000;
+        }
+        .mock-status {
+            height: 30px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 4px 16px 0 22px;
+            font-size: 10px;
+            font-weight: 600;
+            color: var(--text);
+        }
+        .mock-signal { display: flex; align-items: flex-end; gap: 1.5px; }
+        .mock-signal i {
+            display: block;
+            width: 2.5px;
+            border-radius: 1px;
+            background: var(--text);
+        }
+        .mock-battery {
+            width: 19px;
+            height: 9px;
+            border-radius: 3px;
+            border: 1px solid var(--text2);
+            padding: 1px;
+            margin-left: 4px;
+        }
+        .mock-battery b {
+            display: block;
+            height: 100%;
+            width: 80%;
+            border-radius: 1.5px;
+            background: #34c759;
+        }
+        .mock-icons { display: flex; align-items: center; }
+        .mock-bar {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 26px;
+            font-size: 10px;
+            font-weight: 600;
+            color: var(--accent);
+            border-bottom: 1px solid var(--border);
+        }
+        .mock-chat {
+            flex: 1;
+            padding: 12px 10px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .mock-ask {
+            align-self: flex-end;
+            max-width: 80%;
+            background: var(--accent);
+            color: #fff;
+            padding: 7px 10px;
+            border-radius: 14px 14px 4px 14px;
+            line-height: 1.35;
+        }
+        .mock-answer { color: var(--text); line-height: 1.45; }
+        .mock-chip {
+            display: inline-block;
+            margin-top: 6px;
+            padding: 2px 8px;
+            border-radius: 980px;
+            border: 1px solid var(--border);
+            background: var(--bg2);
+            color: var(--text2);
+            font-size: 9.5px;
+        }
+        .mock-input {
+            margin: 8px;
+            padding: 8px 10px;
+            border-radius: 12px;
+            background: var(--bg2);
+            border: 1px solid var(--border);
+            color: var(--text2);
+        }
+        .mock-desk {
+            position: relative;
+            width: 404px;
+            max-width: 100%;
+            height: 300px;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: var(--shadow);
+            background:
+                radial-gradient(120% 90% at 15% 10%, #9fd3f5 0%, transparent 55%),
+                radial-gradient(90% 80% at 90% 30%, #f7c6a3 0%, transparent 60%),
+                radial-gradient(110% 90% at 60% 110%, #4f7fc9 0%, transparent 60%),
+                #b7c8e8;
+        }
+        :root.dark .mock-desk {
+            background:
+                radial-gradient(120% 90% at 15% 10%, #24466b 0%, transparent 55%),
+                radial-gradient(90% 80% at 90% 30%, #5a3550 0%, transparent 60%),
+                radial-gradient(110% 90% at 60% 110%, #10244a 0%, transparent 60%),
+                #161b2e;
+        }
+        .mock-menubar {
+            height: 18px;
+            display: flex;
+            align-items: center;
+            gap: 11px;
+            padding: 0 10px;
+            font-size: 9px;
+            color: #1d1d1f;
+            background: rgba(255,255,255,0.45);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+        }
+        :root.dark .mock-menubar { color: #f5f5f7; background: rgba(0,0,0,0.35); }
+        .mock-menubar b { font-weight: 700; }
+        .mock-menubar .clock { margin-left: auto; }
+        .mock-desk .mock-mac {
+            position: absolute;
+            top: 30px;
+            left: 50%;
+            margin-left: -168px;
+            width: 336px;
+            height: 226px;
+            box-shadow: 0 14px 34px rgba(0,0,0,0.28);
+        }
+        .mock-dock {
+            position: absolute;
+            left: 50%;
+            bottom: -16px;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 5px;
+            padding: 5px 7px;
+            border-radius: 11px;
+            background: rgba(255,255,255,0.35);
+            border: 1px solid rgba(255,255,255,0.45);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+        }
+        :root.dark .mock-dock {
+            background: rgba(40,40,44,0.45);
+            border-color: rgba(255,255,255,0.12);
+        }
+        .mock-dock i {
+            display: block;
+            width: 22px;
+            height: 22px;
+            border-radius: 6px;
+        }
+        .mock-mac {
+            width: 400px;
+            max-width: 100%;
+            height: 262px;
+            border-radius: 12px;
+            background: var(--bg2);
+            border: 1px solid var(--border);
+            box-shadow: var(--shadow);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            text-align: left;
+            font-size: 11px;
+        }
+        .mock-chrome {
+            height: 26px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 0 10px;
+            border-bottom: 1px solid var(--border);
+        }
+        .mock-chrome i {
+            width: 9px; height: 9px;
+            border-radius: 50%;
+            display: block;
+        }
+        .mock-body { flex: 1; display: flex; min-height: 0; }
+        .mock-side {
+            width: 124px;
+            background: var(--bg);
+            border-right: 1px solid var(--border);
+            padding: 8px;
+        }
+        .mock-tabs {
+            display: flex;
+            border-radius: 6px;
+            background: var(--bg2);
+            border: 1px solid var(--border);
+            font-size: 9.5px;
+            margin-bottom: 8px;
+        }
+        .mock-tabs span {
+            flex: 1;
+            text-align: center;
+            padding: 2px 0;
+            color: var(--text2);
+        }
+        .mock-tabs .on {
+            background: var(--accent);
+            color: #fff;
+            border-radius: 5px;
+        }
+        .mock-item {
+            padding: 5px 6px;
+            border-radius: 6px;
+            color: var(--text);
+            line-height: 1.3;
+        }
+        .mock-item small { display: block; color: var(--text2); font-size: 9px; }
+        .mock-item.on { background: var(--bg2); }
+        .mock-note { flex: 1; padding: 14px 16px; color: var(--text); }
+        .mock-note h4 { font-size: 13px; margin-bottom: 4px; }
+        .mock-note .meta { color: var(--text2); font-size: 9.5px; margin-bottom: 10px; }
+        .mock-note p { line-height: 1.5; margin-bottom: 10px; }
+        .page-wrap .mock-answer ul { margin: 4px 0; }
+        .page-wrap .mock-answer li {
+            font-size: 11px;
+            line-height: 1.45;
+            padding: 0 0 0 10px;
+        }
+        .page-wrap .mock-answer li::before { left: 0; content: "\2022"; }
+        .page-wrap .mock-note p {
+            font-size: 11px;
+            line-height: 1.5;
+            color: var(--text2);
+            margin-bottom: 10px;
+        }
+        .mock-open {
+            display: inline-block;
+            padding: 3px 9px;
+            border-radius: 6px;
+            border: 1px solid var(--border);
+            color: var(--accent);
+            font-size: 10px;
+        }
+
         </style>
 </head>
 <body>
@@ -725,6 +1018,77 @@
                autoplay loop muted playsinline preload="metadata"
                aria-label="md.too rendering EXAMPLE.md on iOS"></video>
     </figure>
+
+    <h2>Also available</h2>
+    <p class="also-lead"><a href="https://leok7v.github.io/ChatOKF/">ChatOKF</a> is a private AI chat for Mac and iPhone from the same workshop. The model is downloaded once and runs on your device: no account, no server. It keeps what it learns as plain notes you can read, search and delete, and it answers from them.</p>
+    <div class="also-pair">
+        <figure class="also-shot">
+            <div class="mock-phone" role="img" aria-label="ChatOKF on iPhone answering from a saved note">
+              <div class="mock-screen">
+                <div class="mock-island"></div>
+                <div class="mock-status">
+                    <span>9:41</span>
+                    <span class="mock-icons">
+                        <span class="mock-signal"><i style="height:3px"></i><i style="height:5px"></i><i style="height:7px"></i><i style="height:9px"></i></span>
+                        <span class="mock-battery"><b></b></span>
+                    </span>
+                </div>
+                <div class="mock-bar">Gemma E4B &#x25BE;</div>
+                <div class="mock-chat">
+                    <div class="mock-ask">What do my notes say about dark matter?</div>
+                    <div class="mock-answer">
+                        From your note <b>Dark Matter and Dark Energy</b>:
+                        <ul>
+                            <li>about 27% of the universe</li>
+                            <li>seen only through its gravity</li>
+                            <li>not the same as dark energy</li>
+                        </ul>
+                        <span class="mock-chip">1 memory used</span>
+                    </div>
+                </div>
+                <div class="mock-input">Write a message...</div>
+              </div>
+            </div>
+            <figcaption>Ask, and it answers from your notes.</figcaption>
+        </figure>
+        <figure class="also-shot">
+            <div class="mock-desk" role="img" aria-label="ChatOKF on Mac showing a memory note">
+              <div class="mock-menubar"><b>ChatOKF</b><span>File</span><span>Edit</span><span>View</span><span>Window</span><span>Help</span><span class="clock">Fri 9:41 AM</span></div>
+              <div class="mock-mac">
+                <div class="mock-chrome">
+                    <i style="background:#ff5f57"></i><i style="background:#febc2e"></i><i style="background:#28c840"></i>
+                </div>
+                <div class="mock-body">
+                    <div class="mock-side">
+                        <div class="mock-tabs"><span>Chats</span><span class="on">Memories</span></div>
+                        <div class="mock-item on">Dark Matter and Dark Energy<small>science</small></div>
+                        <div class="mock-item">Compound Interest<small>finance</small></div>
+                        <div class="mock-item">Harvest Report<small>documents</small></div>
+                    </div>
+                    <div class="mock-note">
+                        <h4>Dark Matter and Dark Energy</h4>
+                        <div class="meta">science &middot; 21 seconds ago</div>
+                        <p>Core definitions, key differences and the evidence for both, summarised from Simple English Wikipedia.</p>
+                        <span class="mock-open">Open the Chat</span>
+                    </div>
+                </div>
+              </div>
+              <div class="mock-dock">
+                  <i style="background:linear-gradient(#5ac8fa,#007aff)"></i>
+                  <i style="background:linear-gradient(#fdfdfd,#d6d6db)"></i>
+                  <i style="background:linear-gradient(#6fe07d,#28c840)"></i>
+                  <i style="background:linear-gradient(#ffd66b,#ff9f0a)"></i>
+                  <i style="background:linear-gradient(#ff7a90,#ff2d55)"></i>
+                  <i style="background:linear-gradient(#b18cff,#5e5ce6)"></i>
+                  <i style="background:linear-gradient(#ffe39a,#f4b400)"></i>
+              </div>
+            </div>
+            <figcaption>Every memory is a plain note, yours to read or delete.</figcaption>
+        </figure>
+    </div>
+    <div class="contact-row">
+        <a class="btn btn-primary" href="https://leok7v.github.io/ChatOKF/" target="_blank" rel="noopener">Try ChatOKF</a>
+    </div>
 
     <h2>Contact</h2>
     <p>Questions or feedback? Open an issue or start a discussion on GitHub.</p>
