@@ -54,6 +54,7 @@ A friend asked me last week what a Markdown file is. I had to explain that `.md`
 - macOS with Homebrew:
 
       brew tap leok7v/md.too https://github.com/leok7v/md.too
+      brew trust leok7v/md.too
       brew install --cask md-too
 
 > **Don't do both!** The Mac App Store copy and the Homebrew copy are the same app. Install one of them, not both.
