@@ -554,12 +554,12 @@ for (int i = 0; i &lt; 10; ++i) x += i;</code></pre>
 </tr>
 </tbody>
 </table>
-<p>The next image points to a deliberately broken URL so you can see the captioned-placeholder fallback. Layout doesn't collapse around the missing content; the alt text becomes a small box with a photo icon and the caption right where the image would have gone:</p>
+<p>The next image points to a deliberately broken URL so you can see the fallback. Layout doesn't collapse around the missing content; the alt text stands in as a caption, right where the image would have gone:</p>
 <p style="color:rgba(128,128,128,0.7);font-style:italic;">[image not found]</p>
 <hr style="border:none;border-top:1px solid rgba(128,128,128,0.3);margin:1em 0;">
 === example-12-html-the-models-write
 <h2>HTML the models write</h2>
-<p>Markdown has no spelling for a few things, so a model, or a README author, reaches for HTML. The short list that is understood: a line break (<br>) inside a paragraph<br>like this one, <small>small print</small>, <code style="background:rgba(128,128,128,0.14);padding:1px 4px;border-radius:3px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:0.92em;">Cmd</code>-<code style="background:rgba(128,128,128,0.14);padding:1px 4px;border-radius:3px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:0.92em;">C</code> for a key, <strong>bold</strong> and <em>italic</em> the old way, and a link written as <a href="https://commonmark.org">a tag</a>. A comment is dropped, and a centred wrapper centres what it holds:</p>
+<p>Markdown has no spelling for a few things, so a model, or a README author, reaches for HTML. The short list that is understood: a line break (<code style="background:rgba(128,128,128,0.14);padding:1px 4px;border-radius:3px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:0.92em;">&lt;br&gt;</code>) inside a paragraph<br>like this one, <small>small print</small>, <code style="background:rgba(128,128,128,0.14);padding:1px 4px;border-radius:3px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:0.92em;">Cmd</code>-<code style="background:rgba(128,128,128,0.14);padding:1px 4px;border-radius:3px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:0.92em;">C</code> for a key, <strong>bold</strong> and <em>italic</em> the old way, and a link written as <a href="https://commonmark.org">a tag</a>. A comment is dropped, and a centred wrapper centres what it holds:</p>
 <p style="text-align:center">Centred, the way a README opens.</p>
 <p>A <code style="background:rgba(128,128,128,0.14);padding:1px 4px;border-radius:3px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:0.92em;">&lt;details&gt;</code> block is drawn open, its summary in bold:</p>
 <p><strong>The part that folds elsewhere</strong></p>

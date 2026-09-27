@@ -23,9 +23,20 @@ enum DocumentText {
     // column while the paragraphs around it keep their line length.
     // Both numbers come from the document and the style, never from the
     // viewport, so a window resize leaves the string alone.
+    // The reading column inside a surface: prose is inset by `inset`
+    // and measures `width`; `surface` is the whole width, which a block
+    // wider than the column may use.
     struct Column: Equatable {
         let inset: CGFloat
         let width: CGFloat
+        let surface: CGFloat
+
+        init(inset: CGFloat, width: CGFloat,
+             surface: CGFloat = .infinity) {
+            self.inset = inset
+            self.width = width
+            self.surface = surface
+        }
     }
 
     // Keyed by the block's position, so a block that did not change keeps
@@ -91,15 +102,16 @@ enum DocumentText {
                                        cache: cache, budget: measure),
                                 style: style)
                     : entry?.plain ?? NSAttributedString()
-                let wide = column.map { c in
-                    minimumWidth(of: block, at: i, style: style,
-                                 images: images, seen: seen,
-                                 cache: cache) > c.width
-                } ?? false
+                let need = column == nil ? 0
+                    : minimumWidth(of: block, at: i, style: style,
+                                   images: images, seen: seen,
+                                   cache: cache)
                 entry = RenderCache.Entry(
                     block: block, style: style, column: column,
                     images: seen, budget: owed, plain: plain,
-                    text: wide ? plain : columned(plain, column: column))
+                    text: column.map { c in
+                        placed(plain, need: need, in: c)
+                    } ?? plain)
             }
             if let entry {
                 live[i] = entry
@@ -136,6 +148,27 @@ enum DocumentText {
             }
         }
         return m
+    }
+
+    // A block that fits the column goes into it. A wider one keeps its
+    // width and moves right by as much of the inset as the surface has
+    // room for, so it starts where the prose starts unless it is the
+    // block the surface was widened for, which starts at the edge.
+
+    private static func placed(_ plain: NSAttributedString, need: CGFloat,
+                               in column: Column) -> NSAttributedString {
+        var result = plain
+        if need <= column.width {
+            result = columned(plain, column: column)
+        } else {
+            let shift = max(min(column.inset, column.surface - need), 0)
+            if shift > 0 {
+                let m = NSMutableAttributedString(attributedString: plain)
+                move(m, by: shift)
+                result = m
+            }
+        }
+        return result
     }
 
     // Every paragraph of a block moves into the column by the inset,

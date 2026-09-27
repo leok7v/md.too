@@ -107,7 +107,7 @@ struct MarkdownView: View, Equatable {
         let column: DocumentText.Column? = columned && width > measure
             ? DocumentText.Column(
                 inset: width > fits ? 0 : ((width - measure) / 2).rounded(),
-                width: measure)
+                width: measure, surface: width)
             : nil
         let urls = ImagePrefetch.collectURLs(in: blocks)
         let surface = traced("surface") {

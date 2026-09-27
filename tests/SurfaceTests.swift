@@ -115,6 +115,32 @@ final class SurfaceTests: XCTestCase {
         XCTAssertEqual(seen["table"]?.tailIndent, 0)
     }
 
+    // A table wider than the column but narrower than the surface starts
+    // where the prose starts; one as wide as the surface starts at its
+    // edge.
+    func testAWideTableAlignsWithTheProseWhenTheSurfaceHasRoom() {
+        let style = MarkdownStyle(bodySize: 13)
+        let prose = String(repeating: "word ", count: 40)
+        let md = "| a | b |\n|---|---|\n| \(prose) | \(prose) |"
+        let blocks = Markdown.parse(md)
+        let need = DocumentText.minimumWidth(of: blocks, style: style)
+        let roomy = DocumentText.Column(inset: 100, width: need - 50,
+                                        surface: need + 200)
+        let tight = DocumentText.Column(inset: 100, width: need - 50,
+                                        surface: need)
+        let margin: (DocumentText.Column) -> CGFloat = { column in
+            let text = DocumentText.attributed(from: blocks, style: style,
+                                               column: column)
+            let cell = text.attribute(.paragraphStyle, at: 0,
+                                      effectiveRange: nil)
+                as? NSParagraphStyle
+            let block = cell?.textBlocks.first as? NSTextTableBlock
+            return block?.table.width(for: .margin, edge: .minX) ?? -1
+        }
+        XCTAssertEqual(margin(roomy), 100)
+        XCTAssertEqual(margin(tight), 0)
+    }
+
     // A list's tab stop travels with its indent, a display wider than
     // the column takes the surface whole, and a rule spans the column.
     func testAColumnMovesTabStopsAndSparesWideBlocks() {
@@ -141,8 +167,10 @@ final class SurfaceTests: XCTestCase {
                     as? NSParagraphStyle
             }
         }
-        XCTAssertEqual(display?.headIndent, 0,
-                       "a display wider than the column keeps the surface")
+        XCTAssertEqual(display?.headIndent, 100,
+                       "a display wider than the column starts with the prose")
+        XCTAssertEqual(display?.tailIndent, 0,
+                       "and keeps the rest of the surface")
         let storage = NSTextStorage(attributedString: text)
         let manager = NSLayoutManager()
         let box = NSTextContainer(size: CGSize(width: 800, height: 1e6))

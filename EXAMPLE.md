@@ -505,7 +505,7 @@ Images can also live inside table cells, one image per cell. Setting the same `h
 | ![Mona Lisa](https://dn710208.ca.archive.org/0/items/mona-lisa-by-leonardo-da-vinci-from-c-2-rmf-retouched/Mona_Lisa%2C_by_Leonardo_da_Vinci%2C_from_C2RMF_retouched.jpg){height=200} | ![Earthrise](https://archive.org/download/297755main_GPN-2001-000009_full/297755main_GPN-2001-000009_full.jpg){height=200} |
 | Internet Archive | NASA             |
 
-The next image points to a deliberately broken URL so you can see the captioned-placeholder fallback. Layout doesn't collapse around the missing content; the alt text becomes a small box with a photo icon and the caption right where the image would have gone:
+The next image points to a deliberately broken URL so you can see the fallback. Layout doesn't collapse around the missing content; the alt text stands in as a caption, right where the image would have gone:
 
 ![image not found](https://example.com/some-image.png)
 
@@ -515,7 +515,7 @@ The next image points to a deliberately broken URL so you can see the captioned-
 
 Markdown has no spelling for a few things, so a model, or a README
 author, reaches for HTML. The short list that is understood: a line
-break (<br>) inside a paragraph<br>like this one, <small>small print</small>,
+break (`<br>`) inside a paragraph<br>like this one, <small>small print</small>,
 <kbd>Cmd</kbd>-<kbd>C</kbd> for a key, <b>bold</b> and <i>italic</i> the
 old way, and a link written as <a href="https://commonmark.org">a tag</a>.
 A comment is dropped<!-- like this one -->, and a centred wrapper centres
