@@ -38,12 +38,8 @@ extension NativeText: UIViewRepresentable {
         v.applyResolved(resolved())
     }
 
-    // Height measured for the PROPOSED width rather than left to the
-    // intrinsic-size dance: SwiftUI keeps the height it already has for
-    // a representable whose invalidation lands after its width settled,
-    // so text that grows -- a zoom step -- renders into the frame the
-    // smaller font was measured at and every block is clipped. nowrap
-    // (code inside a horizontal scroller) keeps its natural width.
+    // SwiftUI can keep this view's old height across a width change,
+    // so height is computed for the offered width instead of reused.
 
     func sizeThatFits(_ proposal: ProposedViewSize,
                       uiView v: ResizingUITextView,
@@ -67,8 +63,8 @@ extension NativeText: UIViewRepresentable {
 
         private var lastApplied: NSAttributedString? = nil
 
-        // The same instance again is the same document: the render
-        // cache hands one back while nothing changed.
+        // The render cache returns the same instance when unchanged,
+        // so reference equality alone is enough to skip the splice.
         func applyResolved(_ next: NSAttributedString) {
             if next !== lastApplied {
                 lastApplied = next
@@ -81,9 +77,8 @@ extension NativeText: UIViewRepresentable {
             }
         }
 
-        // The code tint goes under the text: the text itself is drawn by
-        // a subview, so a fill here lies beneath it. Only the runs the
-        // rect reaches are walked.
+        // UITextView draws its text in a private subview, so a fill
+        // here in draw(_:) paints underneath it automatically.
         override func draw(_ rect: CGRect) {
             let style = MarkdownStyle.current
             let inset = textContainerInset
@@ -136,27 +131,17 @@ extension NativeText: UIViewRepresentable {
             }
         }
 
-        // Walk MAXIMAL atomic runs (longestEffectiveRange; the plain
-        // enumeration fragments at each cell's style boundary) and
-        // report each copyable block's corner rect + source up to
-        // SwiftUI, which overlays the actual Copy button there. Same
-        // contract as the macOS sibling, so one button serves both
-        // single-surface builders. The report is async: layoutSubviews()
-        // can run inside a SwiftUI update, where setting @State directly
-        // is illegal.
+        // longestEffectiveRange, not effectiveRange: a cell's paragraph
+        // style fragments the plain range at one cell, not the table.
         //
-        // Nothing is remembered here between passes, and the macOS
-        // sibling's stored previous report has NO twin on this side.
-        // UIKit lays this view out while its Swift stored properties are
-        // still the zeroes alloc left: a Bool reads false and an
-        // Optional closure reads nil, both harmless, but a non-optional
-        // Array reads as a NULL buffer and traps the instant anything
-        // asks for its count. SelectableText compares before it stores,
-        // which is where that state can be held safely.
+        // layoutSubviews() can run inside a SwiftUI update, where
+        // setting @State directly is illegal, so the report is async.
         //
-        // No illustration ever: the iOS builder rasterizes a formula
-        // into the attachment's image rather than drawing through a
-        // cell, so there is no vector page to offer the pasteboard.
+        // UIKit can lay this view out before Swift's init runs, and a
+        // stored non-optional Array here would read a zeroed buffer.
+        //
+        // No illustration: the iOS builder rasterizes formulas into
+        // the attachment's image, leaving no vector page to offer.
         private func computeCopySpots() {
             var spots: [CopyBlockSpot] = []
             let ts = textStorage
@@ -184,22 +169,8 @@ extension NativeText: UIViewRepresentable {
                     let gr = lm.glyphRange(forCharacterRange: run,
                                            actualCharacterRange: nil)
                     let block = lm.boundingRect(forGlyphRange: gr, in: tc)
-                    // Centre the button on the FIRST line fragment, not
-                    // the block's overall top: anchored to the block top
-                    // the glyph reads as sitting on the first line's
-                    // baseline, lower still for a table whose header row
-                    // starts below its cell padding.
                     let line = lm.lineFragmentUsedRect(
                         forGlyphAt: gr.location, effectiveRange: nil)
-                    // A code fence and a table start at the left margin,
-                    // so a button set just inside their right edge lands
-                    // in empty corner. A display is CENTRED, so that same
-                    // inset lands on the formula -- it has to go out to
-                    // the margin instead, which is the line fragment
-                    // rather than the ink.
-                    // A code block's glyph rect spans the surface; its
-                    // box ends at the paragraph's tail, where the tint
-                    // stops and the button belongs.
                     let style = MarkdownStyle.current
                     let right: CGFloat
                     if kind == AtomicKind.math.rawValue {
@@ -215,10 +186,6 @@ extension NativeText: UIViewRepresentable {
                     } else {
                         right = block.maxX
                     }
-                    // A table is as wide as its content, so one narrower
-                    // than the surface leaves room beside it where the
-                    // button covers no cell; one that fills the surface
-                    // keeps the button inside.
                     let beside = kind == AtomicKind.table.rawValue &&
                         block.maxX + 4 + 22 <= tc.size.width
                     let x = beside

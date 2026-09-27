@@ -3,14 +3,6 @@ import CoreGraphics
 
 enum TeX {
 
-    // The two engines meet here. KaTeX typesets a display wherever
-    // there is a graphics context to draw into; nil means it refused --
-    // a macro it does not know, a construct outside its grammar -- and
-    // the caller falls back to render(_:display:), which spells the
-    // formula out in Unicode rather than showing nothing. Every surface
-    // without a context (HTML, plain text, the clipboard) skips this
-    // and takes the Unicode form directly.
-
     private struct LayoutKey: Hashable {
         let tex: String
         let size: CGFloat
@@ -22,8 +14,7 @@ enum TeX {
     nonisolated(unsafe) private static var layouts: [LayoutKey: MathLayout?]
         = [:]
 
-    // Test hooks: the cache is otherwise invisible, and a test that
-    // wants to prove a formula is laid out once has to start empty.
+    // Test-only: lets a test start the layout cache empty.
 
     static func forgetLayouts() {
         layoutLock.lock()
@@ -56,21 +47,14 @@ enum TeX {
         return result
     }
 
-    // The formula inside its dollars, for the consumers that hold the
-    // source as typed and typeset the body.
     static func undelimited(_ source: String) -> String {
         source.trimmingCharacters(in: CharacterSet(charactersIn: "$"))
     }
 
-    // Display maths is set larger than the prose around it, the way a
-    // TeX document does: the ratio is the one the md2png CLI defaults
-    // to, 20pt of maths against 15pt of text.
+    // 4/3 matches md2png's 20pt-math to 15pt-body ratio.
     static func displaySize(body: CGFloat) -> CGFloat { body * 4 / 3 }
 
-    // Whether the WHOLE string is TeX the parser recognises: every
-    // token known, nothing left over. Parse only, no layout and no
-    // font, because this is asked speculatively about paragraphs that
-    // merely look like they might be formulas.
+    // Parse only; no layout or font cost for what may be plain text.
 
     static func parses(_ tex: String) -> Bool {
         (try? Parser.parse(tex)) != nil
@@ -272,11 +256,8 @@ enum TeX {
         return result
     }
 
-    // The plain-text answer to <sub>/<sup>, for the surfaces that have no
-    // baseline to offset: a monospaced table serialization, a character
-    // count, a clipboard paste. Every character or none -- a half-mapped
-    // run reads as a typo, so one unrepresentable letter sends the whole
-    // of it to parentheses, the same shape mapScript uses for TeX.
+    // Every character maps or none does; a half-mapped run reads as a
+    // typo, so one unrepresentable letter sends the whole run to parens.
 
     static func unicodeScript(_ s: String, superscript sup: Bool) -> String {
         let map = sup ? superscriptMap : subscriptMap
@@ -290,18 +271,11 @@ enum TeX {
         return result
     }
 
-    // A body with no '<' in it is an INNERMOST pair, which is what makes
-    // one pass safe: "m<sub>DO<sub>2</sub></sub>" is real notation, and a
-    // pattern that let the body span a tag would pair the outer opener
-    // with the inner closer and strand the rest.
+    // A body with no '<' is an innermost pair; the pattern never spans
+    // a tag, so it cannot pair an outer opener with an inner closer.
     private static let scriptTagRE: NSRegularExpression? =
         try? NSRegularExpression(pattern: #"<(sub|sup)>([^<]*)</\1>"#,
                                  options: .caseInsensitive)
-
-    // Rewrites the tags in a RAW cell, for the table measurers and the
-    // monospaced serializer -- they see the markdown source, never the
-    // parsed runs, and would otherwise size a column to "m<sup>2</sup>".
-    // Repeated until it stops changing, so nesting unwinds inside out.
 
     static func scriptsToUnicode(_ s: String) -> String {
         var result = s
@@ -353,11 +327,8 @@ enum TeX {
         (c >= "a" && c <= "z") || (c >= "A" && c <= "Z")
     }
 
-    // A control word ends where a non-letter begins. Without that,
-    // "\newcommand" becomes "(not equal)wcommand" the moment \ne is
-    // substituted inside it -- which is exactly what a reader sees when
-    // KaTeX refuses a formula and this is all that is left. Keys that do
-    // not end in a letter (\, \; \\) have no boundary to respect.
+    // A control word ends at the first non-letter, so "\ne" cannot
+    // match inside "\newcommand" and substitute the wrong span.
 
     private static func controlWordEnd(_ s: [Unicode.Scalar],
                                        at i: Int) -> Int {
@@ -426,10 +397,8 @@ enum TeX {
     private static let superscriptMap: [Character: Character] = [
         "0": "⁰", "1": "¹", "2": "²", "3": "³", "4": "⁴",
         "5": "⁵", "6": "⁶", "7": "⁷", "8": "⁸", "9": "⁹",
-        // U+2212 alongside the hyphen: a document that spells its
-        // exponents with a real minus is the same document that spells
-        // them with <sup>, and one unmapped character sends the whole
-        // run to parentheses.
+        // U+2212 is mapped alongside the hyphen, or an exponent typed
+        // with a real minus sign falls whole to parentheses.
         "+": "⁺", "-": "⁻", "\u{2212}": "⁻", "=": "⁼",
         "(": "⁽", ")": "⁾",
         "a": "ᵃ", "b": "ᵇ", "c": "ᶜ", "d": "ᵈ", "e": "ᵉ", "f": "ᶠ",

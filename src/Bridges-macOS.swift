@@ -55,10 +55,8 @@ extension NativeText: NSViewRepresentable {
             return result
         }
 
-        // longestEffectiveRange, not effectiveRange: attribute runs
-        // fragment at every cell's paragraph-style / tint boundary, so
-        // the plain effective range of a table's atomic id is one cell,
-        // not the table. The longest form coalesces equal values.
+        // longestEffectiveRange, not effectiveRange: a cell's paragraph
+        // style fragments the plain range at one cell, not the table.
         private func atomicRun(at pos: Int,
                                in storage: NSTextStorage) -> NSRange? {
             var result: NSRange? = nil
@@ -158,9 +156,8 @@ extension NativeText: NSViewRepresentable {
 
         private var lastApplied: NSAttributedString? = nil
 
-        // The same instance again is the same document: the render
-        // cache hands one back while nothing changed, and the splice
-        // would only scan it end to end to find that out.
+        // The render cache returns the same instance when unchanged,
+        // so reference equality alone is enough to skip the splice.
         func applyResolved(_ next: NSAttributedString) {
             if next !== lastApplied, let ts = textStorage {
                 lastApplied = next
@@ -192,10 +189,8 @@ extension NativeText: NSViewRepresentable {
             return findMatches.count
         }
 
-        // The caret goes to the match first: the delegate anchors a
-        // drag at the last zero-length selection, and a match set on
-        // top of a stale anchor inside a table or a display would be
-        // stretched to cover both.
+        // The zero-length call anchors the arbiter at the match first;
+        // skipping it lets a stale anchor stretch the selection.
         func setActive(_ index: Int?) {
             activeIndex = index
             highlightAll()
@@ -245,9 +240,6 @@ extension NativeText: NSViewRepresentable {
             return result
         }
 
-        // visibleRect is what the enclosing clip view shows of this
-        // view, in this view's coordinates, so the match rect only has
-        // to move by the container origin to compare.
         func activeMatchOnScreen() -> Bool {
             var result = false
             if let rect = activeMatchRect() {
@@ -273,10 +265,8 @@ extension NativeText: NSViewRepresentable {
             return result
         }
 
-        // TEMPORARY attributes, not real .backgroundColor: they layer
-        // over the text without mutating the storage, so code / table
-        // backgrounds survive and the incremental splice diff is
-        // undisturbed.
+        // Temporary, not real, attributes: they overlay the text
+        // without touching storage, so the splice diff stays clean.
         private func highlightAll() {
             if let lm = layoutManager, let ts = textStorage {
                 let full = NSRange(location: 0, length: ts.length)
@@ -292,9 +282,6 @@ extension NativeText: NSViewRepresentable {
             }
         }
 
-        // The code tint goes under the text: every block's box, rounded,
-        // before the glyphs are drawn over it. Only the runs the dirty
-        // rect reaches are walked, so a scroll pays for what it shows.
         override func draw(_ dirtyRect: NSRect) {
             if let lm = layoutManager, let tc = textContainer,
                let ts = textStorage {
@@ -336,21 +323,8 @@ extension NativeText: NSViewRepresentable {
             return result
         }
 
-        // What a COPY carries. A display is a layout, not a run of
-        // characters -- the fraction bar is a drawn rule and the radical a
-        // stretched glyph assembly -- so no font and no rich text can spell
-        // it, and the object-replacement character alone pastes as a gap.
-        //
-        // NSTextView does NOT route copy: through writeSelection(to:type:),
-        // so the flavours are written here, where the command lands.
-        // MEASURED with only that override in place: `clipboard info` showed
-        // AppKit's defaults, 4 bytes of utf8 for the replacement character
-        // and an RTFD with no picture in it.
-        //
-        // RTFD carries the picture and RTF carries the TeX, because plain
-        // RTF CANNOT hold it: AppKit's RTF writer embeds nothing for an
-        // image attachment (324 bytes, no \pict) while RTFD of the same
-        // string is orders larger.
+        // NSTextView routes Cmd-C through copy(_:); plain RTF cannot
+        // hold an image attachment (RTFD can), hence the split below.
 
         override func copy(_ sender: Any?) {
             let picked = selectedRange()
@@ -378,9 +352,6 @@ extension NativeText: NSViewRepresentable {
                                           documentAttributes: [:]) {
                     board.setData(data, forType: .rtf)
                 }
-                // The HTML is written from the same spelled slice, so a
-                // web editor gets exactly the selection with its bold,
-                // its tables and its formulas' TeX.
                 if let data = try? spelled.data(
                     from: whole,
                     documentAttributes: [
@@ -401,16 +372,8 @@ extension NativeText: NSViewRepresentable {
                 .bestMatch(from: [.aqua, .darkAqua]) == .darkAqua
         }
 
-        // The selection with each display spelled out as the TeX it was
-        // written from, in place of the object replacement character
-        // that stands for it. The styling of the surrounding text is
-        // kept, and the substituted TeX inherits the run it replaces
-        // minus the attachment itself.
-        //
-        // Attributed rather than a bare String because RTF is written
-        // from this too: RTF cannot carry the picture, but it can carry
-        // bold and italic, and AppKit's own copy did. Flattening to a
-        // plain String here dropped them from that flavour.
+        // Returns NSAttributedString, not String: the RTF flavour is
+        // written from this and needs the run's bold and italic too.
         private static func spelled(
             _ slice: NSAttributedString
         ) -> NSAttributedString {
@@ -430,8 +393,6 @@ extension NativeText: NSViewRepresentable {
             return m
         }
 
-        // The same selection with every formula swapped for a picture of
-        // itself, which is the only form a foreign document can render.
         private static func illustrated(_ slice: NSAttributedString,
                                         dark: Bool) -> NSAttributedString {
             let m = NSMutableAttributedString(attributedString: slice)
@@ -451,12 +412,8 @@ extension NativeText: NSViewRepresentable {
             return m
         }
 
-        // A selection that is ONE formula and nothing else also goes on
-        // the board as a plain PDF, for the apps that take a picture but
-        // not RTFD -- Pages, Keynote, the drawing tools. A flavour
-        // covers the whole copy, so this is only honest when the copy IS
-        // the formula; a paragraph with a display in it would owe a PDF
-        // of the paragraph, which is a different feature.
+        // A pasteboard flavour covers the whole copy, so this fires
+        // only when the selection IS exactly one formula, nothing else.
         private static func lonePDF(_ slice: NSAttributedString,
                                     dark: Bool) -> Data? {
             var result: Data? = nil
@@ -478,13 +435,8 @@ extension NativeText: NSViewRepresentable {
             return result
         }
 
-        // A FILE WRAPPER holding the PDF, not an NSImage made from it.
-        // Both display the same, but AppKit serializes an image-backed
-        // attachment by rasterizing it: the RTFD came out holding
-        // Attachment.tiff, 570KB of bitmap for one small formula, and
-        // logged a failed PNG encode on the way. A wrapper is stored
-        // verbatim, so the bytes that arrive are the vector page that
-        // was drawn -- 155KB instead of 717KB, same ink on screen.
+        // A FileWrapper stores the PDF bytes verbatim; an NSImage-backed
+        // attachment rasterizes them into a bitmap instead.
         private static func illustration(_ pdf: Data) -> NSTextAttachment {
             let wrapper = FileWrapper(regularFileWithContents: pdf)
             wrapper.preferredFilename = "formula.pdf"
@@ -514,12 +466,8 @@ extension NativeText: NSViewRepresentable {
             }
         }
 
-        // Walk MAXIMAL atomic runs (longestEffectiveRange; the plain
-        // enumeration fragments at each cell's style boundary) and
-        // report each copyable block's corner rect + source up to
-        // SwiftUI, which overlays the actual Copy button there. The
-        // report is async and deduped: layout() may run inside a
-        // SwiftUI update, where setting @State directly is illegal.
+        // layout() may run inside a SwiftUI update, where setting
+        // @State directly is illegal, so the report is dispatched async.
         private func computeCopySpots() {
             var spots: [CopyBlockSpot] = []
             if let lm = layoutManager, let tc = textContainer,
@@ -551,22 +499,8 @@ extension NativeText: NSViewRepresentable {
                                                actualCharacterRange: nil)
                         let block = lm.boundingRect(forGlyphRange: gr,
                                                     in: tc)
-                        // Center the button on the FIRST line fragment,
-                        // not the block's overall top: anchored to the
-                        // block top the glyph reads as sitting on the
-                        // first line's baseline (lower still for
-                        // tables, whose first row sits below padding).
                         let line = lm.lineFragmentUsedRect(
                             forGlyphAt: gr.location, effectiveRange: nil)
-                        // A code fence starts at the left margin, so a
-                        // button set just inside its right edge lands
-                        // in empty corner. A display is CENTRED, so
-                        // that same inset lands on the formula -- it
-                        // has to go out to the margin instead, which is
-                        // where the eye looks for it anyway. A table's
-                        // glyphs stop at its widest text; its band
-                        // runs to the room the last column keeps clear,
-                        // and the button sits flush in that band.
                         let table = kind == AtomicKind.table.rawValue
                             ? ((ts.attribute(.paragraphStyle,
                                              at: run.location,
@@ -574,9 +508,6 @@ extension NativeText: NSViewRepresentable {
                                 as? NSParagraphStyle)?.textBlocks.first
                                 as? NSTextTableBlock)?.table
                             : nil
-                        // A code block's glyph rect spans the surface;
-                        // its box ends at the paragraph's tail, which is
-                        // where the tint stops and the button belongs.
                         let style = MarkdownStyle.current
                         let right: CGFloat
                         if kind == AtomicKind.math.rawValue {

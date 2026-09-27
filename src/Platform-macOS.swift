@@ -86,9 +86,6 @@ func platformSetClipboardString(_ s: String) {
     platformSetClipboard(string: s, pdf: nil)
 }
 
-// The text always, and a PDF alongside it when the block has one. Both
-// flavours on one board, so a plain editor takes the string and anything
-// that draws takes the picture.
 func platformSetClipboard(string: String, pdf: Data?) {
     let board = NSPasteboard.general
     board.clearContents()

@@ -1,10 +1,6 @@
 import CryptoKit
 import XCTest
 
-// The equivalence gate for KaTeX.swift: metrics plus a pixel hash per
-// formula. Re-baseline with KATEX_GOLDEN_UPDATE=1 after a deliberate
-// change. Ported from ChatOKF's MD/MDTests, same corpus, so a layout
-// that drifts on one side is caught on both.
 @MainActor
 final class KaTeXGoldenTests: XCTestCase {
 
@@ -68,9 +64,8 @@ final class KaTeXGoldenTests: XCTestCase {
             .appendingPathComponent("katex-golden.txt")
     }
 
-    // Metrics to four decimals plus a hash of the rendered pixels. A
-    // descent a hair below zero is zero: "-0.0000" would flip on the
-    // next optimiser without a glyph moving.
+    // A descent a hair below zero is snapped to zero: "-0.0000" would
+    // flip on the next optimiser without a glyph moving.
 
     static func fingerprint(_ tex: String) -> String {
         var result = "REFUSED"
@@ -120,8 +115,7 @@ final class KaTeXGoldenTests: XCTestCase {
         }
     }
 
-    // A refused entry records REFUSED and still gates, but a corpus that
-    // is mostly refusals gates nothing, so the count is asserted.
+    // Pins: a corpus that is mostly refusals gates nothing.
 
     func testCorpusActuallyTypesets() {
         let refused = Self.corpus.filter { entry in

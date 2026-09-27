@@ -1,16 +1,7 @@
 import Foundation
 
-// <sub> and <sup> survive Apple's inline markdown parser as literal
-// text, and there is no markdown spelling for either, so the tags are
-// consumed here and the level left on the run for each renderer to set
-// however its medium expresses a script: a baseline offset on screen and
-// in the PDF, a real tag in the HTML, a Unicode digit in plain text.
-// The value is the direction, +1 up and -1 down.
-//
-// A plain AttributedStringKey on purpose: it is read off attr.runs by
-// every renderer and never has to survive NSAttributedString(_:), which
-// drops custom keys outside a declared scope. applyScriptRuns bridges
-// the two paths that do need it on the NS side.
+// Apple's inline markdown parser leaves <sub>/<sup> as literal text;
+// the level (+1 up, -1 down) rides the run for each renderer to express.
 
 enum ScriptAttribute: AttributedStringKey {
     typealias Value = Int
@@ -25,21 +16,16 @@ enum SmallAttribute: AttributedStringKey {
     static let name = "md.too.small"
 }
 
-// A paragraph inside <div align="center"> or <p align="center"> is
-// centred; the alignment rides every run of its text, since Block has
-// no room for it and a paragraph is otherwise left-aligned everywhere.
+// Alignment rides every run of a centred paragraph or heading's text,
+// since Block has no field for it.
 
 enum AlignAttribute: AttributedStringKey {
     typealias Value = Alignment
     static let name = "md.too.align"
 }
 
-// An inline formula's source, delimiters included, rides the Unicode
-// run it was spelled into, so a surface with a typesetter can draw the
-// formula while plain export writes the source back as typed and a copy
-// hands it over. HTML keeps the Unicode; on a surface that typesets, so
-// does nothing else: the formula is an attachment there, which Find
-// cannot search, the price the style switch exists to refuse.
+// A formula's source, delimiters included, rides the Unicode run it was
+// spelled into, so plain export and copy recover exactly what was typed.
 
 enum InlineMathAttribute: AttributedStringKey {
     typealias Value = String
@@ -57,10 +43,8 @@ enum Block: Equatable {
     case quote([Block])
     case list(items: [ListItem], tight: Bool)
     case table(headers: [String], rows: [[String]], alignments: [Alignment])
-    // A $$...$$ display, carried as its TeX source. Inline $...$ stays
-    // inside the paragraph's AttributedString: only a display gets a
-    // block of its own, because only a display is typeset rather than
-    // spelled out in Unicode.
+    // Only a $$...$$ display gets a block of its own; inline $...$ stays
+    // inside the paragraph's AttributedString.
     case math(String)
     case rule
     case image(alt: String, url: URL, width: CGFloat?, height: CGFloat?)
@@ -91,9 +75,8 @@ enum Markdown {
     nonisolated(unsafe) private static var cells: [String: [Block]] = [:]
     private static let cellLimit = 4096
 
-    // A cell's parse depends on the cell alone, since parse() scopes the
-    // reference definitions to the text it is given, so every renderer
-    // that meets the same cell string can share one parse of it.
+    // A cell's parse depends only on the cell string, so every renderer
+    // that meets the same string can share the cached parse.
 
     static func parseCell(_ cell: String) -> [Block] {
         cellLock.lock()
@@ -127,9 +110,6 @@ enum Markdown {
                 if case .rule = blocks.last { } else { blocks.append(.rule) }
                 i += 1
             } else if isQuoteStart(line) {
-                // Before the table test: a quoted table's rows start
-                // with the marker and its delimiter row still passes,
-                // which read as a table whose first column was ">".
                 blocks.append(consumeQuote(lines, &i))
             } else if isTableStart(lines, i) {
                 blocks.append(consumeTable(lines, &i))
@@ -262,16 +242,9 @@ enum Markdown {
         return result
     }
 
-    // The HTML a model writes when markdown has no spelling for the
-    // thing, plus the trivial synonyms, rewritten into markdown on the
-    // way into the inline parser: a comment is dropped, <br> is a hard
-    // break, <img> is an image, <a> a link, <b>/<i>/<s>/<code>/<kbd>
-    // their markdown twins. Only the text outside code spans is
-    // rewritten, and code blocks never reach here, so a tag inside code
-    // is shown as typed; a tag not on this list stays literal too, so no
-    // content is lost. <u>, <sup>, <sub> and <small> are consumed after
-    // the inline parse instead, because they carry an attribute markdown
-    // cannot.
+    // <u>, <sup>, <sub> and <small> are consumed after the inline parse,
+    // not rewritten here, since each carries an attribute markdown
+    // itself cannot spell.
 
     private static func isCommentStart(_ line: String) -> Bool {
         line.trimmedLeading().hasPrefix("<!--")
@@ -354,9 +327,8 @@ enum Markdown {
         return result
     }
 
-    // The alt text and the size are read off the tag before the generic
-    // rule reduces it to its source, so ![alt](src){width=.. height=..}
-    // carries what the tag carried.
+    // Alt text and size are read off the tag before the generic rule
+    // reduces it to its bare source.
 
     private static func imagesWithAttributes(_ text: String) -> String {
         var result = text
@@ -419,9 +391,8 @@ enum Markdown {
         return result
     }
 
-    // A centring wrapper is unwrapped and the paragraphs and headings
-    // inside it carry the alignment on their text. The wrapper may open
-    // and close on one line, the way a README centres its badges.
+    // A centring wrapper is unwrapped; its paragraphs and headings carry
+    // the alignment on their text. It may open and close on one line.
 
     private static func consumeCentered(_ lines: [String],
                                         _ i: inout Int) -> [Block] {
@@ -570,18 +541,15 @@ enum Markdown {
         return .code(language: language, text: body.joined(separator: "\n"))
     }
 
-    // Only a line that OPENS with $$ starts a display. A $$ met partway
-    // through a sentence belongs to that sentence and is left to the
-    // inline splitter, which is also what happens to every $...$.
+    // Only a line that OPENS with $$ starts a display; one met partway
+    // through a sentence is left to the inline splitter.
 
     private static func isMathFence(_ s: String) -> Bool {
         s.trimmedOuter().hasPrefix("$$")
     }
 
-    // Accepts both spellings authors use: the whole thing on one line,
-    // and an opening $$ with the formula on the lines below. An
-    // unterminated display runs to the end of the document rather than
-    // swallowing the rest as prose.
+    // Accepts $$ ... $$ whole on one line, or opened alone with the
+    // formula below; an unterminated display runs to the document's end.
 
     private static func consumeMath(_ lines: [String],
                                     _ i: inout Int) -> Block {
@@ -700,9 +668,8 @@ enum Markdown {
         return result
     }
 
-    // A tab after the marker counts as the one space; the content then
-    // sits at the next tab stop, which is where the continuation lines
-    // of a tab-indented list land as well.
+    // A tab after the marker counts as one space; content sits at the
+    // next tab stop, matching a tab-indented item's continuation lines.
 
     private static func afterMarker(_ tail: Substring, leading: Int,
                                     markerWidth: Int, label: String,
@@ -872,23 +839,17 @@ enum Markdown {
         return t.contains("|") && !t.isEmpty
     }
 
-    // A well-formed delimiter cell: dashes, optionally colon-anchored.
-
     private static func isAlignmentCell(_ cell: String) -> Bool {
         let t = cell.trimmingCharacters(in: .whitespaces)
         return t.contains("-") && t.allSatisfy { ch in "-: ".contains(ch) }
     }
 
-    // A cell that is malformed but still clearly punctuation rather than
-    // content.
-
     private static func isJunkCell(_ cell: String) -> Bool {
         cell.allSatisfy { ch in !ch.isLetter && !ch.isNumber }
     }
 
-    // The delimiter row, read tolerantly: one good cell and no cell
-    // carrying content is enough, or one stray character costs the whole
-    // table.
+    // Tolerant delimiter-row test: one good cell and no cell carrying
+    // content is enough; one stray character costs the whole table.
 
     private static func isTableSeparator(_ s: String) -> Bool {
         var result = false
@@ -1047,10 +1008,8 @@ enum Markdown {
         return (width, height)
     }
 
-    // An indented line cannot interrupt a paragraph: it is the
-    // paragraph's continuation, as in CommonMark, and only starts a code
-    // block after a blank line. Leading whitespace on any line of a
-    // paragraph is not content, so it is dropped before the lines join.
+    // An indented line cannot interrupt a paragraph; it continues it, per
+    // CommonMark, with its own leading whitespace dropped before joining.
 
     private static func consumeParagraph(_ lines: [String],
                                          _ i: inout Int) -> Block {
@@ -1076,14 +1035,8 @@ enum Markdown {
         return bareMath(raw) ?? .paragraph(inline(raw))
     }
 
-    // A converter lifting an equation out of a PDF writes the TeX with
-    // nothing around it, and the paragraph then reads as a wall of
-    // backslashes. Markdown has no opinion about this, so the test has
-    // to be strict enough that prose can never pass it: the paragraph
-    // must OPEN with a control word, and the whole of it must parse --
-    // every token recognised, no unknown command, nothing left over.
-    // A sentence that merely mentions \frac fails on its first ordinary
-    // word, and a Windows path fails because \\ is not a control word.
+    // The paragraph must OPEN with a control word and parse completely,
+    // with nothing left over, before it is read as a bare TeX formula.
 
     private static func bareMath(_ raw: String) -> Block? {
         var result: Block? = nil
@@ -1093,15 +1046,8 @@ enum Markdown {
         return result
     }
 
-    // Parsing cleanly is not enough on its own. In maths, neighbouring
-    // letters are separate variables multiplied together, so "\alpha is
-    // the first letter" parses perfectly -- as alpha times i times s and
-    // so on -- and would be typeset as a formula. A run of three or more
-    // letters is prose wearing a backslash.
-    //
-    // Letters inside braces are exempt: that is where \text{} keeps its
-    // words, and where the converters put them. Letters belonging to a
-    // control word are exempt for the obvious reason.
+    // Three or more bare ASCII letters outside braces and outside a
+    // control word is prose wearing a backslash, not adjacent variables.
 
     private static func hasProseWord(_ raw: String) -> Bool {
         var depth = 0
@@ -1142,12 +1088,8 @@ enum Markdown {
         return result
     }
 
-    // Each maths span becomes a private-use sentinel, the WHOLE line is
-    // markdown-parsed once so emphasis wrapping maths (`**$x$**`) still
-    // pairs across the span, then the sentinels are swapped for the
-    // rendered runs. Reference substitution and the maths split see only
-    // the text outside code spans, so `$5 and $6` in backticks stays
-    // what it says.
+    // Each maths span becomes a sentinel so the WHOLE line can be
+    // markdown-parsed once, keeping emphasis that wraps a formula intact.
 
     private static func inline(_ raw: String) -> AttributedString {
         var stitched = ""
@@ -1185,10 +1127,8 @@ enum Markdown {
         return out
     }
 
-    // Plane 16 private use, not the BMP block: icon fonts put their
-    // glyphs at U+E000 and a README that shows one would have it swapped
-    // for a formula. Earlier sentinels are gone by the time an index
-    // wraps, so the wrap is safe.
+    // Plane 16 private use, not the BMP block, so an icon font's glyphs
+    // at U+E000 are never mistaken for a sentinel.
 
     private static func sentinel(_ index: Int) -> Unicode.Scalar {
         Unicode.Scalar(0x100000 + UInt32(index % 0xFFFD)) ?? " "
@@ -1206,9 +1146,8 @@ enum Markdown {
         return result
     }
 
-    // A hard break is a line separator inside the paragraph, so the
-    // paragraph stays one paragraph and keeps its spacing; a literal
-    // newline would have made TextKit read every verse as its own.
+    // A hard break is a line separator inside the paragraph, keeping its
+    // spacing; a literal newline would split it into separate paragraphs.
 
     private static func normalizeBreaks(_ s: String) -> String {
         let lines = s
@@ -1230,9 +1169,8 @@ enum Markdown {
         return out.joined()
     }
 
-    // The runs of a line inside and outside backtick code spans, by the
-    // CommonMark rule: a run of N backticks opens a span that the next
-    // run of exactly N closes, and an opener with no closer is text.
+    // A run of N backticks opens a span that the next run of exactly N
+    // closes; an opener with no matching closer is plain text.
 
     static func codeSpanSegments(_ line: String)
         -> [(text: String, code: Bool)] {
@@ -1280,11 +1218,8 @@ enum Markdown {
         return result
     }
 
-    // An opener inside a code span is the span's own text and is left
-    // alone; one outside styles what it wraps, and an unclosed one is
-    // dropped rather than left on screen, since a stray "<sup>" is
-    // markup the reader never wrote and never wants to see. The search
-    // restarts after each edit because the indices it held are stale.
+    // AttributedString indices go stale after a mutation, so the search
+    // restarts from the top after each replace or removal.
 
     private static func applyTag(_ a: inout AttributedString,
                                  _ tag: String,

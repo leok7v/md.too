@@ -1,10 +1,6 @@
 import Foundation
 import XCTest
 
-// TeX.replaceTokens is one scan over the source; the oracle here is the
-// pass-per-token substitution it replaced, kept in the test so the two
-// can be compared on every span the golden corpus and the tricky list
-// hold. The one deliberate difference is asserted on its own.
 @MainActor
 final class TeXTokenTests: XCTestCase {
 
@@ -89,9 +85,8 @@ final class TeXTokenTests: XCTestCase {
         }
     }
 
-    // The scan reads a control word to its end before looking it up, so
-    // `\ne` inside `\nesin` is never substituted; the sequential passes
-    // would, and that is the bug the scan fixed.
+    // Reads a control word to its end before lookup, so `\ne` inside
+    // `\nesin` is never substituted, unlike Self.sequential.
 
     func testAnOperatorNameDoesNotBlockTheWordBeforeIt() {
         XCTAssertEqual(TeX.replaceTokens("a\\ne\\sin b"), "a\u{2260}\\sin b")

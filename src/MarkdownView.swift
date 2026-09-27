@@ -7,10 +7,8 @@ private struct ViewportWidthKey: PreferenceKey {
     }
 }
 
-// Not Equatable, on purpose: SwiftUI takes an Equatable view's == as
-// the whole truth about whether it changed, and the images fetched into
-// its state are invisible to ==. A host re-render that changed nothing
-// is cheap instead: the parse and every block's render are cached.
+// Not Equatable: SwiftUI would take == as the whole truth about whether
+// it changed, and the images fetched into its state are invisible to ==.
 struct MarkdownView: View {
 
     let displayText: String
@@ -19,9 +17,8 @@ struct MarkdownView: View {
     let singleSurface: Bool
     var readingColumn: Bool = true
     var find: MarkdownFindController? = nil
-    // Read by FontRole from UserDefaults, not from here. It is a stored
-    // property so a changed notch makes SwiftUI re-run body, which is
-    // what re-measures the document at the new size.
+    // A stored property, not a UserDefaults read, so a changed notch
+    // makes SwiftUI re-run body and re-measure the document.
     var zoom: Int = 0
 
     @State private var documentImages: [URL: DocumentText.DocumentImage] = [:]
@@ -72,20 +69,6 @@ struct MarkdownView: View {
             rendered
         }
     }
-
-    // One text view holds the document. Its width is the reading column
-    // when the window is wider, or the window when it is not, or the
-    // width the widest block needs when that is more. The column sits
-    // centred in the viewport and the surface starts where the column
-    // starts, so a block wider than the column begins at the prose's
-    // left edge and runs right, past the viewport if it must, and the
-    // prose is on screen at rest whatever the block did. A window
-    // narrower than the column has no column, so the only number the
-    // string ever takes from the window is whether it fits, and a
-    // resize moves the view without rebuilding the string.
-
-    // The style is built from the zoom this view holds, so the cache
-    // key and the dependency SwiftUI re-renders on are one value.
 
     private var documentTextView: some View {
         let blocks = traced("parse") { cache.blocks(for: displayText) }

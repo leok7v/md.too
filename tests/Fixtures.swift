@@ -1,8 +1,5 @@
 import Foundation
 
-// The documents the parser and the exporters are pinned against, cut
-// into one fixture per `##` section so a golden diff names the section
-// that moved. EXAMPLE.md is the feature tour.
 enum Fixtures {
 
     struct Fixture {
@@ -28,10 +25,8 @@ enum Fixtures {
         return out
     }
 
-    // Split on `## ` headings that sit OUTSIDE a code fence, so a fence
-    // that quotes markdown does not start a fixture of its own. The
-    // fence that opened is the one that closes: a ``` inside a ~~~ body
-    // is content.
+    // Splits on `## ` headings outside a code fence; the fence that
+    // opened is the one that closes, so a mismatched marker is content.
 
     static func sections(of url: URL, prefix: String) throws -> [Fixture] {
         let text = try String(contentsOf: url, encoding: .utf8)
@@ -79,9 +74,6 @@ enum Fixtures {
         return String(out.prefix(40))
     }
 
-    // Reads the golden file next to the tests, or rewrites it when the
-    // named environment variable is set. Returns the recorded text.
-
     static func golden(_ file: String, update env: String,
                        now: String) throws -> String {
         let url = root.appendingPathComponent(file)
@@ -91,10 +83,6 @@ enum Fixtures {
         }
         return try String(contentsOf: url, encoding: .utf8)
     }
-
-    // The first dozen lines that differ, golden against now, for a
-    // failure message a reader can act on wherever in the file the
-    // drift sits.
 
     static func drift(golden: String, now: String) -> String {
         let was = golden.split(separator: "\n",

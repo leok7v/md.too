@@ -19,9 +19,7 @@ extension DocumentText {
     private static let rasterCapacity = 32
 
     // UIKit has no attachment cell to draw through, so the formula is
-    // rasterized with the ink current when the document was built. Single
-    // surface is off by default on iOS; when that changes, this wants a
-    // rebuild on trait change or an NSTextAttachmentViewProvider.
+    // rasterized once, baked with the ink current at build time.
 
     static func mathAttachment(_ layout: MathLayout,
                                inset: CGFloat = 4,
@@ -70,17 +68,12 @@ extension DocumentText {
         return result
     }
 
-    // A horizontal rule as an attachment that sizes itself to the line
-    // it sits on and draws a hairline across it.
-
     static func ruleAttachment(height: CGFloat) -> NSTextAttachment {
         RuleAttachment(height: height)
     }
 
-    // A row is one paragraph with a stop per column, each stop at the
-    // far edge of the column before it, so a table is as wide as the
-    // same content widths the macOS table draws with. A cell truncates
-    // rather than wraps: a tab stop has no second line.
+    // One stop per column, each at the far edge of the one before, so a
+    // cell truncates rather than wraps: a tab stop has no second line.
 
     static func table(_ cells: TableCells, id: String,
                       style: MarkdownStyle,
@@ -112,10 +105,8 @@ extension DocumentText {
                                           tint: tint,
                                           atomicId: atomicId))
             }
-            // One contiguous atomic kind / id / copy over the whole table,
-            // stamped before the trailing newline, mirroring the macOS
-            // sibling so both single-surface builders carry the same
-            // copy-source contract.
+            // One atomic kind / id / copy spans the whole table, so both
+            // platforms carry the same copy-source contract.
             let content = NSRange(location: 0, length: m.length)
             m.addAttribute(atomicKindKey,
                            value: AtomicKind.table.rawValue, range: content)
@@ -175,10 +166,6 @@ extension DocumentText {
     }
 
 }
-
-// A display scales to the line it is offered, since it has no break to
-// give and TextKit would clip it; an inline formula wraps like a word
-// instead. The image is drawn into whatever bounds are answered here.
 
 final class MathAttachment: NSTextAttachment {
 

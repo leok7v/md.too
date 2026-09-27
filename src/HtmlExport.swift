@@ -45,11 +45,8 @@ enum HtmlExport {
                 return renderTable(headers: headers, rows: rows,
                                    alignments: alignments)
             case .math(let tex):
-                // Unicode, not a picture. A rasterized formula would
-                // bake in one theme's ink, stop scaling with the page,
-                // and weigh more than the document around it; the
-                // substituter's text does none of that and still says
-                // what the formula says.
+                // Rendered as Unicode text, not a rasterized image, so it
+                // keeps the page's theme and scale instead of a snapshot.
                 return "<p style=\"\(mathStyle)\">" +
                        "\(renderInline(TeX.render(tex, display: true)))</p>\n"
             case .rule:
@@ -104,9 +101,8 @@ enum HtmlExport {
                 open.append("<u>")
                 close.insert("</u>", at: 0)
             }
-            // Back to the tag the source wrote. The parser consumed it
-            // so the on-screen render could offset a baseline; here the
-            // medium says it natively and says it better.
+            // The script level round-trips to <sup>/<sub>; the parser only
+            // needed a baseline offset, but the medium can say it natively.
             if let level = run[ScriptAttribute.self] {
                 let tag = level > 0 ? "sup" : "sub"
                 open.append("<\(tag)>")
@@ -185,9 +181,8 @@ enum HtmlExport {
         return out + "</tbody>\n</table>\n"
     }
 
-    // The last column carries no divider, or the table gains an outer
-    // right border no other edge has. Inline styles cannot express
-    // :not(:last-child), so the column index decides it here.
+    // Inline styles cannot express :not(:last-child), so the column
+    // index decides whether this cell gets a right divider.
 
     private static func divider(_ col: Int, of count: Int) -> String {
         col < count - 1 ? colDividerStyle : ""
@@ -324,11 +319,6 @@ enum HtmlExport {
         "border-collapse:collapse;" +
         "margin:0.5em 0;"
 
-    // 14px, not 10px: half an average character (~4px at the default
-    // ~16px body) on each side, so the gutter between two columns grows
-    // by a full character. Plain px on purpose -- calc() with a ch unit
-    // would express it exactly, but a paste sanitizer that rejects the
-    // function drops the whole declaration and the padding with it.
     private static let thStyle =
         "padding:6px 14px;" +
         "text-align:left;" +

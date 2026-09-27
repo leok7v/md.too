@@ -1,11 +1,6 @@
 import Foundation
 import AppKit
 
-// A cell rather than an image, so the formula stays vector and picks up
-// NSColor.textColor at DRAW time. An attachment holding a rasterized
-// formula bakes one theme's ink into the document and has to be rebuilt
-// when the theme flips; this one just redraws.
-
 final class MathAttachmentCell: NSTextAttachmentCell,
                               PasteboardIllustration {
 
@@ -26,10 +21,6 @@ final class MathAttachmentCell: NSTextAttachmentCell,
         fatalError("MathAttachmentCell is not decodable")
     }
 
-    // The formula as a PDF page, rendered on demand and kept, so building
-    // a document costs nothing and only a copy pays -- and it is real bytes
-    // before the pasteboard sees them, never a promise the app has to still
-    // be alive to honour.
     private var pdfData: Data?
     private var pdfDark = false
 
@@ -51,11 +42,6 @@ final class MathAttachmentCell: NSTextAttachmentCell,
         NSPoint(x: 0, y: -layout.descent)
     }
 
-    // A display scales to the line it is offered, since it has no break
-    // to give and TextKit would clip it. An inline formula does not: a
-    // line's remainder is not its measure, it wraps to the next line
-    // like a word. Asked more than once per layout, so it answers from
-    // the width offered and remembers nothing between calls.
     override func cellFrame(for textContainer: NSTextContainer,
                             proposedLineFragment lineFrag: NSRect,
                             glyphPosition position: NSPoint,
@@ -91,30 +77,8 @@ final class MathAttachmentCell: NSTextAttachmentCell,
 
 }
 
-// A formula as a PDF page, for the pasteboard. Vector rather than a raster,
-// so it stays crisp wherever it lands and prints properly.
-//
-// It carries NO background. The ink is the ink of the document it was copied
-// from, and the same glyphs are stroked underneath in that document's PAPER
-// colour. Pasted onto a page of the same theme the outline is the colour of
-// that page and disappears, leaving clean solid ink; pasted onto the opposite
-// theme the ink sinks into the ground and the outline, now the only thing
-// contrasting with it, traces the glyphs instead.
-//
-// This replaced a feathered patch of paper. The patch worked, but it is a
-// rectangle on someone else's page and it has to be blended away at every
-// rim; an outline is only visible where it is needed and needs no blending.
-//
-// What cannot work, tested rather than assumed: white ink in a Difference
-// blend, which would invert against anything behind it. The blend mode does
-// reach the file -- /BM /Difference is in the PDF -- but a PDF page composites
-// as an ISOLATED transparency group, so its backdrop is its own emptiness and
-// never the host's page. White stayed white: perfect on dark, invisible on
-// light.
-//
-// `dark` comes from the VIEW being copied from, never from the process:
-// NSAppearance.currentDrawing() outside a drawing cycle answers for the
-// process, so on a dark Mac every copy came out dark however the app was set.
+// `dark` must come from the view being copied from: process-wide
+// NSAppearance.currentDrawing() misreports outside a drawing cycle.
 func mathPDF(_ layout: MathLayout, dark: Bool,
              padding: CGFloat = 8) -> Data? {
     let data = NSMutableData()
@@ -126,14 +90,11 @@ func mathPDF(_ layout: MathLayout, dark: Bool,
     if let consumer = CGDataConsumer(data: data),
        let ctx = CGContext(consumer: consumer, mediaBox: &box, nil) {
         ctx.beginPDFPage(nil)
-        // `at` is the TOP-LEFT of the bounding box and draw subtracts the
-        // ascent, so the top edge is padding + height in this y-up page.
-        // Passing the descent instead puts the baseline below the media box
-        // and cuts every formula off.
+        // `at` is TOP-LEFT of the bounding box in this y-up page; draw
+        // subtracts the ascent, so passing descent instead clips the glyph.
         let top = CGPoint(x: padding, y: padding + layout.height)
-        // The outline goes down first so the ink sits on top of it and the
-        // glyph keeps its own weight; a stroke drawn after the fill would
-        // eat into the letterforms from both sides.
+        // Stroke drawn before fill so ink sits on top; stroking after
+        // would eat into the letterforms from both sides.
         ctx.setLineWidth(2.2)
         ctx.setLineJoin(.round)
         ctx.setStrokeColor(ground)
@@ -147,10 +108,6 @@ func mathPDF(_ layout: MathLayout, dark: Bool,
     }
     return result
 }
-
-// A horizontal rule as a cell that asks TextKit for the width of the
-// line it sits on and strokes a hairline across it, so the rule spans
-// the column at any width and follows the separator colour.
 
 final class RuleAttachmentCell: NSTextAttachmentCell {
 
@@ -187,8 +144,6 @@ final class RuleAttachmentCell: NSTextAttachmentCell {
 
 extension DocumentText {
 
-    // A display gets four points of air each side; an inline formula
-    // one, so it sits in its sentence like a word.
     static func mathAttachment(_ layout: MathLayout,
                                inset: CGFloat = 4,
                                scalesToLine: Bool) -> NSTextAttachment {
@@ -203,13 +158,6 @@ extension DocumentText {
         attachment.attachmentCell = RuleAttachmentCell(height: height)
         return attachment
     }
-
-    // Every cell is given its column's width in points, so the table is
-    // exactly as wide as its content asked for and sits at the leading
-    // edge; a percentage would stretch a two-column table across the
-    // surface and hand the first column most of it. Automatic, not
-    // fixed, layout: a fixed cell whose content outgrows its width
-    // spills over the next column instead of widening.
 
     static func table(_ cells: TableCells, id: String,
                       style: MarkdownStyle,
@@ -242,11 +190,6 @@ extension DocumentText {
                                   atomicId: atomicId))
                 rowIdx += 1
             }
-            // One contiguous atomic kind / id / copy over the whole table
-            // (cells plus the separators, which carry none per-cell) so
-            // selection-snap sees one unit and the copy overlay yields ONE
-            // button. Stamped before the trailing newline so a drag past
-            // the table stops at the table edge.
             let content = NSRange(location: 0, length: m.length)
             m.addAttribute(atomicKindKey,
                            value: AtomicKind.table.rawValue, range: content)
@@ -306,13 +249,6 @@ extension DocumentText {
                            for: .padding, edge: .maxY)
             block.backgroundColor = tint
             let para = NSMutableParagraphStyle()
-            // Word wrapping is safe here only because no column is ever
-            // narrower than its widest unbreakable run: NSTextTable
-            // cannot lay out a row holding a run wider than its column
-            // -- it widens that column, gives up on the rest, and stacks
-            // every remaining cell at the widened column's origin, so
-            // the row reads as overlapping glyphs. No column-width
-            // spelling avoids it; only never posing the question does.
             para.lineBreakMode = .byWordWrapping
             para.textBlocks = [block]
             para.alignment = nsAlignment(layout.alignment(col))
@@ -336,13 +272,6 @@ extension DocumentText {
         }
         return m
     }
-
-    // A table cell moved right: a paragraph indent on a cell indents
-    // inside the cell, so the table's own leading margin carries the
-    // shift. The table and the cell's block are rebuilt on the moved
-    // margin rather than changed in place, so the string the cell came
-    // from keeps its geometry; `tables` maps each original table to its
-    // moved copy so every cell of one table lands in one copy.
 
     static func movedCell(_ existing: NSParagraphStyle?, by amount: CGFloat,
                           tables: inout [ObjectIdentifier: MovedTable])
@@ -389,10 +318,8 @@ extension DocumentText {
         return copy
     }
 
-    // An attachment drawn through a cell has no bounds of its own; the
-    // cell knows its size. Bounds first: an image's bounds are the fit
-    // the document asked for, and a cell AppKit made from the image
-    // would answer the picture's own size.
+    // `bounds` is empty for a cell-drawn attachment; a cell AppKit made
+    // from the image would answer the picture's own size, not the fit.
 
     static func attachmentWidth(_ attachment: NSTextAttachment) -> CGFloat {
         let cell = attachment.attachmentCell as? NSTextAttachmentCell

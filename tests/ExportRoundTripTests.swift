@@ -1,10 +1,5 @@
 import XCTest
 
-// The exporters pinned by property, not by recording. PlainExport
-// writes markdown-ish text; parsing that text and exporting it again
-// must reach a fixed point, or a copy pasted back would keep drifting.
-// HtmlExport is recorded, because its output is a contract with the
-// clipboard and the browsers that read it.
 final class ExportRoundTripTests: XCTestCase {
 
     func testPlainExportIsAFixedPoint() throws {
@@ -23,9 +18,8 @@ final class ExportRoundTripTests: XCTestCase {
             for block in blocks {
                 switch block {
                     case .heading(_, let text):
-                        // Run by run: the export puts markers around
-                        // an italic or code run, so the heading's words
-                        // are all there but not as one string.
+                        // Compared run by run: markers around an italic
+                        // or code run split the heading into pieces.
                         for words in Self.spelledRuns(text) {
                             XCTAssertTrue(plain.contains(words),
                                           "\(fixture.name): heading lost: " +

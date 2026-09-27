@@ -83,9 +83,8 @@ func platformSetClipboardString(_ s: String) {
     platformSetClipboard(string: s, pdf: nil)
 }
 
-// iOS never has the picture: the block renderer draws maths into a
-// Canvas rather than an attachment, so nothing here makes a PDF. The
-// parameter exists to keep one call site for both platforms.
+// pdf is unused: iOS has no lazy PDF flavour. The parameter keeps one
+// call site shared with the macOS sibling.
 func platformSetClipboard(string: String, pdf: Data?) {
     UIPasteboard.general.string = string
 }

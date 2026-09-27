@@ -189,8 +189,6 @@ private struct CodeBlock: View {
     let language: String?
     @Environment(\.textZoom) private var zoom
 
-    // Built at the zoom the environment carries, so a changed notch
-    // re-runs this body: the text view takes the string as built.
     var body: some View {
         let style = MarkdownStyle.at(zoom: zoom)
         let highlighted = Highlight.attribute(text,
@@ -235,18 +233,6 @@ private struct MathBlock: View {
         }
     }
 
-    // Centred while it fits, pinned left once it does not. Centring a
-    // formula wider than the column pushes its LEFT edge off screen,
-    // and the left edge is the half you need; the scroller takes it
-    // from there.
-    //
-    // A gutter on BOTH margins, because a centred paragraph splits its
-    // slack between them: reserving it only on the right would shift
-    // the formula off centre, and reserving nothing puts the corner
-    // Copy button on top of the last glyphs of every display wide
-    // enough to fill the column. The same bargain
-    // DocumentText.mathMinimumWidth strikes for the single surface.
-
     @ViewBuilder
     private func typeset(_ layout: MathLayout) -> some View {
         let content = layout.width + copyButtonGutter * 2
@@ -276,9 +262,8 @@ private struct MathBlock: View {
         .padding(.vertical, 4)
     }
 
-    // Resolved from the scheme rather than asked of a dynamic system
-    // colour: the formula is drawn into a raw CGContext, which carries
-    // no appearance for a dynamic colour to resolve against.
+    // Resolved from the scheme: a raw CGContext carries no appearance
+    // for a dynamic system colour to resolve against.
     private var ink: CGColor {
         scheme == .dark ? CGColor(gray: 0.92, alpha: 1)
                         : CGColor(gray: 0.10, alpha: 1)
@@ -350,14 +335,6 @@ private struct TableBlock: View {
         }
     }
 
-    // Three outcomes, not two. A column narrower than its longest word
-    // cannot wrap down to fit, so the text spills over its neighbour --
-    // SwiftUI clips nothing by default and the row reads as a pile of
-    // overlapping glyphs. Past that floor the table stops being asked to
-    // fit at all: it takes its minimum and the surrounding horizontal
-    // ScrollView, which is already here for the natural-width case,
-    // carries what does not show.
-
     private func columnLayout(_ t: TableMeasure.Measured)
         -> (widths: [CGFloat]?, wrap: Bool, constrained: Bool) {
         var result: ([CGFloat]?, Bool, Bool) = (nil, false, false)
@@ -396,10 +373,8 @@ private struct TableBlock: View {
         .background(shade)
     }
 
-    // clipped(), because a cell is only ever given a width the column
-    // agreed to: anything that still does not fit is the caller's
-    // arithmetic being wrong, and a truncated tail is recoverable where
-    // text drawn across the next column is not.
+    // A cell is only ever given a width the column agreed to; anything
+    // that overflows it is the caller's arithmetic, not a real overflow.
 
     private func frameAlignment(_ col: Int) -> SwiftUI.Alignment {
         let a = col < alignments.count ? alignments[col] : .none
@@ -445,10 +420,6 @@ private struct TableBlock: View {
     }
 
 }
-
-// One measure per table per body size: SwiftUI re-runs the table body
-// on every geometry pass, and sizing every cell each time was most of
-// what the pass cost.
 
 final class TableMeasure {
 

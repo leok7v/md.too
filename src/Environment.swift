@@ -22,12 +22,8 @@ extension EnvironmentValues {
     }
 }
 
-// The zoom multiplier the text views render at. FontRole can read the
-// stored notch on its own, but a UserDefaults read is invisible to
-// SwiftUI: with the same AttributedString and the same role, nothing a
-// text view declares would have changed and its representable is never
-// updated. Carrying the scale through the environment makes it a
-// dependency SwiftUI tracks, so every view holding text re-renders.
+// A UserDefaults read is invisible to SwiftUI; the scale flows through
+// the environment instead so a text view re-renders when it changes.
 struct TextZoomKey: EnvironmentKey {
     static let defaultValue: CGFloat = 1
 }
@@ -39,17 +35,8 @@ extension EnvironmentValues {
     }
 }
 
-// Text zoom as a multiplier of ours, NOT a dynamicTypeSize shift: AppKit
-// has no content size category, so the environment value arrives and
-// every size stays where it was. On iOS the system's own Dynamic Type
-// still applies underneath and this multiplies on top of it.
-//
-// FontRole reads `current` straight from UserDefaults rather than being
-// handed a scale, the way QuickLook reads themeMode: the alternative is
-// threading a parameter through every block renderer and cell measurer
-// for one app-wide preference. @AppStorage writes the same store, so the
-// two always agree; the views take the notch as a parameter only so
-// SwiftUI re-renders when it changes.
+// A multiplier, not a dynamicTypeSize shift: AppKit has no content size
+// category for the environment value to move.
 
 enum Zoom {
 
@@ -60,16 +47,12 @@ enum Zoom {
         min(max(notch, -limit), limit)
     }
 
-    // A notch is a tenth: 0.8 to 1.2 across five stops. Far enough at
-    // the ends to be worth reaching for, near enough that no layout has
-    // to be redrawn to survive them.
     static func scale(_ notch: Int) -> CGFloat {
         1 + CGFloat(clamp(notch)) / 10
     }
 
-    // The stop a free-running pinch lands on. Bounded before it is
-    // converted: a two-finger fling reports a ratio of any size, and the
-    // whole ladder spans 0.4.
+    // Clamped before conversion: a pinch can report a ratio of any size,
+    // and the whole notch ladder spans only 0.4.
     static func notch(nearest scale: CGFloat) -> Int {
         clamp(Int(((min(max(scale, 0.5), 2) - 1) * 10).rounded()))
     }
@@ -84,9 +67,6 @@ enum Zoom {
 
 }
 
-// The reading column is one app-wide preference, like the zoom: a
-// measure of prose on a wide window, off on a phone that is narrower
-// than the measure anyway.
 enum ReadingColumn {
     static let key = "readingColumn"
 }

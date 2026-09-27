@@ -1,14 +1,5 @@
 import SwiftUI
 
-// Find / Find Next over the single-surface document view. The view
-// registers itself (Bridges-macOS); the controller highlights every
-// match, steps a cursor through them, and asks the host (MarkdownView)
-// to scroll via a fraction of the document height. Aligning the
-// match's own fraction of the view to the same fraction of the
-// viewport guarantees the match lands on screen without the text view
-// owning a scroll view. Pattern adapted from the GaDeoN.devs MD
-// package, reduced to the one-view case.
-
 @MainActor
 final class MarkdownFindController: ObservableObject {
 
@@ -53,9 +44,8 @@ final class MarkdownFindController: ObservableObject {
         currentMatch = 0
     }
 
-    // The registered view calls this after a live reload re-derived
-    // its matches, so the displayed total stays honest without
-    // re-running the search.
+    // Recounts against the view's own re-derived matches, without
+    // re-running the search, after a live reload.
     func viewDidReapply() { recountLater() }
 
     private func recountLater() {
@@ -78,8 +68,6 @@ final class MarkdownFindController: ObservableObject {
             cursor = ((cursor + (forward ? 1 : -1)) % matchCount
                       + matchCount) % matchCount
             view.setActive(cursor)
-            // A match already on screen stays where the eye found it;
-            // scrolling to re-centre it reads as a jump.
             if !view.activeMatchOnScreen(),
                let fraction = view.activeMatchFraction() {
                 scrollTo?(fraction)
@@ -90,11 +78,9 @@ final class MarkdownFindController: ObservableObject {
 
 }
 
-// Implemented by the platform text views. findAll highlights every
-// match without selecting; setActive selects one (or clears with
-// nil); activeMatchFraction is the active match's vertical position
-// as a fraction of the laid-out text height; activeMatchOnScreen says
-// whether that match is wholly inside the part of the view showing.
+// activeMatchFraction is the vertical position as a fraction of the
+// laid-out text height; activeMatchOnScreen is true only when that
+// match is wholly inside the visible part of the view.
 
 @MainActor
 protocol FindableTextView: AnyObject {
@@ -106,10 +92,7 @@ protocol FindableTextView: AnyObject {
     func activeMatchOnScreen() -> Bool
 }
 
-// All non-overlapping ranges of query in text. Non-advancing matches
-// are guarded so a degenerate query terminates. Accents are ignored
-// along with case: a reader typing "cafe" means the "cafe" they saw,
-// on whatever keyboard.
+// Guards a non-advancing match so an empty query terminates.
 
 func markdownFindRanges(in text: String, query: String,
                         caseSensitive: Bool) -> [NSRange] {

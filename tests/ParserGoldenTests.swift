@@ -1,9 +1,5 @@
 import XCTest
 
-// The parser pinned: every fixture section parsed and dumped in a
-// deterministic text form, compared to the recording. Re-record with
-// PARSER_GOLDEN_UPDATE=1 after a deliberate change, and read the diff
-// before committing it: the dump is the contract.
 final class ParserGoldenTests: XCTestCase {
 
     static func dump(_ blocks: [Block], indent: String = "") -> String {

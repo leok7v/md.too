@@ -4,57 +4,38 @@ enum AtomicKind: String {
     case code, table, image, math
 }
 
-// A copyable block's Copy-button frame and source text, reported by
-// the platform text view after layout so SwiftUI can overlay a real
-// Copy button there (AppKit subviews of NSTextView do not reliably
-// receive clicks under SwiftUI hosting).
+// AppKit subviews of NSTextView do not reliably receive clicks under
+// SwiftUI hosting, so the button is overlaid in SwiftUI instead.
 struct CopyBlockSpot: Equatable {
     let id: String
     let rect: CGRect
     let copy: String
     // A code fence's language, drawn as a badge beside the glyph.
     var label: String? = nil
-    // The block itself, when it has a picture worth putting on the
-    // board. Held rather than rendered: this struct is rebuilt and
-    // compared on every layout pass, and a formula's PDF is 130KB that
-    // most copies never ask for.
     var illustration: PasteboardIllustration? = nil
 
-    // Identity, position, text and label decide whether the overlay
-    // changed.
-    // The illustration is the same object for the same id, so comparing
-    // it would only cost a pointer -- but leaving it out keeps the
-    // struct comparable without constraining the protocol further.
+    // `illustration` is excluded: comparing it would cost only a
+    // pointer, but Equatable would constrain the protocol further.
     static func == (a: CopyBlockSpot, b: CopyBlockSpot) -> Bool {
         a.id == b.id && a.rect == b.rect && a.copy == b.copy &&
         a.label == b.label
     }
 }
 
-// Where the copy overlay sets a button, measured in from the right edge
-// of the block it belongs to. A builder whose content is CENTRED has to
-// reserve this on both margins, or a block wide enough to fill its
-// surface leaves the button sitting on top of the content.
+// A CENTRED builder must reserve this on both margins, or a block
+// filling its surface leaves the button sitting on the content.
 let copyButtonGutter: CGFloat = 26
 
-// What a text view needs of an attachment in order to put a picture of
-// it on the pasteboard. Declared here, in the file both targets build,
-// rather than naming the cell itself: the cell is part of the macOS
-// single-surface document builder, which the Quick Look extension does
-// not compile -- it renders blocks, so it never makes one. The bridge
-// asks for this and gets nil there, which is the right answer.
 // AnyObject-constrained so a CopyBlockSpot can hold one without
-// carrying its bytes: the button asks for the PDF when it is pressed,
-// not when the document is laid out.
+// carrying its bytes; the PDF is asked for when copy is pressed.
 protocol PasteboardIllustration: AnyObject {
     func pdf(dark: Bool) -> Data?
 }
 
 let atomicKindKey = NSAttributedString.Key("AtomicKind.kind")
 let atomicIdKey = NSAttributedString.Key("AtomicKind.id")
-// The block's SOURCE text for the corner Copy button (raw code, or the
-// monospaced table serialization) so Copy yields the original markdown,
-// not the flattened on-screen render. Present only on code / table runs.
+// SOURCE text for the corner Copy button (raw code, or the table's
+// monospaced form), present only on code / table runs.
 let atomicCopyKey = NSAttributedString.Key("AtomicKind.copy")
 // The language a code fence declared, for the badge beside its copy
 // button. Present only on code runs that named one.
@@ -64,15 +45,6 @@ let atomicLabelKey = NSAttributedString.Key("AtomicKind.label")
 let codeBadgeRoomKey = NSAttributedString.Key("AtomicKind.badgeRoom")
 
 let codeBlockTint: PlatformColor = platformWhite(0.5, alpha: 0.10)
-
-// The box a code block's tint fills. A line fragment spans the whole
-// container, with the paragraph's indents inside it and its spacing
-// above and below, so the union of a block's fragments is already the
-// box less the block spacing the last line carries under it; the sides
-// come in to the indent minus the padding, which is where the text
-// stepped in from. Only the runs that touch `within` are walked, so a
-// scroll pays for the blocks it shows, and the walk is by maximal
-// atomic run, the way the copy spots are.
 
 func codeBlockRects(in storage: NSAttributedString,
                     layoutManager lm: NSLayoutManager,
@@ -193,10 +165,8 @@ private struct BlockCopyButton: View {
     @Environment(\.colorScheme) private var scheme
     @State private var copied = false
 
-    // The badge hangs to the LEFT of the glyph, outside the spot's own
-    // frame: the frame is the 22-point square the bridge measured, and
-    // SwiftUI draws what overflows it, so the label needs no width of
-    // its own reported from the text view.
+    // The frame is the 22-point square the bridge reports; the badge
+    // overflows it since SwiftUI draws what extends past a view's frame.
     var body: some View {
         Button(action: doCopy) {
             HStack(spacing: 4) {
@@ -220,9 +190,8 @@ private struct BlockCopyButton: View {
         .help("Copy")
     }
 
-    // The source text always, and a picture as well when the block has
-    // one -- a formula is a layout no plain string can spell, so the TeX
-    // serves anything simple and the PDF serves anything that draws.
+    // TeX serves anything simple to copy as text; the PDF serves
+    // whatever a formula draws that no string can spell.
     private func doCopy() {
         platformSetClipboard(string: spot.copy,
                              pdf: spot.illustration?
@@ -243,16 +212,11 @@ struct NativeText {
     let nowrap: Bool
     let bold: Bool
     let secondary: Bool
-    // The zoom this text is rendered at. Stored, not read from the
-    // defaults inside resolved(), so a changed notch changes the
-    // representable and the bridges are asked to update.
+    // Stored, not read live inside resolved(): a changed value must flow
+    // through the view's own properties for the representable to update.
     let scale: CGFloat
     let find: MarkdownFindController?
     let onCopySpots: (([CopyBlockSpot]) -> Void)?
-
-    // An NSAttributedString source is complete when it is built and
-    // reaches the text view as it is; an AttributedString source carries
-    // only intent and is styled here.
 
     func resolved() -> NSAttributedString {
         let result: NSAttributedString
@@ -303,11 +267,8 @@ struct NativeText {
 
 }
 
-// Splice `next` into `storage` by replacing ONLY the span that changed --
-// the longest shared attributed prefix and suffix are kept -- so a live
-// file reload re-lays out O(delta), not the whole document, and any
-// selection outside the edit survives. The bridges call this on every
-// update instead of setAttributedString.
+// Replaces only the span between the shared prefix and suffix, so a
+// live reload costs O(delta) and any selection outside it survives.
 
 func applyIncremental(_ storage: NSMutableAttributedString,
                       _ next: NSAttributedString) -> Bool {
@@ -326,11 +287,6 @@ func applyIncremental(_ storage: NSMutableAttributedString,
     }
     return changed
 }
-
-// Length of the leading run where BOTH the characters and their
-// attributes match, stepping by attribute run so the dictionary compare
-// is per-run, not per-character. `scanning` is the loop's termination
-// predicate, not a status flag read at the exit.
 
 private func sharedAttributedPrefix(_ a: NSAttributedString,
                                     _ b: NSAttributedString) -> Int {

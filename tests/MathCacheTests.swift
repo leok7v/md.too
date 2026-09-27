@@ -32,10 +32,6 @@ final class MathCacheTests: XCTestCase {
         XCTAssertGreaterThan(TeX.cachedLayoutCount, 0)
     }
 
-    // The PDF fits a wide display on a quarter-point grid, so eighty
-    // formulas of eighty widths ask the font for a bounded set of sizes
-    // rather than one CTFont each.
-
     func testFittedPdfSizesLeaveTheFontCacheBounded() throws {
         let font = try MathFontFile.shared()
         let before = font.cachedFontCount

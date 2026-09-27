@@ -1,13 +1,5 @@
 import Foundation
 
-// The look of a document in one value: every size in points derived from
-// the body size and every spacing a fraction of it, so a zoom step or a
-// platform's text size moves the whole page together instead of leaving
-// six points of air between text that grew. md.too has one instance,
-// read from the zoom; a host with a theme of its own builds another.
-// Same shape as ChatOKF's MarkdownStyle, so a change on either side is
-// a copy on the other.
-
 struct MarkdownStyle: Equatable {
 
     var bodySize: CGFloat
@@ -19,19 +11,9 @@ struct MarkdownStyle: Equatable {
     var quoteIndent: CGFloat
     var codePadding: CGFloat
     var cornerRadius: CGFloat
-    // The measure prose is read at when the window is wider: about
-    // eighty characters, a little past a book page, in ems so it
-    // follows the text size.
     var columnWidth: CGFloat
-    // Inline $...$ drawn by the typesetter as an attachment on the
-    // baseline, or left as the Unicode spelling that flows and searches
-    // as text. On here; a host whose text must stay text turns it off.
     var typesetInlineMath: Bool
 
-    // The ladder of the six heading levels as multiples of the body,
-    // even at every zoom: browsers use 2, 1.5, 1.17, 1, 0.83, 0.67 and
-    // ChatOKF 1.87 to 0.87, and a viewer wants the top of that range
-    // without the tail dropping under the prose.
     static let headingLadder: [CGFloat] = [2.0, 1.5, 1.25, 1.1, 1.0, 0.9]
 
     init(bodySize: CGFloat) {
@@ -50,8 +32,6 @@ struct MarkdownStyle: Equatable {
         typesetInlineMath = true
     }
 
-    // The one style this app draws with: the platform's body size, which
-    // follows Dynamic Type on iOS, times the zoom notch.
     static var current: MarkdownStyle {
         MarkdownStyle(bodySize: systemBodySize * Zoom.current)
     }
@@ -63,8 +43,6 @@ struct MarkdownStyle: Equatable {
     private static var systemBodySize: CGFloat {
         PlatformFont.preferredFont(forTextStyle: .body).pointSize
     }
-
-    // Clamp to the six heading levels; anything past h6 keeps the h6 size.
 
     func headingSize(_ level: Int) -> CGFloat {
         headingSizes[min(max(level, 1), 6) - 1]
@@ -83,11 +61,8 @@ struct MarkdownStyle: Equatable {
 
     var codeFont: PlatformFont { monoFont(at: codeSize) }
 
-    // Space a heading claims: a full em of its own size above, counting
-    // the block spacing TextKit adds from the paragraph before, so a
-    // section opens with air; and less than half an em below, so the
-    // heading sits on the paragraph it names rather than floating
-    // between two.
+    // Subtracts blockSpacing: TextKit adds the previous paragraph's
+    // spacing to this one's spacing-before, so the raw em would double it.
 
     func headingSpacingBefore(_ level: Int) -> CGFloat {
         max(headingSize(level) - blockSpacing, blockSpacing).rounded()
@@ -96,9 +71,6 @@ struct MarkdownStyle: Equatable {
     func headingSpacingAfter(_ level: Int) -> CGFloat {
         (headingSize(level) * 0.4).rounded()
     }
-
-    // List items sit a sliver apart in a tight list and a paragraph's
-    // worth apart in a loose one.
 
     func itemSpacing(tight: Bool) -> CGFloat {
         tight ? (bodySize * 0.15).rounded() : paragraphSpacing

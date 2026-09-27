@@ -1,9 +1,5 @@
 import XCTest
 
-// The single surface built for every fixture: a document that parses is
-// not yet a document that draws, and a width that comes back infinite
-// or a string that comes back empty leaves the window blank without a
-// word in any log.
 @MainActor
 final class SurfaceTests: XCTestCase {
 
@@ -34,9 +30,6 @@ final class SurfaceTests: XCTestCase {
         }
     }
 
-    // An inline formula is an attachment on the surface when the style
-    // typesets, and the Unicode spelling when it does not; either way
-    // the copy key carries the TeX only where there is an attachment.
     func testInlineMathsFollowsTheStyleSwitch() {
         let blocks = Markdown.parse("Euler: $e^{i\\pi} + 1 = 0$, done.")
         var on = MarkdownStyle(bodySize: 13)
@@ -86,9 +79,6 @@ final class SurfaceTests: XCTestCase {
         }
     }
 
-    // A column moves every paragraph but a table's: head indents grow by
-    // the inset, tails end at the column's far edge, and a tail measured
-    // from the trailing edge, a code block's, keeps its distance.
     func testAColumnIndentsProseAndLeavesTables() {
         let md = "A paragraph.\n\n```\ncode\nmore\n```\n\n" +
                  "| a | b |\n|---|---|\n| 1 | 2 |"
@@ -129,9 +119,6 @@ final class SurfaceTests: XCTestCase {
         XCTAssertEqual(seen["table"]?.tailIndent, 0)
     }
 
-    // A table wider than the column but narrower than the surface starts
-    // where the prose starts; one as wide as the surface starts at its
-    // edge.
     func testAWideTableAlignsWithTheProseWhenTheSurfaceHasRoom() {
         let style = MarkdownStyle(bodySize: 13)
         let prose = String(repeating: "word ", count: 40)
@@ -217,9 +204,6 @@ final class SurfaceTests: XCTestCase {
                        style.quoteIndent + style.listIndent)
     }
 
-    // A table is as wide as its content: two short columns lay out well
-    // short of the container, at the sum of their naturals plus the
-    // padding, with the first column no wider than its widest cell.
     func testANarrowTableStaysNarrow() {
         let md = "| Hesse | |\n|---|---|\n| Hermann Hesse | Author |\n" +
                  "| Hessian matrix | Matrix |"
@@ -323,9 +307,6 @@ final class SurfaceTests: XCTestCase {
                        accuracy: 1)
     }
 
-    // A cell breaks at a space and after a hyphen between words, never
-    // inside a negative number; a share past a column's natural goes to
-    // the columns still short.
     func testUnbreakableRunsAndCappedShares() {
         let runs = TableMetrics.unbreakableRuns("pre-training -0.614 a/b")
             .map { r in ("pre-training -0.614 a/b" as NSString)
@@ -341,10 +322,8 @@ final class SurfaceTests: XCTestCase {
             minimums: [20, 20], available: 200), [50, 60])
     }
 
-    // The storage and the view are handed back with the manager, which
-    // holds both weakly: a manager whose storage has gone answers zero
-    // for every rect, and a table's margin is applied only when a text
-    // view owns the container, as one does in the app.
+    // The manager holds storage and view weakly; a table's margin
+    // applies only when a text view owns the container.
     private struct Laid {
         let storage: NSTextStorage
         let view: NSTextView

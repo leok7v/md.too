@@ -2,11 +2,6 @@ import Foundation
 
 enum DocumentText {
 
-    // Blocks separate by paragraph spacing, not by a blank line: a blank
-    // line is a full line height and list items are a few points apart, so
-    // the two scales never agreed. The spacing is the style's, a fraction
-    // of the body size, so it grows with the text.
-
     static func blockParagraph(_ style: MarkdownStyle)
         -> NSMutableParagraphStyle {
         let para = NSMutableParagraphStyle()
@@ -16,16 +11,6 @@ enum DocumentText {
 
     typealias DocumentImage = PlatformImage
 
-    // Where prose sits on a surface wider than its measure: `inset`
-    // points in from the leading edge and `width` points across. Nil
-    // means the whole surface is the measure. Tables ignore it and take
-    // the surface, which is what lets a wide table break out of the
-    // column while the paragraphs around it keep their line length.
-    // Both numbers come from the document and the style, never from the
-    // viewport, so a window resize leaves the string alone.
-    // The reading column inside a surface: prose is inset by `inset`
-    // and measures `width`; `surface` is the whole width, which a block
-    // wider than the column may use.
     struct Column: Equatable {
         let inset: CGFloat
         let width: CGFloat
@@ -39,9 +24,8 @@ enum DocumentText {
         }
     }
 
-    // Keyed by the block's position, so a block that did not change keeps
-    // the text it was built into, atomic id included, and the splice into
-    // the text view stays O(delta).
+    // Keyed by block position, so an unchanged block keeps the text
+    // object it was built into and the splice stays O(delta).
     final class RenderCache {
         struct Entry {
             let block: Block
@@ -51,8 +35,6 @@ enum DocumentText {
             // The width a table in the block was laid out for; zero for
             // a block holding none, so a budget change leaves it alone.
             let budget: CGFloat
-            // The block as rendered, and the same moved into the column;
-            // a column change re-stamps the first, it does not render.
             let plain: NSAttributedString
             let text: NSAttributedString
         }
@@ -76,14 +58,12 @@ enum DocumentText {
         var entries: [Int: Entry] = [:]
         var minimums: [Int: Minimum] = [:]
         var tables: [Int: Table] = [:]
-        // The surface as last assembled, handed back as the same
-        // instance while no entry moved, so a host re-render that
-        // changed nothing costs neither the assembly nor the splice.
+        // Handed back as the same instance while no entry moved, so a
+        // host re-render that changed nothing costs no assembly.
         var surface: NSAttributedString? = nil
 
-        // The parse of the text last seen, so a host re-render that
-        // changed nothing else (a find keystroke, a toolbar toggle)
-        // costs a string compare rather than a parse.
+        // Cached by text equality, so a re-render that leaves the text
+        // unchanged costs a string compare, not a parse.
         private var parsedText = ""
         private var parsed: [Block] = []
 
@@ -154,9 +134,8 @@ enum DocumentText {
         return result
     }
 
-    // Every run leaves here with a font and a colour, so the text view
-    // takes the string as it is: the separators and the attachments the
-    // builders append bare would otherwise fall to TextKit's defaults.
+    // Fills any run the builders left without a font or colour, so the
+    // text view never falls back to TextKit's defaults.
 
     private static func completed(_ text: NSAttributedString,
                                   style: MarkdownStyle)
@@ -177,11 +156,6 @@ enum DocumentText {
         return m
     }
 
-    // A block that fits the column goes into it. A wider one keeps its
-    // width and moves right by as much of the inset as the surface has
-    // room for, so it starts where the prose starts unless it is the
-    // block the surface was widened for, which starts at the edge.
-
     private static func placed(_ plain: NSAttributedString, need: CGFloat,
                                in column: Column) -> NSAttributedString {
         var result = plain
@@ -198,12 +172,6 @@ enum DocumentText {
         return result
     }
 
-    // Every paragraph of a block moves into the column by the inset,
-    // and every tail ends at the column's far edge. A tail that was
-    // measured from the trailing edge, the way a code block's is, keeps
-    // its distance from the new edge instead. A block whose minimum
-    // exceeds the column never comes here and takes the surface whole.
-
     private static func columned(_ text: NSAttributedString,
                                  column: Column?) -> NSAttributedString {
         var result = text
@@ -215,17 +183,8 @@ enum DocumentText {
         return result
     }
 
-    // Every paragraph in `m` moved right by `amount`: head indents and
-    // tab stops together, since a stop is measured from the line's edge
-    // and a list item's body sits at one. A table cell goes through the
-    // platform's own move, because on macOS an indent on a cell indents
-    // inside the cell and the table has to carry the shift itself; one
-    // moved table serves every cell of the original. With a column, a
-    // paragraph's tail is set to the column's far edge as well.
-
-    // A moved table beside the one it was built from: the original is
-    // held so the identity the map is keyed on cannot be recycled while
-    // the move is under way.
+    // The original is held too, so the identity it's keyed on cannot be
+    // freed and reused while the moved table is still in flight.
 
     struct MovedTable {
         let original: AnyObject
@@ -268,9 +227,6 @@ enum DocumentText {
         return para
     }
 
-    // Only a block holding a table reads the budget, so only such a
-    // block's cache entry is keyed on it.
-
     private static func imagesNamed(by block: Block,
                                     in seen: [URL: ObjectIdentifier])
         -> [URL: ObjectIdentifier] {
@@ -300,9 +256,8 @@ enum DocumentText {
         return result
     }
 
-    // A top-level table's cells are built once and read by the measure
-    // and the render alike; a table nested in a quote or a list builds
-    // its own on the way through render(_:id:images:).
+    // A top-level table's cells are cached and shared by the measure
+    // and the render; a nested table rebuilds its own each time.
 
     private static func render(_ block: Block, at i: Int,
                                style: MarkdownStyle,
@@ -345,13 +300,8 @@ enum DocumentText {
         return result
     }
 
-    // The narrowest this document can be drawn before a table or a
-    // formula is asked for less room than its content can occupy. One
-    // text view holds the whole document, so there is no per-block
-    // escape here the way the block renderer has: the answer is a single
-    // width for everything, and the caller scrolls horizontally when the
-    // viewport is smaller. Zero for a document with neither, which is
-    // the common case and leaves the text width-aligned to the window.
+    // The narrowest the whole document can draw before a table or
+    // formula is squeezed below its content; zero when nothing needs one.
 
     static func minimumWidth(of blocks: [Block],
                              images: [URL: DocumentImage] = [:],
@@ -440,14 +390,8 @@ enum DocumentText {
         return result
     }
 
-    // A formula has no line breaks to give, so it scales to the line it
-    // is offered, down to half its size; past that the surface widens
-    // to hold it, the same bargain the tables strike.
-    //
-    // Wide enough for the copy button too. The paragraph is centred, so
-    // the slack is split between the two margins and a gutter on the
-    // right costs the same on the left; without it, a formula that
-    // exactly fills the surface leaves the button sitting on top of it.
+    // Doubled because the centred paragraph splits slack across both
+    // margins; a button on the right costs room on the left too.
 
     private static func mathMinimumWidth(_ tex: String,
                                          style: MarkdownStyle) -> CGFloat {
@@ -464,9 +408,6 @@ enum DocumentText {
     // The copy button's gutter on both sides of a display, plus air.
     private static var mathSlack: CGFloat { 8 + copyButtonGutter * 2 }
 
-    // The size a display draws at on a line `available` wide: its own
-    // when it fits, else scaled down to fit, never below half.
-
     static func mathFit(natural: CGSize, available: CGFloat) -> CGSize {
         var scale: CGFloat = 1
         if natural.width > available {
@@ -475,9 +416,6 @@ enum DocumentText {
         return CGSize(width: natural.width * scale,
                       height: natural.height * scale)
     }
-
-    // The room a display has on a line: the line less the slack the
-    // minimum asked for.
 
     static func mathRoom(in lineWidth: CGFloat) -> CGFloat {
         lineWidth - mathSlack
@@ -519,10 +457,6 @@ enum DocumentText {
         (style.bodySize * 0.5).rounded()
     }
 
-    // The copy button sits inside the header band at the table's right
-    // edge, the way a code block's does, so the last column keeps this
-    // much clear past its text and the table's budget pays for it.
-
     static var tableButtonRoom: CGFloat { copyButtonGutter + 4 }
 
     static func tableMinimumWidth(_ cells: TableCells) -> CGFloat {
@@ -530,10 +464,6 @@ enum DocumentText {
             cellPadding(cells.style) * 2 * CGFloat(cells.cols) +
             tableButtonRoom
     }
-
-    // The content width of each column inside `budget`: the naturals
-    // when they fit, so a narrow table stays narrow; otherwise shared
-    // out and wrapped; otherwise the minimums, and the surface widens.
 
     static func tableWidths(_ cells: TableCells,
                             budget: CGFloat) -> [CGFloat] {
@@ -562,8 +492,6 @@ enum DocumentText {
         let body: [[TableCell]]
         let minimums: [CGFloat]
         let naturals: [CGFloat]
-
-        // The column's alignment, or leading where the row said nothing.
 
         func alignment(_ col: Int) -> Alignment {
             col < alignments.count ? alignments[col] : .none
@@ -599,10 +527,8 @@ enum DocumentText {
                           naturals: naturals.map { w in ceil(w) })
     }
 
-    // The minimum is the widest token the cell will DRAW, not the markdown
-    // that was typed: a link shows its label, not its href, and a cell
-    // holding an image shows no words at all. Measuring the source instead
-    // turns one image URL into a demand for two thousand points.
+    // Minimum is the widest DRAWN token, not the markdown source: a
+    // link's href or an image URL would inflate it absurdly.
 
     static func tableCell(_ text: String, base: PlatformFont,
                           style: MarkdownStyle,
@@ -650,14 +576,8 @@ enum DocumentText {
         }
     }
 
-    // Measured on the cell as drawn, in the faces it draws in, so a bold
-    // header or an italic word claims the room it takes: the widest line
-    // is the natural, the widest unbreakable run the minimum. An
-    // attachment is counted at its own width on top, since CoreText
-    // sees only the replacement character it stands in. The point of
-    // slack is not decoration: the typographic width and TextKit's
-    // wrapping decision disagree by a fraction, enough for a column
-    // sized to the report to break the very run it was sized for.
+    // An attachment adds its own width on top: CoreText only sees the
+    // replacement character it stands in for.
 
     private static func cellExtent(_ m: NSAttributedString)
         -> (minimum: CGFloat, natural: CGFloat) {
@@ -731,12 +651,6 @@ enum DocumentText {
         return result
     }
 
-    // A display sits in its own centred paragraph, carrying the TeX it
-    // came from on atomicCopyKey so Copy yields the formula rather than
-    // the object-replacement character an attachment would otherwise
-    // hand over. Same contract as a code fence or a table, so the copy
-    // overlay needs nothing new.
-
     private static func math(_ tex: String, id: String,
                              style: MarkdownStyle) -> NSAttributedString {
         let base = style.bodyFont
@@ -796,9 +710,8 @@ enum DocumentText {
             para.firstLineHeadIndent = indent - style.listIndent
             para.tabStops = [NSTextTab(textAlignment: .left,
                                        location: indent)]
-            // Only between items: TextKit adds spacing-before to the
-            // previous paragraph's spacing-after, so a first item with
-            // one would sit twice as far under the block above it.
+            // TextKit adds the paragraph above's spacing to this one's
+            // before, so only non-first items carry it.
             para.paragraphSpacing = style.itemSpacing(tight: tight)
             para.paragraphSpacingBefore = idx == 0
                 ? 0 : style.itemSpacing(tight: tight)
@@ -928,12 +841,6 @@ enum DocumentText {
         return CGRect(x: 0, y: 0, width: fit.width, height: fit.height)
     }
 
-    // The tint is painted by the bridge over the block's line fragments,
-    // not carried as a glyph background, so it reaches the padding the
-    // text is indented by and rounds its corners. Every code line is its
-    // own paragraph, so only the first carries the space above and only
-    // the last the space below; the lines between sit flush.
-
     private static func code(language: String?, text: String, id: String,
                              style: MarkdownStyle) -> NSAttributedString {
         let baseFont = style.codeFont
@@ -944,9 +851,8 @@ enum DocumentText {
                                     attributes: [.font: baseFont]))
         let ns = m.string as NSString
         let word = language?.split(separator: " ").first.map(String.init)
-        // The first line stops short of the copy badge at the box's
-        // top right, or a long line runs under it; the box itself
-        // keeps its full width, since the bridge adds the room back.
+        // The first line's tailIndent leaves room for the copy badge;
+        // the bridge restores the box's full width past that gap.
         let room = codeBadgeRoom(label: word)
         var lineStart = 0
         while lineStart < ns.length {
@@ -981,9 +887,8 @@ enum DocumentText {
         return m
     }
 
-    // The badge is the icon, or the label in small capitals beside it,
-    // set in from the box's right edge; the label's width is estimated
-    // from its length, since the badge is a SwiftUI view laid out later.
+    // Estimates the SwiftUI badge's width from the label's length,
+    // since the badge itself lays out later.
 
     static func codeBadgeRoom(label: String?) -> CGFloat {
         copyButtonGutter + 12 +
@@ -1024,10 +929,6 @@ enum DocumentText {
         attr.runs.first?[AlignAttribute.self] == .center ? .center : .natural
     }
 
-    // A drawn line the width of the column, not a run of box-drawing
-    // glyphs: the attachment asks TextKit for its line's width and
-    // draws a hairline across it. Copy gives back the "---" it was.
-
     private static func rule(style: MarkdownStyle) -> NSAttributedString {
         let m = NSMutableAttributedString(
             attachment: ruleAttachment(height: style.blockSpacing * 2))
@@ -1039,13 +940,6 @@ enum DocumentText {
         m.append(NSAttributedString(string: "\n"))
         return m
     }
-
-    // A run carrying TeX becomes the typeset formula on the baseline at
-    // the run's own size, when the style asks for it and the engine
-    // accepts the formula; otherwise the Unicode spelling it already
-    // holds. The formula takes the run's attributes, so a small, struck
-    // or linked formula is small, struck or linked, and carries the
-    // source on atomicCopyKey so a copy gives it back as typed.
 
     private static func translateInline(_ attr: AttributedString,
                                         base: PlatformFont,

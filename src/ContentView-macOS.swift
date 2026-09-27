@@ -37,13 +37,6 @@ struct ContentView: View {
             .watchingFile(fileURL, into: $liveText)
     }
 
-    // The row stays open until it is closed, and there is no countdown
-    // waiting to take it away. Save and Share hand off to a panel or a
-    // menu of their own, and the pointer goes with them -- the row it
-    // came from then reads as untouched, so any idle timer fires exactly
-    // when the reader is midway through the thing they opened it for.
-    // The iOS sibling keeps a countdown only for a row nobody touched.
-
     private var actions: some View {
         HStack(spacing: 8) {
             if expanded {

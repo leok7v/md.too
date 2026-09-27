@@ -1,24 +1,3 @@
-//
-//  KaTeX.swift - a self-contained TeX math renderer.
-//
-//  One file, one font. No WebView, no JavaScript, no generated metric
-//  tables: the font metrics, big-operator sizes, stretchy delimiter
-//  recipes and the ~50 TeX layout constants all come from the OpenType
-//  MATH table of STIXTwoMath.otf, which macOS ships in
-//  /System/Library/Fonts/Supplemental and which md.too bundles on iOS.
-//
-//  Public surface used by md.too:
-//      KaTeX.layout(_:settings:)   -> MathLayout   (measure)
-//      MathLayout.draw(in:at:color:flipped:)       (draw)
-//      MathLayout.cgImage(...)                     (rasterize)
-//
-//  Nothing here is safe to change by eye: the output is geometry, and a
-//  glyph moved by a point compiles clean and reads as no diff at all.
-//  MD/tests/KaTeXGoldenTests.swift fingerprints 36 formulas by their
-//  layout metrics and by a hash of their rasterized pixels -- run it
-//  after touching anything in this file.
-//
-
 import Foundation
 import CoreGraphics
 import CoreText
@@ -56,7 +35,6 @@ public struct MathSettings {
 }
 
 
-/// Minimal OpenType reader: table directory, cmap, and the MATH table.
 public final class MathFontFile {
     typealias Variant = (glyph: CGGlyph, adv: CGFloat)
     typealias Metrics = (adv: CGFloat, h: CGFloat, d: CGFloat)
@@ -72,7 +50,6 @@ public final class MathFontFile {
     private var glyphCache: [UInt32: CGGlyph] = [:]
     private var ctCache: [CGFloat: CTFont] = [:]
 
-    // MATH
     private var mathConstants = 0
     private var italicCorr: [CGGlyph: CGFloat] = [:]
     private var topAccent: [CGGlyph: CGFloat] = [:]
@@ -411,7 +388,6 @@ public final class MathFontFile {
         .radicalKernBeforeDegree: 0.28, .radicalKernAfterDegree: -0.36,
     ]
 
-    /// Constant in em units.
     public func constant(_ c: Constant) -> CGFloat {
         let result: CGFloat
         if mathConstants > 0 {
@@ -422,8 +398,6 @@ public final class MathFontFile {
         return result
     }
 
-
-    // Test hook: how many sizes the CTFont cache has been asked for.
 
     var cachedFontCount: Int { ctCache.count }
 
@@ -486,30 +460,15 @@ public final class MathFontFile {
         vertAssembly[g] ?? []
     }
 
-    // One parsed font serves every formula. Everything the OpenType
-    // reader fills is written once in init and never again, but the
-    // glyph, CTFont and metric caches fill lazily for the instance's
-    // whole life -- so LAYING OUT a formula mutates shared state, and so
-    // does DRAWING one, which reaches ctFont for whatever size it is
-    // being drawn at.
-    //
-    // `KaTeX.layout` and `MathLayout.draw` each hold this lock for their
-    // duration, which is what makes one font safe to share. Both are
-    // needed: md.too exports PDF from a nonisolated async function, so
-    // formulas are laid out and drawn off the main thread while the
-    // screen draws its own, and a lock on layout alone leaves ctFont
-    // racing -- ThreadSanitizer reports it, and it segfaults.
+    // KaTeX.layout and MathLayout.draw each hold this lock for their
+    // whole duration: both mutate the glyph/CTFont/metric caches below.
     static let lock = NSLock()
     nonisolated(unsafe) private static var cached: MathFontFile?
 
     nonisolated(unsafe) private static var overrideStorage: URL?
 
-    /// Override to point at a different MATH-table font. The md2png CLI
-    /// sets it from --font; the app never does. Guarded by the same lock
-    /// as the caches, because "only ever set once, before anything reads
-    /// it" is a promise the type cannot keep on a caller's behalf --
-    /// under -swift-version 6 the compiler refuses the bare `static var`
-    /// for exactly that reason.
+    /// Override for a different MATH-table font (md2png's --font flag);
+    /// the app itself never sets it.
     public static var overrideURL: URL? {
         get {
             lock.lock()
@@ -522,12 +481,6 @@ public final class MathFontFile {
             overrideStorage = newValue
         }
     }
-
-    // Two places, in this order: the app bundle, which is where the iOS
-    // build carries its copy, then the system font macOS ships. No
-    // environment variable and no working-directory search -- a
-    // sandboxed app reaches neither, and a resource an app cannot
-    // account for is a resource it should not look for.
 
     /// Takes the lock itself. `KaTeX.layout` already holds it and calls
     /// `sharedLocked` instead; NSLock is not recursive.
@@ -637,16 +590,8 @@ enum Alphanumerics {
         "Q": 0x211A, "R": 0x211D, "Z": 0x2124,
     ]
 
-    // Each variant is one contiguous run of 26 capitals, one of 26
-    // lowercase and (sometimes) one of 10 digits, plus the handful of
-    // letters Unicode had already assigned elsewhere before the maths
-    // blocks existed. Written as a table rather than a switch: the
-    // switch spelled the same three additions out thirteen times, and
-    // the only thing distinguishing the cases was the numbers.
-    //
-    // A base of zero means the variant has no run of that kind, and the
-    // character is left as it was: script has no digits, italic has no
-    // digits, upright is not in the table at all.
+    // upper/lower/digit == 0 means the variant has no run of that kind:
+    // script has no digits, upright is not in the table at all.
 
     private struct Alphabet: Sendable {
         let upper: UInt32
@@ -693,9 +638,8 @@ enum Alphanumerics {
         .mono: Alphabet(upper: 0x1D670, lower: 0x1D68A, digit: 0x1D7F6),
     ]
 
-    /// Map an ASCII letter/digit into the requested math alphanumeric
-    /// block. Anything else, and any variant with no block of its own,
-    /// comes back unchanged.
+    /// Anything but an ASCII letter/digit, or a variant with no block of
+    /// its own, comes back unchanged.
     static func map(_ ch: Character, _ v: MathVariant) -> UInt32 {
         let scalar = ch.unicodeScalars.first?.value ?? 0
         var result = scalar
@@ -883,7 +827,6 @@ enum Symbols {
         ".": 0,
     ]
 
-    /// Atom class for a bare ASCII character.
     static func atom(for ch: Character) -> Atom {
         switch ch {
         case "+", "-", "*", "/": return .bin
@@ -896,7 +839,6 @@ enum Symbols {
         }
     }
 
-    /// ASCII characters that must be swapped for a proper math glyph.
     static func substitute(_ ch: Character) -> UInt32? {
         switch ch {
         case "-": return 0x2212       // minus sign
@@ -954,9 +896,8 @@ indirect enum Node {
             if case .substack = self { result = true }
             return result
         }
-        // Everything but `aligned` centres its columns. `aligned` is the
-        // amsmath template, where odd columns hug the relation between
-        // them.
+        // Everything but `aligned` centres its columns; `aligned` is the
+        // amsmath template, where odd columns hug the relation between them.
         var centresColumns: Bool { !isAligned }
     }
 }
@@ -1021,13 +962,8 @@ final class Parser {
         return nodes
     }
 
-    // A display can hold several lines, and columns inside them, without
-    // ever naming an environment. `$$a \\ b$$` is a two-line display in
-    // LaTeX and in KaTeX; `&` outside one is an error in both, but a
-    // converter lifting equations out of a PDF drops the \begin{aligned}
-    // and leaves exactly that behind, and a stack of rows is unambiguous
-    // enough to draw rather than refuse. An `&` anywhere means the rows
-    // align on it; otherwise they are simply gathered.
+    // An `&` anywhere means the rows align on it; otherwise they are
+    // simply gathered.
 
     private func implicitRows(first: [Node]) throws -> Node {
         var rows: [[[Node]]] = []
@@ -1075,11 +1011,9 @@ final class Parser {
         return out
     }
 
-    /// A nucleus plus any primes / ^ / _ attached to it.
     private func atom() throws -> Node {
         let base: Node? = try nucleus()
 
-        // primes collapse into the superscript
         var primes = 0
         while peek?.text == "'" { primes += 1; i += 1 }
 
@@ -1114,7 +1048,6 @@ final class Parser {
         return result
     }
 
-    /// One argument: a braced group, or a single atom.
     private func argument() throws -> [Node] {
         var result: [Node] = []
         var failure: MathError? = nil
@@ -1133,7 +1066,6 @@ final class Parser {
         return result
     }
 
-    /// Optional `[...]` argument.
     private func optionalArgument() throws -> [Node]? {
         var result: [Node]? = nil
         var failure: MathError? = nil
@@ -1156,7 +1088,6 @@ final class Parser {
         return result
     }
 
-    /// Raw `[4pt]`-style dimension after `\\`.
     private func optionalDimension() -> CGFloat? {
         rawOptional().flatMap { s in Parser.dimension(s) }
     }
@@ -1221,10 +1152,6 @@ final class Parser {
         return result
     }
 
-
-    // Four kinds of nucleus, tried in order: a braced group, a bare
-    // character, a command that is nothing but a table entry, and a
-    // command with a grammar of its own.
 
     private func nucleus() throws -> Node {
         let result: Node
@@ -1296,10 +1223,8 @@ final class Parser {
         return result
     }
 
-    // \limits and \nolimits following an operator override where its
-    // sub- and superscripts go. The last one wins, and both big
-    // operators and named ones accept them, which is why this is not
-    // written out twice.
+    // The last of \limits/\nolimits wins; shared here because both big
+    // operators and named ones accept it.
 
     private func limitsOverride() -> Bool? {
         var result: Bool? = nil
@@ -1402,9 +1327,8 @@ final class Parser {
         }
     }
 
-    // A colour by name or hex. A name the table lacks fails the parse
-    // where it stands: a formula in the wrong ink is worse than one
-    // refused and spelled out.
+    // An unrecognised colour name fails the parse outright, rather than
+    // falling back to a default ink.
 
     private func colorArgument(_ t: Tok) throws -> CGColor {
         let spec = try textArgument()
@@ -1440,7 +1364,7 @@ final class Parser {
                 blue: CGFloat(v & 0xFF) / 255, alpha: 1)
     }
 
-    // The base colour names with the CSS values KaTeX draws them in.
+    // The standard CSS named colours.
     static let namedColors: [String: UInt32] = [
         "red": 0xFF0000, "green": 0x008000, "blue": 0x0000FF,
         "cyan": 0x00FFFF, "magenta": 0xFF00FF, "yellow": 0xFFFF00,
@@ -1463,8 +1387,6 @@ final class Parser {
         return .middle(cp)
     }
 
-    // \rule[raise]{width}{height}, each a TeX dimension.
-
     private func ruleNode(_ t: Tok) throws -> Node {
         let raise = optionalDimension() ?? 0
         let width = rawBraced().flatMap { s in Parser.dimension(s) }
@@ -1478,9 +1400,8 @@ final class Parser {
     }
 
 
-    // \dfrac and \tfrac are \frac inside a style switch; \cfrac is
-    // treated as plain \frac, which is what it degrades to without
-    // continued-fraction alignment.
+    // \dfrac/\tfrac are \frac in a style switch; \cfrac is plain \frac,
+    // degrading without continued-fraction alignment.
 
     private func fracNode(_ s: String) throws -> Node {
         let n = try argument(), d = try argument()
@@ -1547,8 +1468,7 @@ final class Parser {
         return .sizedDelim(cp, n)
     }
 
-    // A bare \kern with no braced dimension is a no-op rather than an
-    // error: it is the shape AI-written markdown reaches for most.
+    // A bare \kern with no braced dimension is a no-op, not a parse error.
 
     private func kernNode() -> Node {
         var result = Node.group([])
@@ -1566,11 +1486,8 @@ final class Parser {
         var failure: MathError? = nil
         if eat("{") {
             var depth = 0
-            // Gaps are measured from the brace, not from the first token,
-            // so a leading space survives: `\text{ is even}` is written
-            // with that space for a reason and reads as "isxeven" without
-            // it. The closing brace is a gap like any other, or
-            // `\text{if }` loses the space it ends with.
+            // Gaps are derived from the brace position, not the
+            // first/last token, so leading and trailing spaces survive.
             var lastEnd = open.map { t in t.pos + t.text.count } ?? -1
             while let t = peek, !(t.text == "}" && depth == 0) {
                 if lastEnd >= 0 && t.pos > lastEnd { out += " " }
@@ -1663,7 +1580,6 @@ final class Parser {
         return .array(rows: rows, gaps: gaps, style: style)
     }
 
-    /// Parse `a & b \\[gap] c & d` until `stop`.
     private func rowsAndCells(stop: String,
                               cells: Bool) throws -> ([[[Node]]], [CGFloat]) {
         var rows: [[[Node]]] = []
@@ -1726,7 +1642,6 @@ final class Box {
         return b
     }
 
-    /// Horizontal list: boxes placed left to right on a shared baseline.
     static func hbox(_ boxes: [Box]) -> Box {
         let b = Box()
         var x: CGFloat = 0
@@ -1811,7 +1726,6 @@ struct Opts {
         case .scriptScript: return base * font.scriptScriptPercent
         }
     }
-    /// A MATH constant scaled to the current style's font size.
     func k(_ c: MathFontFile.Constant) -> CGFloat { font.constant(c) * size }
     var axis: CGFloat { k(.axisHeight) }
     var mu: CGFloat { size / 18 }
@@ -1891,7 +1805,6 @@ final class Layouter {
         return b
     }
 
-    /// Map a math alphanumeric codepoint back to its ASCII base.
     static func demote(_ cp: UInt32) -> UInt32? {
         let ranges: [(UInt32, UInt32, UInt32)] = [
             (0x1D400, 0x1D419, 65), (0x1D41A, 0x1D433, 97),
@@ -1951,7 +1864,6 @@ final class Layouter {
             } else if !parts.isEmpty {
                 result = assemble(parts, target: target, size: size)
             } else if let last = variants.last {
-                // No recipe: the largest variant available.
                 result = variantBox(last.glyph, size)
             } else {
                 result = glyphBox(scalar, size)
@@ -2007,7 +1919,6 @@ final class Layouter {
             y += p.fullAdvance * size
         }
         let box = Box.place(items)
-        // Centre the assembly vertically on its own middle.
         let mid = (box.height - box.depth) / 2
         let shifted = Box.place(items.map { i in (i.box, i.dx, i.dy - mid) })
         shifted.width = maxWidth
@@ -2040,7 +1951,6 @@ final class Layouter {
         return b.shifted(dy: o.axis - mid)
     }
 
-    /// Build a list of nodes into a single box, applying inter-atom spacing.
     func build(_ nodes: [Node], _ o: Opts) -> Box {
         var items = inked(nil, nodes, o)
 
@@ -2076,9 +1986,8 @@ final class Layouter {
         return Box.hbox(boxes)
     }
 
-    // The items of a list with `ink` on each box that has none of its
-    // own. A colour is transparent to spacing: the coloured atoms keep
-    // their classes in the parent's list rather than becoming one box.
+    // A colour is transparent to spacing: the coloured atoms keep their
+    // classes in the parent's list rather than becoming one box.
 
     private func inked(_ ink: CGColor?, _ nodes: [Node],
                        _ o: Opts) -> [(box: Box, atom: Atom)] {
@@ -2222,8 +2131,8 @@ final class Layouter {
         }
     }
 
-    // A rule under the body, the underbar constants' gap below its
-    // depth; the mirror of the accent that \overline uses.
+    // Mirrors the accent placement \overline uses, offset below the
+    // depth instead of above the height.
 
     func underlineBox(_ body: [Node], _ o: Opts) -> Box {
         let base = build(body, o.with(cramped: true))
@@ -2236,9 +2145,8 @@ final class Layouter {
         return box
     }
 
-    // The brace glyph stretched to the body's width, set above or below
-    // it. A script on the brace lands on its far side: limitsForm sends
-    // it through limitsBox like an operator's limits.
+    // A script on the brace lands on its far side: limitsForm sends it
+    // through limitsBox like an operator's limits.
 
     func braceBox(_ body: [Node], over: Bool, _ o: Opts) -> Box {
         let base = build(body, o.with(cramped: true))
@@ -2259,8 +2167,6 @@ final class Layouter {
         return result
     }
 
-    // A frame of four rules around the body, \fboxsep of air inside.
-
     func boxedBox(_ body: [Node], _ o: Opts) -> Box {
         let inner = build(body, o)
         let pad = o.size * 0.3
@@ -2279,8 +2185,6 @@ final class Layouter {
         ])
     }
 
-    // The body's extents with no ink: a box that draws nothing.
-
     func phantomBox(_ body: [Node], width: Bool, height: Bool,
                     _ o: Opts) -> Box {
         let b = build(body, o)
@@ -2290,9 +2194,6 @@ final class Layouter {
         ghost.depth = height ? b.depth : 0
         return ghost
     }
-
-    // The arrow stretched past its label, the label above and a second
-    // one below in script style, the way limits sit on an operator.
 
     func extensibleBox(_ cp: UInt32, _ over: [Node], _ under: [Node]?,
                        _ o: Opts) -> Box {
@@ -2308,9 +2209,6 @@ final class Layouter {
         let stacked = limitsBox(arrow, over, under, o)
         return Box.hbox([Box.kern(3 * o.mu), stacked, Box.kern(3 * o.mu)])
     }
-
-    // A slash struck through the symbol, centred on it; the symbol
-    // keeps its width and its class.
 
     func notBox(_ inner: Node, _ o: Opts) -> (Box, Atom) {
         let (base, atom) = node(inner, o)
@@ -2358,10 +2256,9 @@ final class Layouter {
         } else {
             b = glyphBox(cp, o.size)
         }
-        // TeX centres operators on the maths axis.
         let mid = (b.height - b.depth) / 2
-        // tex.web make_op turns the operator into a shifted box, which is why
-        // rule 18a stops applying and \int_a^b hangs off the glyph's extents.
+        // tex.web's make_op centres the operator on the axis and exempts
+        // it from rule 18a, so \int_a^b hangs off the glyph's own extents.
         let out = b.shifted(dy: o.axis - mid)
         out.italic = b.italic
         out.width = b.width
@@ -2379,8 +2276,6 @@ final class Layouter {
         }
         return result
     }
-
-    /// Limits above/below rather than beside, when the base asks for it.
 
     private func limitsForm(_ base: Node?, _ sup: [Node]?, _ sub: [Node]?,
                             _ o: Opts) -> (Box, Atom)? {
@@ -2466,7 +2361,6 @@ final class Layouter {
         return (result, atom)
     }
 
-    /// Limits set above and below an operator.
     func limitsBox(_ opBox: Box, _ sup: [Node]?, _ sub: [Node]?,
                    _ o: Opts) -> Box {
         let upper = sup.map { n in build(n, o.with(style: o.style.sup())) }
@@ -2511,9 +2405,6 @@ final class Layouter {
         return result
     }
 
-    // The narrowest variant wide enough for the base, else the widest
-    // one the font offers.
-
     private func stretchedAccent(_ g: CGGlyph, over width: CGFloat,
                                  _ o: Opts) -> CGGlyph {
         var result = g
@@ -2537,8 +2428,6 @@ final class Layouter {
         let acc = Box(kind: .glyph(g, o.size))
         acc.width = m.adv; acc.height = m.h; acc.depth = m.d
 
-        // Horizontal: line the accent's centre up with the base's
-        // attachment point.
         var attach = base.width / 2 + base.italic / 2
         if case .glyph(let bg, let sz) = base.kind,
            let a = font.topAccentAttachment(bg, sz) {
@@ -2547,8 +2436,6 @@ final class Layouter {
         let accCentre = accRect.isEmpty ? m.adv / 2 : accRect.midX
         let dx = attach - accCentre
 
-        // Vertical: raise by however far the base rises above
-        // accentBaseHeight.
         let clearance = max(0, base.height - o.k(.accentBaseHeight))
         let box = Box.place([(base, 0, 0), (acc, dx, clearance)])
         box.width = base.width
@@ -2566,7 +2453,6 @@ final class Layouter {
         let target = inner.height + inner.depth + gap + rule
         let radical = stretchVertical(0x221A, target: target, o)
 
-        // Sit the radical so its top edge is the rule's top edge.
         let radDy = (inner.height + gap + rule) - radical.height
         let bar = Box.rule(width: inner.width + o.size * 0.08, height: rule)
 
@@ -2651,9 +2537,6 @@ final class Layouter {
     }
 
 
-    // The body is cut at every \middle, and the fences, outer and
-    // middle alike, are sized to the tallest stretch between them.
-
     func leftRightBox(_ l: UInt32, _ r: UInt32, _ body: [Node],
                       _ o: Opts) -> Box {
         var segments: [[Node]] = [[]]
@@ -2682,10 +2565,6 @@ final class Layouter {
     }
 
 
-    // Four steps, each of which used to be a paragraph of this one
-    // function: typeset the cells, measure the columns, pack each row to
-    // those widths, stack the rows on the maths axis. Fences last.
-
     func arrayBox(_ rows: [[[Node]]], _ gaps: [CGFloat],
                   _ style: Node.ArrayStyle, _ o: Opts) -> Box {
         let cells = arrayCells(rows, style, o)
@@ -2702,9 +2581,8 @@ final class Layouter {
         rows.map { row in
             row.enumerated().map { (c, cell) -> Box in
                 let box = build(cell, o)
-                // amsmath's `&=` template: a column that opens with a
-                // relation keeps the thick space it would have had
-                // mid-list.
+                // amsmath's `&=` template: a column opening with a
+                // relation keeps the thick space it would have mid-list.
                 var result = box
                 if style.isAligned, c % 2 == 1,
                    case .symbol(_, .rel, _)? = cell.first {
@@ -2738,8 +2616,7 @@ final class Layouter {
     }
 
     // In an `aligned` the even columns are pushed right so the relation
-    // that opens the odd column lines up down the block, and the pair
-    // itself is not separated. Everywhere else a column is centred.
+    // opening the odd column lines up down the block, undivided from it.
 
     private func arrayRow(_ row: [Box], widths: [CGFloat],
                           style: Node.ArrayStyle, gap: CGFloat) -> Box {
@@ -2783,7 +2660,6 @@ final class Layouter {
             totalWidth = max(totalWidth, rb.width)
         }
         let stack = Box.place(items)
-        // Centre the whole stack on the maths axis.
         let mid = (stack.height - stack.depth) / 2
         let centred = Box.place(items.map { i in
             (i.box, i.dx, i.dy + o.axis - mid)
@@ -2821,17 +2697,12 @@ public struct MathLayout {
     let font: MathFontFile
     let color: CGColor
 
-    /// Draw with `at` as the top-left corner of the layout's bounding box.
-    /// Set `flipped` for contexts whose y axis points down (UIKit,
-    /// SwiftUI `Canvas`). `color` overrides the one the layout was built
-    /// with, so a theme switch redraws rather than re-lays out: the
-    /// boxes do not depend on the ink.
+    /// `at` is the bounding box's top-left corner; `color` overrides the
+    /// built ink without relaying out, since geometry never depends on it.
     public func draw(in ctx: CGContext, at point: CGPoint,
                      color ink: CGColor? = nil, flipped: Bool = false) {
-        // Drawing fills the font's CTFont cache, so it takes the same
-        // lock the layout does. Not recursive, and it does not need to
-        // be: cgImage and the baseline overload both reach the font
-        // through this one method, and no caller holds the lock.
+        // Drawing fills the CTFont cache, so it takes the font's lock;
+        // safe since cgImage and the baseline overload funnel through here.
         MathFontFile.lock.lock()
         defer { MathFontFile.lock.unlock() }
         ctx.saveGState()
@@ -2839,10 +2710,8 @@ public struct MathLayout {
         ctx.setFillColor(ink ?? color)
         ctx.setStrokeColor(ink ?? color)
         if flipped {
-            // The scale below already turns the context y-up, so the
-            // text matrix must stay identity: flipping it as well
-            // mirrors every glyph about its own baseline. Same matrix
-            // as the branch beneath, which is the one the PDF proves.
+            // The scale already turns the context y-up, so the text
+            // matrix stays identity, or flipping it doubles the mirror.
             ctx.translateBy(x: point.x, y: point.y + ascent)
             ctx.scaleBy(x: 1, y: -1)
             ctx.textMatrix = .identity
@@ -2891,7 +2760,6 @@ public struct MathLayout {
 
 public enum KaTeX {
 
-    /// Parse and lay out a TeX fragment.
     public static func layout(
         _ tex: String, settings: MathSettings = MathSettings()
     ) throws -> MathLayout {
@@ -2932,7 +2800,6 @@ public enum KaTeX {
                           color: settings.color)
     }
 
-    /// Convenience: lay out and rasterize in one call.
     public static func cgImage(
         _ tex: String, settings: MathSettings = MathSettings(),
         scale: CGFloat = 2, padding: CGFloat = 8,
@@ -2943,7 +2810,6 @@ public enum KaTeX {
                                                     background: background)
     }
 
-    /// Measure only.
     public static func measure(
         _ tex: String, settings: MathSettings = MathSettings()
     ) throws -> CGSize {

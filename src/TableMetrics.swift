@@ -9,8 +9,7 @@ enum TableMetrics {
     }
 
     // Counted on the cell a reader will SEE, not the one that was typed:
-    // "m<sup>2</sup>" is two characters wide, and weighting a column by
-    // thirteen hands it a share the text never fills.
+    // "m<sup>2</sup>" is two characters wide.
 
     static func charWidths(headers: [String], rows: [[String]]) -> [Int] {
         let n = columnCount(headers: headers, rows: rows)
@@ -55,14 +54,6 @@ enum TableMetrics {
         return result
     }
 
-    // Shared shortfall, not shared percentage. When the minimums do not
-    // fit, every column that CAN be satisfied is -- smallest demand
-    // first -- and what is left over goes to the columns that cannot be,
-    // split by weight. Scaling all of them by one factor instead takes
-    // the same third from a column holding "52.3", which then breaks a
-    // number across three lines, as from one holding a heading that had
-    // a word boundary to give away for free.
-
     private static func fairWidths(minimums: [CGFloat],
                                    weights: [CGFloat],
                                    available: CGFloat) -> [CGFloat] {
@@ -96,14 +87,6 @@ enum TableMetrics {
         return result
     }
 
-    // The widths a table draws its columns at: every column its natural
-    // width when the row of naturals fits, otherwise the weighted shares
-    // floored at the minimums and capped at the naturals, with the slack
-    // a column did not want handed to the ones still short of theirs.
-    // The minimums alone when even they do not fit: a column narrower
-    // than its longest run cannot wrap down to it, and the caller lets
-    // the table overflow rather than the cells overlap.
-
     static func columnLayout(headers: [String], rows: [[String]],
                              naturals: [CGFloat], minimums: [CGFloat],
                              available: CGFloat) -> [CGFloat] {
@@ -136,10 +119,8 @@ enum TableMetrics {
         return out
     }
 
-    // Where a cell's text can break: at a space, a hard break, and after
-    // a hyphen, slash or dash that sits between words. "-0.614" stays
-    // one run, so a column sized as though the number could split never
-    // renders it as "-0.61" over "4".
+    // A hyphen, slash or dash next to a digit does not break: "-0.614"
+    // stays one run rather than splitting as "-0.61" over "4".
 
     static func unbreakableRuns(_ text: NSString) -> [NSRange] {
         var out: [NSRange] = []
@@ -163,9 +144,6 @@ enum TableMetrics {
         }
         return out
     }
-
-    // The widest line of a cell, and its widest unbreakable run, both in
-    // the face the cell draws in.
 
     static func naturalWidth(_ text: String, font: PlatformFont) -> CGFloat {
         var widest: CGFloat = 0
@@ -227,9 +205,8 @@ enum TableMetrics {
                                     rows: [[String]],
                                     alignments: [Alignment] = []) -> String {
         let n = columnCount(headers: headers, rows: rows)
-        // Converted once, up front: the padding is computed from the same
-        // strings that get printed, so the columns still line up. A pipe
-        // inside a cell goes back out escaped, or it reads as a divider.
+        // Converted once, up front, so the padding matches the strings
+        // that get printed.
         let h = headers.map { c in pipesEscaped(TeX.scriptsToUnicode(c)) }
         let r = rows.map { row in
             row.map { c in pipesEscaped(TeX.scriptsToUnicode(c)) }

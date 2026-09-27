@@ -32,10 +32,6 @@ enum PlainExport {
                 return TableMetrics.serializeMonospaced(
                     headers: h, rows: rows, alignments: alignments)
             case .math(let tex):
-                // The source, not the rendering. Everything else this
-                // exporter emits is markdown -- # for headings, > for
-                // quotes, ![]() for images -- so a display belongs here
-                // in the spelling it was written in, ready to paste back.
                 return "$$\n\(tex)\n$$\n"
             case .rule:
                 return "---\n"
@@ -59,11 +55,8 @@ enum PlainExport {
                 out += first.isEmpty ? mark + "\n" : "\(mark) \(first)\n"
                 var body = Array(lines.dropFirst())
                 while let last = body.last, last.isEmpty { body.removeLast() }
-                // Continuation lines sit under the item's text, so the
-                // indent is the marker's width plus its space: "2." needs
-                // three, "-" two, or the parser hands them back to the
-                // top level. The task box is not part of the marker: the
-                // parser strips it after the marker has set the offset.
+                // Continuation lines indent under the marker plus its
+                // space, or the parser hands them back to the top level.
                 let indent = String(repeating: " ", count: head.count + 1)
                 for rest in body {
                     out += rest.isEmpty ? "\n" : indent + rest + "\n"
@@ -74,9 +67,8 @@ enum PlainExport {
         return out
     }
 
-    // A nested list follows its item's text without a blank line,
-    // because a blank line inside an item makes the parser read the
-    // whole list as loose; every other block keeps the blank between.
+    // A nested list follows its item's text with no blank line, or the
+    // parser reads the whole list as loose; every other block keeps one.
 
     private static func itemBody(_ blocks: [Block]) -> String {
         var out = ""
@@ -89,13 +81,8 @@ enum PlainExport {
         return out
     }
 
-    // Plain text has no baseline to offset, so a script run spends the
-    // Unicode the TeX renderer already keeps tables of: "m2" would lose
-    // the distinction the source went out of its way to make. A hard
-    // break goes back out as the two trailing spaces it was written
-    // with, and a code span keeps its backticks, so the text parses to
-    // the same paragraph it came from: a backslash that was literal
-    // inside the span stays literal instead of becoming an escape.
+    // A script run spends TeX's Unicode table since plain text has no
+    // baseline; a code span keeps its own backtick fence unescaped.
 
     private static func plain(_ a: AttributedString) -> String {
         var out = ""
@@ -117,10 +104,8 @@ enum PlainExport {
                                         options: .regularExpression)
     }
 
-    // The characters the parser would read as markup go back out
-    // escaped, so "an escaped \*star\*" is not italic on the way back.
-    // An underscore between two letters is left alone: the parser does
-    // not emphasise inside a word, and snake_case in prose is common.
+    // An underscore between two letters is left unescaped: the parser
+    // does not emphasise inside a word, and snake_case in prose is common.
 
     private static func escaped(_ text: String) -> String {
         var out = ""

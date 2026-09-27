@@ -1,7 +1,5 @@
 import XCTest
 
-// applyIncremental splices only the changed span; after the splice the
-// storage must equal the target text and attributes exactly.
 final class IncrementalTests: XCTestCase {
 
     private let red: [NSAttributedString.Key: Any] =

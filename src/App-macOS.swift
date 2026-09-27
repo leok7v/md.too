@@ -78,10 +78,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
 }
 
-// The zoom is one app-wide preference, so the menu drives the stored
-// notch directly and every open document window follows. Cmd-= carries
-// the Zoom In shortcut because the key is unshifted "=" -- macOS shows
-// it as Cmd-+ in the menu.
+// Cmd-= carries the Zoom In shortcut: the key is unshifted "=", which
+// macOS shows as Cmd-+ in the menu.
 
 struct ZoomCommands: Commands {
 

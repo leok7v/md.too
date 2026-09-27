@@ -19,9 +19,6 @@ struct ContentView: View {
     @State private var expanded = false
     @State private var pinned = false
     @State private var interaction = 0
-    // The stop the pinch began at, since a magnification is reported
-    // relative to its own start rather than absolutely, and the stop the
-    // readout is already showing, so it is not re-raised every frame.
     @State private var pinchFrom: Int? = nil
     @State private var pinchLabel: String? = nil
     @State private var settled = 0
@@ -41,14 +38,6 @@ struct ContentView: View {
             .watchingFile(fileURL, into: $liveText)
     }
 
-    // Pinch is the phone's way in, there being no menu bar to hang Zoom
-    // on. simultaneousGesture, or it takes the scroll view's own
-    // gestures with it and the document stops scrolling. The stop lands
-    // only when the fingers LIFT: every notch re-measures the whole
-    // document, so following the fingers would relayout it on every
-    // frame of the gesture. The readout is the only thing saying the
-    // gesture was heard at all until then.
-
     private var pinchZoom: some Gesture {
         MagnifyGesture()
             .onChanged { value in
@@ -63,10 +52,6 @@ struct ContentView: View {
                 let landed = Zoom.notch(nearest: want)
                 zoom = landed
                 pinchFrom = nil
-                // Held past the gesture rather than cleared with it: the
-                // stop only applies when the fingers lift, so tearing the
-                // readout away at that moment hides the one frame that
-                // confirms where it landed.
                 pinchLabel = Zoom.percent(landed)
                 settled += 1
             }
@@ -110,10 +95,6 @@ struct ContentView: View {
             }
             Spacer(minLength: 8)
             if expanded {
-                // A modifier on a Group lands on each member, so every
-                // action carries the pin -- including Share, whose sheet
-                // is anchored to its button: collapsing the row out from
-                // under an open sheet takes the sheet with it.
                 Group {
                     Button(action: { expanded = false }) {
                         Image(systemName: "chevron.right.2")
@@ -148,13 +129,6 @@ struct ContentView: View {
         .simultaneousGesture(TapGesture().onEnded { interaction += 1 })
         .animation(.easeInOut(duration: 0.2), value: expanded)
     }
-
-    // Only a row that was opened and never touched tidies itself away.
-    // Once a finger has landed on any action the row is the reader's, and
-    // it stays until they close it: an action can open a sheet or start a
-    // flow that outlives any countdown, and there is no moment at which
-    // pulling the row out from under them is right. Long enough, too,
-    // that the untouched case is a real chance to aim rather than a race.
 
     private func collapseAfterIdle() async {
         if expanded, !pinned {

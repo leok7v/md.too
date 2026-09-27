@@ -135,9 +135,8 @@ final class PDFRenderer {
         drawText(text, font: bold, color: textColor)
     }
 
-    // Takes the AttributedString rather than a converted one because the
-    // script level rides a custom key that NSAttributedString(_:) drops;
-    // the runs have to still be reachable when the fonts are settled.
+    // NSAttributedString(_:) drops the custom script-level key, so the
+    // AttributedString runs must stay reachable until fonts are settled.
 
     private func drawText(_ attr: AttributedString,
                           font: CTFont,
@@ -167,12 +166,8 @@ final class PDFRenderer {
         flow(m)
     }
 
-    // An inline formula on the page: the run's characters become one
-    // object-replacement character whose CTRunDelegate reports the
-    // layout's metrics, so the framesetter leaves the room, and after
-    // a frame is drawn each such run is found by its attribute and the
-    // formula drawn on the run's baseline. Walked last to first so the
-    // ranges of the runs still to come are untouched by the replacement.
+    // Walked last to first so replacing one run's range leaves the
+    // ranges of the runs before it untouched.
 
     private final class InlineMathBox {
         let layout: MathLayout
@@ -216,10 +211,8 @@ final class PDFRenderer {
         return result
     }
 
-    // The delegate owns the one retained box and releases it when
-    // CoreText is done with the run; the draw pass reads the same box
-    // back off the delegate. The metrics it reports are the layout's,
-    // plus a point of air each side.
+    // The retained box is released by CoreText via the dealloc callback;
+    // the draw pass reads the same box back off the delegate.
 
     private static func runDelegate(_ box: InlineMathBox) -> CTRunDelegate? {
         var callbacks = CTRunDelegateCallbacks(
@@ -434,22 +427,6 @@ final class PDFRenderer {
         }
     }
 
-    // A page cannot grow, so a table too wide for it has to give
-    // something up; type size is the one concession that costs no
-    // information, where a squeezed column costs a broken number. Only
-    // as much as the overflow actually needs, and never past three
-    // quarters -- below that the table is legible in the sense that a
-    // magnifier would fix, which is not the sense that matters. Padding
-    // shrinks with it, and on a wide table that is most of the saving:
-    // eleven columns spend a quarter of the page on their own margins.
-
-    // Measured, not solved. Only half the padding is type -- the other
-    // half is a flat 4pt no font size reclaims -- and glyph widths do
-    // not scale linearly with point size, so a closed form lands the
-    // table a hair over the page and the tightest column pays for it in
-    // a broken number. Re-measuring at each candidate converges in two
-    // or three passes and ends BELOW the page by construction.
-
     private func fittingScale(headers: [String], rows: [[String]],
                               cols: Int) -> CGFloat {
         let saved = tableScale
@@ -472,12 +449,6 @@ final class PDFRenderer {
         return scale
     }
 
-    // The width below which a column starts breaking text it had no way
-    // to break: the widest token it must hold, plus its own padding.
-    // Measured on tokens rather than whole cells because a heading wraps
-    // at its spaces and hyphens for free, and charging the table for the
-    // unwrapped width buys room nothing needs.
-
     private func columnFloors(headers: [String], rows: [[String]],
                               cols: Int) -> [CGFloat] {
         let pad = cellPadding()
@@ -492,18 +463,12 @@ final class PDFRenderer {
                 let w = longestTokenWidth(row[c], bold: false)
                 if w > widest { widest = w }
             }
-            // The point of slack is not decoration: CTLine reports a
-            // typographic width and the framesetter makes its own
-            // wrapping decision, and the two disagree by a fraction --
-            // enough for a column sized to the report to break the very
-            // token it was sized for.
+            // CTLine's reported width and the framesetter's wrap decision
+            // disagree by a fraction; the extra point covers it.
             floors.append(widest + 2 * pad + 1)
         }
         return floors
     }
-
-    // The width each column would take on one line, so a table whose
-    // content is narrow draws narrow instead of across the page.
 
     private func columnNaturals(headers: [String], rows: [[String]],
                                 cols: Int) -> [CGFloat] {
@@ -525,10 +490,8 @@ final class PDFRenderer {
         return naturals
     }
 
-    // An image cell has no words to break. Its size is settled against
-    // the drawn bitmap; measuring the markdown would read the URL as one
-    // enormous unbreakable run and shrink the whole table to make room
-    // for text nobody sees.
+    // An image cell has no token to measure; its source collapses to ""
+    // so the URL is never charged as one huge unbreakable run.
 
     private func longestTokenWidth(_ text: String, bold: Bool) -> CGFloat {
         var widest: CGFloat = 0
@@ -543,10 +506,6 @@ final class PDFRenderer {
 
     private func drawTableImpl(headers: [String], rows: [[String]],
                                cols: Int, alignments: [Alignment]) {
-        // Horizontal inset only. The gutter between two columns is the
-        // previous cell's right margin plus the next cell's left one, so
-        // half an average character on each side buys a full character of
-        // separation without the row band growing taller.
         let cellPad = cellPadding()
         let minWidths = columnFloors(headers: headers, rows: rows,
                                      cols: cols)
@@ -576,8 +535,6 @@ final class PDFRenderer {
             let scale = contentWidth / total
             colWidths = colWidths.map { v in v * scale }
         }
-        // The table is as wide as its columns, not the page: its bands
-        // and rules stop where the last column does.
         let tableRight = contentLeft + colWidths.reduce(0, +)
         func drawRow(_ cells: [String], bold: Bool, shade: CGColor?) {
             let built = (0..<cols).map { c in
@@ -633,10 +590,8 @@ final class PDFRenderer {
             ctx.move(to: CGPoint(x: contentLeft, y: y))
             ctx.addLine(to: CGPoint(x: tableRight, y: y))
             ctx.strokePath()
-            // Interior column dividers, thinner than the row rules so the
-            // grid reads as columns first. The band starts at the previous
-            // row's rule (savedY + rowPad) so consecutive rows join into
-            // one line, clamped at contentTop for a row that page-broke.
+            // Aligned to the previous row's rule so rows join into one
+            // line; clamped at contentTop for a row that page-broke.
             let bandTop = min(savedY + rowPad, contentTop)
             ctx.setLineWidth(0.25)
             var divider = contentLeft
@@ -661,8 +616,6 @@ final class PDFRenderer {
         case text(NSAttributedString)
         case picture(CGImage, CGFloat?, CGFloat?)
     }
-
-    // Built once per cell, for the height pass and the draw alike.
 
     private func cellContent(_ txt: String, bold: Bool,
                              alignment: Alignment) -> CellContent {
@@ -712,11 +665,8 @@ final class PDFRenderer {
     private static let numericTokenRE: NSRegularExpression? =
         try? NSRegularExpression(pattern: #"\d[\d.,]*\d"#)
 
-    // Wrap '.' and ',' between digits with U+2060 (WORD JOINER) so
-    // CoreText cannot split a number like "70.1" or "1,234.56" across
-    // lines when a table cell is narrower than the natural numeric
-    // width. Locale-independent on purpose: we render the .md as
-    // typed, so the pattern protects both decimal conventions.
+    // Wraps '.' and ',' between digits with U+2060 so CoreText cannot
+    // split a number like "1,234.56" across a narrow column.
 
     private func protectNumerics(_ s: String) -> String {
         var result = s
@@ -806,9 +756,8 @@ final class PDFRenderer {
         return CTLineGetBoundsWithOptions(line, []).width
     }
 
-    // Measured off the lowercase alphabet rather than asked of the font:
-    // a proportional face has no single advance to report, and the letters
-    // a reader actually meets are what the gutter should be scaled to.
+    // A proportional font has no single advance to report; the lowercase
+    // alphabet approximates the width a reader actually meets.
 
     private func averageCharWidth(_ font: CTFont) -> CGFloat {
         let sample = "abcdefghijklmnopqrstuvwxyz"
@@ -846,10 +795,8 @@ final class PDFRenderer {
         return size.height
     }
 
-    // Straight into the page context, so the formula is vector in the
-    // PDF rather than a picture of one. A page cannot scroll, so a
-    // display wider than the column is re-laid at a smaller size --
-    // the same concession wide tables make -- and centred once it fits.
+    // Drawn straight into the page context, so the formula stays vector
+    // in the PDF rather than a rasterized picture.
 
     private func drawMath(_ tex: String) {
         let layout = fittedMath(tex)
@@ -957,8 +904,8 @@ final class PDFRenderer {
             base, scaledBodySize, nil, .traitItalic, .traitItalic) ?? base
     }
 
-    // Padding tracks the type, so shrinking the font on a wide table
-    // reclaims its margins too.
+    // Half an average character on each side yields a full character of
+    // gutter between adjacent cells without growing the row band.
 
     private func cellPadding() -> CGFloat {
         rowPad + averageCharWidth(bodyFont()) / 2
