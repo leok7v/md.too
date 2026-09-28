@@ -1339,9 +1339,11 @@ enum Markdown {
             for (index, piece) in maths.enumerated() {
                 if case .math(let s, let display) = piece,
                    let r = out[from...].range(of: String(sentinel(index))) {
+                    let tex = s.replacingOccurrences(of: String(angle),
+                                                     with: "<")
                     var rendered = TeX.render(s, display: display)
                     let fence = display ? "$$" : "$"
-                    rendered[InlineMathAttribute.self] = fence + s + fence
+                    rendered[InlineMathAttribute.self] = fence + tex + fence
                     spliced.append(out[from..<r.lowerBound])
                     spliced.append(rendered)
                     from = r.upperBound
@@ -1350,11 +1352,18 @@ enum Markdown {
             spliced.append(out[from...])
             out = spliced
         }
-        applyTag(&out, "u") { sub in sub.underlineStyle = .single }
-        applyTag(&out, "sup") { sub in sub[ScriptAttribute.self] = 1 }
-        applyTag(&out, "sub") { sub in sub[ScriptAttribute.self] = -1 }
-        applyTag(&out, "small") { sub in sub[SmallAttribute.self] = true }
-        restoreAngles(&out)
+        let angled = raw.unicodeScalars.contains { s in
+            s == "<" || s == "&" || s == angle
+        }
+        if angled {
+            applyTag(&out, "u") { sub in sub.underlineStyle = .single }
+            applyTag(&out, "sup") { sub in sub[ScriptAttribute.self] = 1 }
+            applyTag(&out, "sub") { sub in sub[ScriptAttribute.self] = -1 }
+            applyTag(&out, "small") { sub in
+                sub[SmallAttribute.self] = true
+            }
+            restoreAngles(&out)
+        }
         return out
     }
 

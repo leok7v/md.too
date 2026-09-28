@@ -176,6 +176,9 @@ final class ParserGoldenTests: XCTestCase {
         ("<!-- c -->    text", "paragraph: text|\n"),
         ("$$a$$$$\nnext", "math: a\nparagraph: next|\n"),
         ("x \\\\<sup>2</sup>", "paragraph: x \\\\|2{sup}|\n"),
+        ("a <sup>b", "paragraph: a b|\n"),
+        ("1 &lt; 2", "paragraph: 1 < 2|\n"),
+        ("&#60;u>x&#60;/u> y", "paragraph: x{u}| y|\n"),
         ("Pay $\\$5 + x$ now.",
          "paragraph: Pay |$5 + x{math=$\\\\$5 + x$}| now.|\n"),
     ]
@@ -184,6 +187,21 @@ final class ParserGoldenTests: XCTestCase {
         for corner in Self.corners {
             XCTAssertEqual(Self.dump(Markdown.parse(corner.source)),
                            corner.parse, corner.source)
+        }
+    }
+
+    func testAnEscapedAngleInsideMathsShowsAsAnAngle() {
+        for source in ["a $x &lt; y$ b", "a $x \\< y$ b"] {
+            var shown = ""
+            var sources: [String] = []
+            if case .paragraph(let text)? = Markdown.parse(source).first {
+                shown = String(text.characters)
+                sources = text.runs.compactMap { run in
+                    run[InlineMathAttribute.self]
+                }
+            }
+            XCTAssertEqual(shown, "a x < y b", source)
+            XCTAssertEqual(sources, ["$x < y$"], source)
         }
     }
 
