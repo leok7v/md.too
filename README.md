@@ -61,7 +61,14 @@ A friend asked me last week what a Markdown file is. I had to explain that `.md`
 
 ## Build from source
 
-Open `md.too.xcodeproj` in Xcode 15+ and pick a scheme:
+`md.too.xcodeproj` is NOT committed: it is generated from `project.yml` (the source of truth) by [XcodeGen](https://github.com/yonaskolb/XcodeGen). So build settings live in `project.yml`, not the Xcode UI, and there are no `project.pbxproj` merge conflicts. Install XcodeGen once, then regenerate the project after cloning and after any `project.yml` change:
+
+```sh
+brew install xcodegen
+xcodegen generate
+```
+
+`Scripts/xcgen.sh` does the same from any directory. Then open `md.too.xcodeproj` in Xcode 16 or later and pick a scheme:
 
 - `md.too` — the multiplatform app. Pick a macOS or iOS destination in the toolbar; on macOS the Quick Look extension is embedded automatically.
 - `md.too QuickLook` — the Quick Look extension on its own; normally not needed.

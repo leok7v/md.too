@@ -23,6 +23,11 @@ jobs:
           xcrun --show-sdk-version --sdk macosx
           sw_vers
 
+      - name: Generate the Xcode project
+        run: |
+          brew install xcodegen
+          xcodegen generate
+
       - name: Import signing certificate
         if: startsWith(github.ref, 'refs/tags/v')
         env:

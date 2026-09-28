@@ -5,6 +5,9 @@ DerivedData/
 *.xcarchive
 *.dmg
 
+# Generated from project.yml by Scripts/xcgen.sh
+md.too.xcodeproj/
+
 # Xcode user state
 xcuserdata/
 *.xcuserstate

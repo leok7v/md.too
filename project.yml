@@ -1,0 +1,260 @@
+name: md.too
+options:
+  xcodeVersion: "2700"
+  settingPresets: none
+  developmentLanguage: en
+  deploymentTarget:
+    macOS: "14.0"
+    iOS: "18.6"
+  groupOrdering:
+    - order: [src, config, tests, Assets.xcassets]
+fileGroups:
+  - config
+configFiles:
+  Debug: config/Base.xcconfig
+  Release: config/Base.xcconfig
+settings:
+  base:
+    ALWAYS_SEARCH_USER_PATHS: NO
+    ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS: YES
+    CLANG_ANALYZER_NONNULL: YES
+    CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION: YES_AGGRESSIVE
+    CLANG_CXX_LANGUAGE_STANDARD: gnu++20
+    CLANG_ENABLE_MODULES: YES
+    CLANG_ENABLE_OBJC_ARC: YES
+    CLANG_ENABLE_OBJC_WEAK: YES
+    CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING: YES
+    CLANG_WARN_BOOL_CONVERSION: YES
+    CLANG_WARN_COMMA: YES
+    CLANG_WARN_CONSTANT_CONVERSION: YES
+    CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS: YES
+    CLANG_WARN_DIRECT_OBJC_ISA_USAGE: YES_ERROR
+    CLANG_WARN_DOCUMENTATION_COMMENTS: YES
+    CLANG_WARN_EMPTY_BODY: YES
+    CLANG_WARN_ENUM_CONVERSION: YES
+    CLANG_WARN_INFINITE_RECURSION: YES
+    CLANG_WARN_INT_CONVERSION: YES
+    CLANG_WARN_NON_LITERAL_NULL_CONVERSION: YES
+    CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF: YES
+    CLANG_WARN_OBJC_LITERAL_CONVERSION: YES
+    CLANG_WARN_OBJC_ROOT_CLASS: YES_ERROR
+    CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER: YES
+    CLANG_WARN_RANGE_LOOP_ANALYSIS: YES
+    CLANG_WARN_STRICT_PROTOTYPES: YES
+    CLANG_WARN_SUSPICIOUS_MOVE: YES
+    CLANG_WARN_UNGUARDED_AVAILABILITY: YES_AGGRESSIVE
+    CLANG_WARN_UNREACHABLE_CODE: YES
+    CLANG_WARN__DUPLICATE_METHOD_MATCH: YES
+    COPY_PHASE_STRIP: NO
+    DEAD_CODE_STRIPPING: YES
+    DEVELOPMENT_TEAM: $(LOCAL_DEVELOPMENT_TEAM)
+    ENABLE_STRICT_OBJC_MSGSEND: YES
+    ENABLE_USER_SCRIPT_SANDBOXING: NO
+    GCC_C_LANGUAGE_STANDARD: gnu17
+    GCC_NO_COMMON_BLOCKS: YES
+    GCC_WARN_64_TO_32_BIT_CONVERSION: YES
+    GCC_WARN_ABOUT_RETURN_TYPE: YES_ERROR
+    GCC_WARN_UNDECLARED_SELECTOR: YES
+    GCC_WARN_UNINITIALIZED_AUTOS: YES_AGGRESSIVE
+    GCC_WARN_UNUSED_FUNCTION: YES
+    GCC_WARN_UNUSED_VARIABLE: YES
+    IPHONEOS_DEPLOYMENT_TARGET: "18.6"
+    LOCALIZATION_PREFERS_STRING_CATALOGS: YES
+    MACOSX_DEPLOYMENT_TARGET: "14.0"
+    MTL_FAST_MATH: YES
+    STRING_CATALOG_GENERATE_SYMBOLS: YES
+  configs:
+    Debug:
+      DEBUG_INFORMATION_FORMAT: dwarf
+      ENABLE_TESTABILITY: YES
+      GCC_DYNAMIC_NO_PIC: NO
+      GCC_OPTIMIZATION_LEVEL: "0"
+      GCC_PREPROCESSOR_DEFINITIONS: ["DEBUG=1", "$(inherited)"]
+      MTL_ENABLE_DEBUG_INFO: INCLUDE_SOURCE
+      ONLY_ACTIVE_ARCH: YES
+      SWIFT_ACTIVE_COMPILATION_CONDITIONS: DEBUG $(inherited)
+      SWIFT_OPTIMIZATION_LEVEL: -Onone
+    Release:
+      DEBUG_INFORMATION_FORMAT: dwarf-with-dsym
+      ENABLE_NS_ASSERTIONS: NO
+      MTL_ENABLE_DEBUG_INFO: NO
+      SWIFT_COMPILATION_MODE: wholemodule
+      SWIFT_OPTIMIZATION_LEVEL: -O
+targets:
+  md.too:
+    type: application
+    platform: auto
+    sources:
+      - path: src
+        excludes:
+          - QuickLook.swift
+          - STIXTwoMath.otf
+      - path: Assets.xcassets
+    dependencies:
+      - target: md.too QuickLook
+        embed: false
+        destinationFilters: [macOS]
+    postBuildScripts:
+      - name: Stamp Version
+        script: '"$SRCROOT/Scripts/stamp-version.sh"'
+        basedOnDependencyAnalysis: false
+      - name: Embed QuickLook (macOS only)
+        basedOnDependencyAnalysis: false
+        script: |
+          if [ "${PLATFORM_NAME}" = "macosx" ]; then
+            dest="${TARGET_BUILD_DIR}/${WRAPPER_NAME}/Contents/PlugIns"
+            mkdir -p "$dest"
+            rm -rf "$dest/md.too QuickLook.appex"
+            ditto "${BUILT_PRODUCTS_DIR}/md.too QuickLook.appex" "$dest/md.too QuickLook.appex"
+          fi
+      - name: Bundle math font (iOS only)
+        basedOnDependencyAnalysis: false
+        script: |
+          if [ "${PLATFORM_NAME}" != "macosx" ]; then
+            dest="${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}"
+            mkdir -p "$dest"
+            ditto "${SRCROOT}/src/STIXTwoMath.otf" "$dest/STIXTwoMath.otf"
+          fi
+    settings:
+      base:
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        CODE_SIGN_IDENTITY: Apple Development
+        CODE_SIGN_STYLE: Automatic
+        COMBINE_HIDPI_IMAGES: YES
+        DEAD_CODE_STRIPPING: YES
+        ENABLE_HARDENED_RUNTIME: YES
+        GENERATE_INFOPLIST_FILE: NO
+        INFOPLIST_FILE[sdk=iphoneos*]: config/Info-iOS.plist
+        INFOPLIST_FILE[sdk=iphonesimulator*]: config/Info-iOS.plist
+        INFOPLIST_FILE[sdk=macosx*]: config/Info-macOS.plist
+        INFOPLIST_KEY_CFBundleDisplayName[sdk=iphoneos*]: Markdown
+        INFOPLIST_KEY_CFBundleDisplayName[sdk=iphonesimulator*]: Markdown
+        INFOPLIST_KEY_LSApplicationCategoryType: public.app-category.productivity
+        LD_RUNPATH_SEARCH_PATHS[sdk=iphoneos*]: ["$(inherited)", "@executable_path/Frameworks"]
+        LD_RUNPATH_SEARCH_PATHS[sdk=iphonesimulator*]: ["$(inherited)", "@executable_path/Frameworks"]
+        LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]: ["$(inherited)", "@executable_path/../Frameworks"]
+        PRODUCT_BUNDLE_IDENTIFIER: com.leok7v.md.too
+        PRODUCT_MODULE_NAME: MarkdownPreview
+        PRODUCT_NAME: md.too
+        PROVISIONING_PROFILE_SPECIFIER: ""
+        SDKROOT: auto
+        SUPPORTED_PLATFORMS: iphoneos iphonesimulator macosx
+        SUPPORTS_MACCATALYST: NO
+        SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD: NO
+        SWIFT_EMIT_LOC_STRINGS: YES
+        SWIFT_VERSION: "6.0"
+        TARGETED_DEVICE_FAMILY: "1,2"
+      configs:
+        Debug:
+          CODE_SIGN_ENTITLEMENTS[sdk=macosx*]: config/Markdown.Preview.debug.entitlements
+        Release:
+          CODE_SIGN_ENTITLEMENTS[sdk=macosx*]: config/Markdown.Preview.entitlements
+          VALIDATE_PRODUCT: YES
+  md.too QuickLook:
+    type: app-extension
+    platform: macOS
+    sources:
+      - path: src/Platform-macOS.swift
+      - path: src/FontRole.swift
+      - path: src/Style.swift
+      - path: src/Find.swift
+      - path: src/Environment.swift
+      - path: src/MarkdownParser.swift
+      - path: src/BlockViews.swift
+      - path: src/SelectableText.swift
+      - path: src/HtmlExport.swift
+      - path: src/QuickLook.swift
+      - path: src/Bridges-macOS.swift
+      - path: src/TeX.swift
+      - path: src/KaTeX.swift
+      - path: src/Highlight.swift
+      - path: src/PlainExport.swift
+      - path: src/ImagePrefetch.swift
+      - path: src/TableMetrics.swift
+      - path: src/highlights.ini
+        buildPhase: resources
+    postBuildScripts:
+      - name: Stamp Version
+        script: '"$SRCROOT/Scripts/stamp-version.sh"'
+        basedOnDependencyAnalysis: false
+    settings:
+      base:
+        CODE_SIGN_STYLE: Automatic
+        DEAD_CODE_STRIPPING: YES
+        ENABLE_HARDENED_RUNTIME: YES
+        GENERATE_INFOPLIST_FILE: NO
+        INFOPLIST_FILE: config/Info-QuickLook.plist
+        LD_RUNPATH_SEARCH_PATHS: ["$(inherited)", "@executable_path/../Frameworks", "@executable_path/../../../../Frameworks"]
+        PRODUCT_BUNDLE_IDENTIFIER: com.leok7v.md.too.QuickLook
+        PRODUCT_MODULE_NAME: MarkdownPreviewQuickLook
+        PRODUCT_NAME: md.too QuickLook
+        REGISTER_APP_GROUPS: YES
+        SDKROOT: macosx
+        SKIP_INSTALL: YES
+        SUPPORTED_PLATFORMS: macosx
+        SWIFT_ACTIVE_COMPILATION_CONDITIONS: $(inherited) QUICKLOOK_EXTENSION
+        SWIFT_EMIT_LOC_STRINGS: YES
+        SWIFT_VERSION: "6.0"
+      configs:
+        Debug:
+          CODE_SIGN_ENTITLEMENTS: config/QuickLook.debug.entitlements
+        Release:
+          CODE_SIGN_ENTITLEMENTS: config/QuickLook.entitlements
+  md.too Tests:
+    type: bundle.unit-test
+    platform: macOS
+    sources:
+      - path: tests
+        excludes:
+          - fixtures
+          - "*.txt"
+      - path: src
+        excludes:
+          - App-*.swift
+          - "*-iOS.swift"
+          - QuickLook.swift
+          - STIXTwoMath.otf
+    settings:
+      base:
+        CODE_SIGN_STYLE: Automatic
+        DEAD_CODE_STRIPPING: YES
+        GENERATE_INFOPLIST_FILE: YES
+        PRODUCT_BUNDLE_IDENTIFIER: com.leok7v.md.too.tests
+        PRODUCT_MODULE_NAME: MarkdownPreviewTests
+        PRODUCT_NAME: md.too Tests
+        SDKROOT: macosx
+        SUPPORTED_PLATFORMS: macosx
+        SWIFT_EMIT_LOC_STRINGS: NO
+        SWIFT_VERSION: "6.0"
+schemes:
+  md.too:
+    build:
+      targets:
+        md.too: all
+        md.too Tests: [test]
+    test:
+      config: Debug
+      targets:
+        - md.too Tests
+    run:
+      config: Debug
+    profile:
+      config: Release
+    analyze:
+      config: Debug
+    archive:
+      config: Release
+  md.too QuickLook:
+    build:
+      targets:
+        md.too QuickLook: all
+        md.too: all
+    run:
+      config: Debug
+      executable: md.too
+    profile:
+      config: Release
+    analyze:
+      config: Debug
+    archive:
+      config: Release
