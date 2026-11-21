@@ -20,6 +20,7 @@ struct ContentView: View {
     @State private var findVisible = false
     @State private var findQuery = ""
     @FocusState private var findFocused: Bool
+    @StateObject private var driver = Driver()
 
     private var theme: ThemeMode { ThemeMode(raw: themeRaw) }
     private var displayText: String { liveText ?? text }
@@ -35,6 +36,10 @@ struct ContentView: View {
                 ToolbarItem(placement: .primaryAction) { actions }
             }
             .watchingFile(fileURL, into: $liveText)
+            .task {
+                await driver.run(text: displayText, find: find,
+                                 source: $showSource)
+            }
     }
 
     private var actions: some View {

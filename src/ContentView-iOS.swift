@@ -22,6 +22,8 @@ struct ContentView: View {
     @State private var pinchFrom: Int? = nil
     @State private var pinchLabel: String? = nil
     @State private var settled = 0
+    @StateObject private var find = MarkdownFindController()
+    @StateObject private var driver = Driver()
 
     private var theme: ThemeMode { ThemeMode(raw: themeRaw) }
     private var displayText: String { liveText ?? text }
@@ -29,13 +31,17 @@ struct ContentView: View {
     var body: some View {
         MarkdownView(displayText: displayText, theme: theme,
                      showSource: showSource, singleSurface: singleSurface,
-                     readingColumn: readingColumn, zoom: zoom)
+                     readingColumn: readingColumn, find: find, zoom: zoom)
             .safeAreaInset(edge: .top, spacing: 0) { topBar }
             .simultaneousGesture(pinchZoom)
             .overlay { zoomReadout }
             .task(id: interaction) { await collapseAfterIdle() }
             .task(id: settled) { await hideReadout() }
             .watchingFile(fileURL, into: $liveText)
+            .task {
+                await driver.run(text: displayText, find: find,
+                                 source: $showSource)
+            }
     }
 
     private var pinchZoom: some Gesture {

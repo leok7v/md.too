@@ -116,14 +116,14 @@ A short loop through [EXAMPLE.md](EXAMPLE.md) on each platform — parsing, synt
 
 ## Source code
 
-[`src/`](src) is the whole codebase: 33 hand-written Swift files plus a bundled [`highlights.ini`](src/highlights.ini). No SPM packages, no CocoaPods, no vendored sources. Every file depends only on files in lower layers — the dependency graph is a tree, not a web, and zero `#if os(...)` walls remain anywhere in the source.
+[`src/`](src) is the whole codebase: 36 hand-written Swift files plus a bundled [`highlights.ini`](src/highlights.ini). No SPM packages, no CocoaPods, no vendored sources. Every file depends only on files in lower layers — the dependency graph is a tree, not a web, and zero `#if os(...)` walls remain anywhere in the source.
 
 The layout is layered. A given file references only symbols from files in layers below it, so reading top-down or bottom-up never requires holding a cycle in your head.
 
 **Layer 0 — leaves, no in-module deps:**
 
 - [`Platform-macOS.swift`](src/Platform-macOS.swift), [`Platform-iOS.swift`](src/Platform-iOS.swift) — typealiases (`PlatformFont`, `PlatformColor`, `PlatformImage`), every `platform*` helper (font traits, colors, decoding, clipboard, light-appearance, PDF thumbnails). `@_exported import AppKit`/`UIKit` so consumers don't restate the framework dependency. Re-routes through a `pdfDataExporter` hook so `CopyPdfProvider` can sit here without dragging in apps-only code.
-- [`TeX.swift`](src/TeX.swift) — splits `$…$` / `$$…$$` out of a line, renders inline maths as Unicode, and chooses between the two engines.
+- [`TeX.swift`](src/TeX.swift) — splits `$…$` / `$$…$$` and the LaTeX `\(…\)` / `\[…\]` delimiters out of a line, keeping an escaped bracket in prose a bracket, renders inline maths as Unicode, and chooses between the two engines.
 - [`KaTeX.swift`](src/KaTeX.swift) — the display-maths layout engine: lexer, parser, TeXbook Appendix G box layout, drawn through CoreText.
 - [`FileWatcher.swift`](src/FileWatcher.swift) — `NSFilePresenter` wrapper for live file-on-disk reload.
 - [`Environment.swift`](src/Environment.swift) — pure SwiftUI primitives: `PrefetchedImagesKey`, `SecondaryTextKey`, `ThemeMode`, `ThemeButton`, `SourceButton`.
@@ -137,7 +137,7 @@ The layout is layered. A given file references only symbols from files in layers
 
 **Layer 2 — shared data helpers and selectable text:**
 
-- [`TableMetrics.swift`](src/TableMetrics.swift) — column-width math (counts, char widths, point widths with optional minimums, longest-word, monospace serialization). Used by the on-screen table view, the PDF table renderer, and the HTML/plain exports.
+- [`TableMetrics.swift`](src/TableMetrics.swift) — column-width math (counts, char widths, point widths with optional minimums, unbreakable runs, monospace serialization). Used by the on-screen table view, the PDF table renderer, and the HTML/plain exports.
 - [`ImagePrefetch.swift`](src/ImagePrefetch.swift) — walks `[Block]` and concurrently fetches remote image URLs.
 - [`SelectableText.swift`](src/SelectableText.swift) — `SelectableText` SwiftUI view + `NativeText` builder + the `AtomicKind` / `atomicKindKey` / `atomicIdKey` / `atomicCopyKey` constants that mark code / table / image runs, and the `applyIncremental` splice that preserves selection across live reloads.
 - [`Find.swift`](src/Find.swift) — `MarkdownFindController` + `FindableTextView` protocol + `markdownFindRanges`; Find / Find Next over the single-surface document view, scrolled by aligning the match's fraction of the document to the same fraction of the viewport.
@@ -155,7 +155,7 @@ The layout is layered. A given file references only symbols from files in layers
 **Layer 5–6 — single-surface and PDF (apps only):**
 
 - [`DocumentText.swift`](src/DocumentText.swift) — document-wide `NSAttributedString` builder that backs continuous cross-block selection on the single-surface code path.
-- [`DocumentText-macOS.swift`](src/DocumentText-macOS.swift), [`DocumentText-iOS.swift`](src/DocumentText-iOS.swift) — platform-specific table layout via `extension DocumentText { static func table(...) }` (`NSTextTable` on macOS, tab-stop paragraphs on iOS).
+- [`DocumentText-macOS.swift`](src/DocumentText-macOS.swift), [`DocumentText-iOS.swift`](src/DocumentText-iOS.swift) — platform-specific table layout via `extension DocumentText { static func table(...) }` (`NSTextTable` on macOS; on iOS tab-stop paragraphs, one per visual line, so a long cell wraps inside its column).
 - [`PDFExport.swift`](src/PDFExport.swift) — entry layer: `TempPDFs`, `prefetchDocumentImages`, `exportPDF` / `exportPDFDataSync`, and the `PDFExport` enum that sets up the `CGContext` and drives the renderer.
 - [`PDFRenderer.swift`](src/PDFRenderer.swift) — the `PDFRenderer` class itself: a CT-based page-by-page composer with embedded images, syntax-highlighted code, zebra tables, page numbers.
 
@@ -173,6 +173,7 @@ The layout is layered. A given file references only symbols from files in layers
 
 - [`ContentView-macOS.swift`](src/ContentView-macOS.swift) — wraps `MarkdownView` with the macOS `.toolbar` and `WindowFrameAutosave`. macOS app only.
 - [`ContentView-iOS.swift`](src/ContentView-iOS.swift) — wraps `MarkdownView` with the iOS `.safeAreaInset` top bar. iOS app only.
+- [`Driver.swift`](src/Driver.swift), [`Driver-macOS.swift`](src/Driver-macOS.swift), [`Driver-iOS.swift`](src/Driver-iOS.swift) — Debug builds only: runs `--step` launch arguments (find, zoom, theme, screenshots, quit) so a script can drive the app; see [`Scripts/drive-mac.sh`](Scripts/drive-mac.sh) and [`Scripts/drive-ios.sh`](Scripts/drive-ios.sh). A Release build carries none of it.
 
 **Layer 10 — entry points:**
 

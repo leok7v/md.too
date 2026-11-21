@@ -20,7 +20,7 @@ struct IOSDocumentRoot: View {
     @State private var url: URL?
     @State private var text: String = ""
     @State private var showPicker = false
-    @State private var didAutoShowPicker = false
+    @State private var didAutoShowPicker = Driver.openURL != nil
     @State private var scoped: URL?
 
     var body: some View {
@@ -33,6 +33,9 @@ struct IOSDocumentRoot: View {
             }
         }
         .onOpenURL { opened in load(opened) }
+        .task {
+            if let driven = Driver.openURL { load(driven) }
+        }
         .fileImporter(
             isPresented: $showPicker,
             allowedContentTypes: MarkdownDocument.readableContentTypes
