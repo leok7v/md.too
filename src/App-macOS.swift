@@ -51,6 +51,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
+    private static func showAbout() {
+        let centred = NSMutableParagraphStyle()
+        centred.alignment = .center
+        let credits = NSAttributedString(
+            string: "\u{00A9} Dmitry \u{201C}Leo\u{201D} Kuznetsov",
+            attributes: [
+                .link: URL(string: "https://leok7v.github.io/md.too/") as Any,
+                .font: NSFont.systemFont(ofSize: NSFont.smallSystemFontSize),
+                .paragraphStyle: centred,
+            ])
+        NSApp.orderFrontStandardAboutPanel(options: [.credits: credits])
+        NSApp.activate()
+    }
+
     private static func lastWorkingDirectory() -> URL? {
         var result = FileManager.default.urls(
             for: .documentDirectory, in: .userDomainMask).first
@@ -70,6 +84,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 .frame(minWidth: 640, minHeight: 480)
         }
         .commands {
+            CommandGroup(replacing: .appInfo) {
+                Button("About md.too") { Self.showAbout() }
+            }
             CommandGroup(replacing: .newItem) {}
             ZoomCommands()
         }
