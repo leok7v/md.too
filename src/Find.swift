@@ -15,7 +15,7 @@ final class MarkdownFindController: ObservableObject {
     func register(_ view: any FindableTextView) {
         target = view
         if !query.isEmpty {
-            _ = view.findAll(query, caseSensitive: false)
+            _ = view.findAll(query)
             recountLater()
         }
     }
@@ -26,7 +26,7 @@ final class MarkdownFindController: ObservableObject {
 
     func find(_ q: String) {
         query = q
-        matchCount = target?.findAll(q, caseSensitive: false) ?? 0
+        matchCount = target?.findAll(q) ?? 0
         cursor = -1
         currentMatch = 0
         if matchCount > 0 { step(forward: true) }
@@ -86,8 +86,8 @@ final class MarkdownFindController: ObservableObject {
 
 @MainActor
 protocol FindableTextView: AnyObject {
-    func findAll(_ query: String, caseSensitive: Bool) -> Int
-    func setActive(_ index: Int?)
+    func findAll(_ query: String) -> Int
+    func setActive(_ index: Int)
     func clearFind()
     var liveFindCount: Int { get }
     func activeMatchFraction() -> CGFloat?

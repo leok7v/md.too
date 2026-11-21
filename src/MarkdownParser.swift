@@ -1279,9 +1279,7 @@ enum Markdown {
             if ch == "\\" {
                 inCommand = true
                 run = 0
-            } else if inCommand, ch.isLetter {
-                continue
-            } else {
+            } else if !inCommand || !ch.isLetter {
                 inCommand = false
                 if ch == "{" {
                     depth += 1

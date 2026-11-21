@@ -21,12 +21,8 @@ extension NativeText: NSViewRepresentable {
                 case let s as String: url = URL(string: s)
                 default: url = nil
             }
-            var handled = false
-            if let url {
-                NSWorkspace.shared.open(url)
-                handled = true
-            }
-            return handled
+            if let url { NSWorkspace.shared.open(url) }
+            return url != nil
         }
 
         func textView(_ textView: NSTextView,
@@ -157,7 +153,6 @@ extension NativeText: NSViewRepresentable {
         private var findMatches: [NSRange] = []
         private var activeIndex: Int? = nil
         private var findQuery = ""
-        private var findCaseSensitive = false
 
         var liveFindCount: Int { findMatches.count }
 
@@ -187,11 +182,10 @@ extension NativeText: NSViewRepresentable {
             NSColor(srgbRed: 1.0, green: 0.6, blue: 0.0, alpha: 0.6)
         }
 
-        func findAll(_ query: String, caseSensitive: Bool) -> Int {
+        func findAll(_ query: String) -> Int {
             findQuery = query
-            findCaseSensitive = caseSensitive
             findMatches = markdownFindRanges(in: string, query: query,
-                                             caseSensitive: caseSensitive)
+                                             caseSensitive: false)
             activeIndex = nil
             highlightAll()
             return findMatches.count
@@ -199,15 +193,15 @@ extension NativeText: NSViewRepresentable {
 
         // The zero-length call anchors the arbiter at the match first;
         // skipping it lets a stale anchor stretch the selection.
-        func setActive(_ index: Int?) {
+        func setActive(_ index: Int) {
             activeIndex = index
             highlightAll()
             let len = textStorage?.length ?? 0
-            if let i = index, i >= 0, i < findMatches.count,
-               NSMaxRange(findMatches[i]) <= len {
-                setSelectedRange(NSRange(location: findMatches[i].location,
-                                         length: 0))
-                setSelectedRange(findMatches[i])
+            if index >= 0, index < findMatches.count,
+               NSMaxRange(findMatches[index]) <= len {
+                setSelectedRange(NSRange(
+                    location: findMatches[index].location, length: 0))
+                setSelectedRange(findMatches[index])
             } else {
                 setSelectedRange(NSRange(location: 0, length: 0))
             }
@@ -228,8 +222,7 @@ extension NativeText: NSViewRepresentable {
         func reapplyFind() {
             if !findQuery.isEmpty {
                 findMatches = markdownFindRanges(
-                    in: string, query: findQuery,
-                    caseSensitive: findCaseSensitive)
+                    in: string, query: findQuery, caseSensitive: false)
                 if let a = activeIndex, a >= findMatches.count {
                     activeIndex = nil
                 }
@@ -544,11 +537,12 @@ extension NativeText: NSViewRepresentable {
                         }
                         let x = right + origin.x - copyButtonGutter
                         let y = line.minY + origin.y +
-                                (line.height - 22) / 2
+                                (line.height - copyButtonSide) / 2
                         spots.append(CopyBlockSpot(
                             id: id,
                             rect: CGRect(x: x, y: y,
-                                         width: 22, height: 22),
+                                         width: copyButtonSide,
+                                         height: copyButtonSide),
                             copy: copy,
                             label: label,
                             illustration:

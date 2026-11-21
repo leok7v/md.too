@@ -32,7 +32,7 @@ struct IOSDocumentRoot: View {
                 empty
             }
         }
-        .onOpenURL { load($0) }
+        .onOpenURL { opened in load(opened) }
         .fileImporter(
             isPresented: $showPicker,
             allowedContentTypes: MarkdownDocument.readableContentTypes

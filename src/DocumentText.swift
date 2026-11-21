@@ -819,11 +819,13 @@ enum DocumentText {
             ? body.attribute(atomicKindKey, at: 0, effectiveRange: nil)
                 as? String
             : nil
-        var alone = head == nil || !(head?.textBlocks.isEmpty ?? true) ||
-                    kind == AtomicKind.table.rawValue
+        let alone: Bool
         switch first {
-            case .math?, .rule?: alone = true
-            default: break
+            case .math?, .rule?:
+                alone = true
+            default:
+                alone = head == nil || !(head?.textBlocks.isEmpty ?? true) ||
+                        kind == AtomicKind.table.rawValue
         }
         if alone {
             body.insert(NSAttributedString(string: marker + "\n",

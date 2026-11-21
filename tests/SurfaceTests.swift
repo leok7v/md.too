@@ -546,8 +546,8 @@ final class SurfaceTests: XCTestCase {
 
     private final class CountingView: FindableTextView {
         var count = 5
-        func findAll(_ query: String, caseSensitive: Bool) -> Int { count }
-        func setActive(_ index: Int?) {}
+        func findAll(_ query: String) -> Int { count }
+        func setActive(_ index: Int) {}
         func clearFind() {}
         var liveFindCount: Int { count }
         func activeMatchFraction() -> CGFloat? { nil }

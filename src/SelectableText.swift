@@ -25,6 +25,7 @@ struct CopyBlockSpot: Equatable {
 // A CENTRED builder must reserve this on both margins, or a block
 // filling its surface leaves the button sitting on the content.
 let copyButtonGutter: CGFloat = 26
+let copyButtonSide: CGFloat = 22
 
 // AnyObject-constrained so a CopyBlockSpot can hold one without
 // carrying its bytes; the PDF is asked for when copy is pressed.

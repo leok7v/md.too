@@ -131,17 +131,10 @@ extension NativeText: UIViewRepresentable {
             }
         }
 
-        // longestEffectiveRange, not effectiveRange: a cell's paragraph
-        // style fragments the plain range at one cell, not the table.
-        //
         // layoutSubviews() can run inside a SwiftUI update, where
         // setting @State directly is illegal, so the report is async.
-        //
         // UIKit can lay this view out before Swift's init runs, and a
         // stored non-optional Array here would read a zeroed buffer.
-        //
-        // No illustration: the iOS builder rasterizes formulas into
-        // the attachment's image, leaving no vector page to offer.
         private func computeCopySpots() {
             var spots: [CopyBlockSpot] = []
             let ts = textStorage
@@ -187,14 +180,16 @@ extension NativeText: UIViewRepresentable {
                         right = block.maxX
                     }
                     let beside = kind == AtomicKind.table.rawValue &&
-                        block.maxX + 4 + 22 <= tc.size.width
+                        block.maxX + 4 + copyButtonSide <= tc.size.width
                     let x = beside
                         ? block.maxX + inset.left + 4
                         : right + inset.left - copyButtonGutter
-                    let y = line.minY + inset.top + (line.height - 22) / 2
+                    let y = line.minY + inset.top +
+                            (line.height - copyButtonSide) / 2
                     spots.append(CopyBlockSpot(
                         id: id,
-                        rect: CGRect(x: x, y: y, width: 22, height: 22),
+                        rect: CGRect(x: x, y: y, width: copyButtonSide,
+                                     height: copyButtonSide),
                         copy: copy, label: label))
                 }
                 pos = max(NSMaxRange(run), pos + 1)

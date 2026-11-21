@@ -183,24 +183,6 @@ enum TableMetrics {
         return out
     }
 
-    static func longestWord(headers: [String], rows: [[String]],
-                                col: Int) -> String {
-        var best = ""
-        var column: [String] = []
-        if col < headers.count { column.append(headers[col]) }
-        for row in rows where col < row.count {
-            column.append(row[col])
-        }
-        for cell in column {
-            let visible = TeX.scriptsToUnicode(cell)
-            for word in visible.split(separator: " ",
-                                      omittingEmptySubsequences: true) {
-                if word.count > best.count { best = String(word) }
-            }
-        }
-        return best
-    }
-
     static func serializeMonospaced(headers: [String],
                                     rows: [[String]],
                                     alignments: [Alignment] = []) -> String {
