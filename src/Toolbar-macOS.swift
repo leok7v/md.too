@@ -1,6 +1,7 @@
 import SwiftUI
 import PDFKit
 import AppKit
+import UniformTypeIdentifiers
 
 struct SaveMenu: View {
 
@@ -9,61 +10,52 @@ struct SaveMenu: View {
 
     var body: some View {
         Menu {
-            Button("Save as PDF...") { savePDF() }
-            Button("Save as HTML...") { saveHTML() }
+            Button("Save as PDF...") {
+                save(.pdf, ext: "pdf", produce: Self.pdfData)
+            }
+            Button("Save as HTML...") {
+                save(.html, ext: "html", produce: Self.htmlData)
+            }
         } label: {
             Image(systemName: "square.and.arrow.down")
         }
         .help("Save as PDF or HTML")
     }
 
-    private var title: String {
-        fileURL?.deletingPathExtension().lastPathComponent ?? "Document"
-    }
-
-    private func savePDF() {
+    private func save(_ type: UTType, ext: String,
+                      produce: @escaping (String, String) async -> Data?) {
         let panel = NSSavePanel()
-        panel.allowedContentTypes = [.pdf]
-        panel.nameFieldStringValue = "\(title).pdf"
+        panel.allowedContentTypes = [type]
+        panel.nameFieldStringValue = "\(documentTitle(of: fileURL)).\(ext)"
         panel.canCreateDirectories = true
-        panel.title = "Save PDF"
+        panel.title = "Save \(ext.uppercased())"
         let captured = text
-        let name = title
+        let name = documentTitle(of: fileURL)
         panel.begin { response in
             if response == .OK, let dest = panel.url {
                 Task {
-                    let pdf = await exportPDF(text: captured, title: name)
-                    if let pdf {
-                        try? FileManager.default.removeItem(at: dest)
-                        try? FileManager.default.copyItem(at: pdf, to: dest)
-                    }
-                }
-            }
-        }
-    }
-
-    private func saveHTML() {
-        let panel = NSSavePanel()
-        panel.allowedContentTypes = [.html]
-        panel.nameFieldStringValue = "\(title).html"
-        panel.canCreateDirectories = true
-        panel.title = "Save HTML"
-        let captured = text
-        let name = title
-        panel.begin { response in
-            if response == .OK, let dest = panel.url {
-                Task {
-                    let blocks = Markdown.parse(captured)
-                    let images = await HtmlExport.prefetchImages(in: blocks)
-                    let html = HtmlExport.render(blocks, title: name,
-                                                 images: images)
-                    if let data = html.data(using: .utf8) {
+                    let data = await produce(captured, name)
+                    if let data {
                         try? FileManager.default.removeItem(at: dest)
                         try? data.write(to: dest)
                     }
                 }
             }
         }
+    }
+
+    private static func pdfData(_ text: String, _ title: String) async
+        -> Data? {
+        let pdf = await exportPDF(text: text, title: title)
+        return pdf.flatMap { url in try? Data(contentsOf: url) }
+    }
+
+    private static func htmlData(_ text: String, _ title: String) async
+        -> Data? {
+        let blocks = Markdown.parse(text)
+        let images = await HtmlExport.prefetchImages(in: blocks)
+        let html = HtmlExport.render(blocks, title: title, images: images)
+        return html.data(using: .utf8)
     }
 
 }
@@ -111,25 +103,13 @@ struct ShareMenu: View {
         }
     }
 
-    private var title: String {
-        fileURL?.deletingPathExtension().lastPathComponent ?? "Document"
-    }
+    private var title: String { documentTitle(of: fileURL) }
 
     private func replace(_ published: inout URL?, with fresh: URL?) {
         if let old = published, old != fresh {
             try? FileManager.default.removeItem(at: old)
         }
         published = fresh
-    }
-
-    private func firstPageThumbnail(of url: URL) -> Image? {
-        var result: Image? = nil
-        if let doc = PDFDocument(url: url),
-           let page = doc.page(at: 0) {
-            let size = CGSize(width: 512, height: 512)
-            result = platformPDFPageThumbnail(page, size: size)
-        }
-        return result
     }
 
 }

@@ -256,6 +256,21 @@ public final class MathFontFile {
         if let t = tables["MATH"] { readMath(at: t.off) }
     }
 
+    private func glyphValues(in glyphInfo: Int,
+                             slot: Int) -> [CGGlyph: CGFloat] {
+        var values: [CGGlyph: CGFloat] = [:]
+        let rel = u16(glyphInfo + slot)
+        if rel != 0 {
+            let table = glyphInfo + rel
+            let cov = coverage(table + u16(table))
+            let n = u16(table + 2)
+            for (g, i) in cov where i < n {
+                values[g] = CGFloat(i16(table + 4 + 4 * i)) / upem
+            }
+        }
+        return values
+    }
+
     private func readMath(at base: Int) {
         mathConstants = base + u16(base + 4)
         let glyphInfo = base + u16(base + 6)
@@ -269,27 +284,9 @@ public final class MathFontFile {
         if sp > 0 { scriptPercent = CGFloat(sp) / 100 }
         if ssp > 0 { scriptScriptPercent = CGFloat(ssp) / 100 }
 
-        // MathGlyphInfo: italics correction, top accent attachment
-        let icOff = u16(glyphInfo)
-        if icOff != 0 {
-            let ic = glyphInfo + icOff
-            let cov = coverage(ic + u16(ic))
-            let n = u16(ic + 2)
-            for (g, i) in cov where i < n {
-                italicCorr[g] = CGFloat(i16(ic + 4 + 4 * i)) / upem
-            }
-        }
-        let taOff = u16(glyphInfo + 2)
-        if taOff != 0 {
-            let ta = glyphInfo + taOff
-            let cov = coverage(ta + u16(ta))
-            let n = u16(ta + 2)
-            for (g, i) in cov where i < n {
-                topAccent[g] = CGFloat(i16(ta + 4 + 4 * i)) / upem
-            }
-        }
+        italicCorr = glyphValues(in: glyphInfo, slot: 0)
+        topAccent = glyphValues(in: glyphInfo, slot: 2)
 
-        // MathVariants
         minConnectorOverlap = CGFloat(u16(variants)) / upem
         let vertOff = u16(variants + 2)
         let horizOff = u16(variants + 4)
@@ -997,8 +994,9 @@ final class Parser {
         return t
     }
     private func eat(_ s: String) -> Bool {
-        if peek?.text == s { i += 1; return true }
-        return false
+        let hit = peek?.text == s
+        if hit { i += 1 }
+        return hit
     }
     private var pos: Int { peek?.pos ?? 0 }
 
@@ -1303,6 +1301,21 @@ final class Parser {
     }
 
     private func commandNode(_ s: String, _ t: Tok) throws -> Node {
+        let known = try fractionCommand(s) ?? classCommand(s) ??
+                        fontCommand(s) ?? styleCommand(s, t) ??
+                        spacingCommand(s) ?? delimiterCommand(s, t) ??
+                        structureCommand(s, t) ?? decorationCommand(s) ??
+                        stackCommand(s)
+        let result: Node
+        if let known {
+            result = known
+        } else {
+            throw MathError.syntax("unknown command '\(s)'", at: t.pos)
+        }
+        return result
+    }
+
+    private func fractionCommand(_ s: String) throws -> Node? {
         switch s {
         case "\\frac", "\\dfrac", "\\tfrac", "\\cfrac":
             return try fracNode(s)
@@ -1311,7 +1324,15 @@ final class Parser {
             let node = Node.frac(num: n, den: d, rule: false, left: 0x28,
                                  right: 0x29)
             return s == "\\binom" ? node
-                : .styleSwitch(s == "\\dbinom" ? .display : .text, [node])
+                : Node.styleSwitch(s == "\\dbinom" ? .display : .text,
+                                   [node])
+        default:
+            return nil
+        }
+    }
+
+    private func classCommand(_ s: String) throws -> Node? {
+        switch s {
         case "\\mathbin", "\\mathrel", "\\mathop", "\\mathord",
              "\\mathopen", "\\mathclose", "\\mathpunct", "\\mathinner":
             let classes: [String: Atom] = [
@@ -1332,29 +1353,30 @@ final class Parser {
                            .styled(.upright, [.text("mod")]),
                            .space(mu: 6)] + n +
                           [.symbol(0x29, .close, literal: true)])
+        default:
+            return nil
+        }
+    }
+
+    private func fontCommand(_ s: String) throws -> Node? {
+        switch s {
         case "\\texttt":
             return .styled(.mono, [.text(try textArgument())])
         case "\\textsf":
             return .styled(.sansSerif, [.text(try textArgument())])
-        case "\\hline", "\\hdashline":
-            return .group([])
-        case "\\sqrt":
-            let idx = try optionalArgument()
-            return .sqrt(body: try argument(), index: idx)
         case "\\text", "\\textrm", "\\textup", "\\mbox", "\\textnormal":
             return .styled(.upright, [.text(try textArgument())])
         case "\\textbf":
             return .styled(.bold, [.text(try textArgument())])
         case "\\textit", "\\emph":
             return .styled(.italic, [.text(try textArgument())])
-        case "\\left":
-            return try leftRightNode()
-        case "\\substack":
-            return try substackNode()
-        case "\\tag":
-            return .tag(try argument())
-        case "\\begin":
-            return try environment()
+        default:
+            return nil
+        }
+    }
+
+    private func styleCommand(_ s: String, _ t: Tok) throws -> Node? {
+        switch s {
         case "\\displaystyle":
             return .styleSwitch(.display, try expression(stop: []))
         case "\\textstyle":
@@ -1363,26 +1385,101 @@ final class Parser {
             return .styleSwitch(.script, try expression(stop: []))
         case "\\scriptscriptstyle":
             return .styleSwitch(.scriptScript, try expression(stop: []))
-        case "\\big", "\\bigl", "\\bigr", "\\Big", "\\Bigl", "\\Bigr",
-             "\\bigg", "\\biggl", "\\biggr", "\\Bigg", "\\Biggl", "\\Biggr":
-            return try sizedDelimNode(s)
+        case "\\color":
+            let ink = try colorArgument(t)
+            return .colored(ink, try expression(stop: []))
+        case "\\textcolor":
+            let ink = try colorArgument(t)
+            return .colored(ink, try argument())
+        default:
+            return nil
+        }
+    }
+
+    private func spacingCommand(_ s: String) -> Node? {
+        switch s {
+        case "\\hline", "\\hdashline":
+            return .group([])
         case "\\limits", "\\nolimits", "\\!", "\\nonumber", "\\notag":
             return .group([])
         case "\\hspace", "\\kern", "\\mskip", "\\hskip":
             return kernNode()
-        case "\\underline":
-            return .underline(try argument())
-        case "\\overline":
-            return .overline(try argument())
+        default:
+            return nil
+        }
+    }
+
+    private func delimiterCommand(_ s: String, _ t: Tok) throws -> Node? {
+        switch s {
+        case "\\left":
+            return try leftRightNode()
+        case "\\big", "\\bigl", "\\bigr", "\\Big", "\\Bigl", "\\Bigr",
+             "\\bigg", "\\biggl", "\\biggr", "\\Bigg", "\\Biggl",
+             "\\Biggr":
+            return try sizedDelimNode(s)
+        case "\\middle":
+            return try middleNode(t)
+        default:
+            return nil
+        }
+    }
+
+    private func structureCommand(_ s: String, _ t: Tok) throws -> Node? {
+        switch s {
+        case "\\sqrt":
+            let idx = try optionalArgument()
+            return .sqrt(body: try argument(), index: idx)
+        case "\\substack":
+            return try substackNode()
+        case "\\tag":
+            return .tag(try argument())
+        case "\\begin":
+            return try environment()
         case "\\operatorname":
             let starred = eat("*")
             let name = try textArgument()
             return .namedOp(name, limits: limitsOverride() ??
                                           (starred ? nil : false))
+        case "\\not":
+            return .not(try nucleus())
+        case "\\rule":
+            return try ruleNode(t)
+        default:
+            return nil
+        }
+    }
+
+    private func decorationCommand(_ s: String) throws -> Node? {
+        switch s {
+        case "\\underline":
+            return .underline(try argument())
+        case "\\overline":
+            return .overline(try argument())
         case "\\overbrace":
             return .brace(try argument(), over: true)
         case "\\underbrace":
             return .brace(try argument(), over: false)
+        case "\\boxed":
+            return .boxed(try argument())
+        case "\\phantom":
+            return .phantom(try argument(), width: true, height: true)
+        case "\\hphantom":
+            return .phantom(try argument(), width: true, height: false)
+        case "\\vphantom":
+            return .phantom(try argument(), width: false, height: true)
+        case "\\cancel":
+            return .cancel(try argument())
+        case "\\smash":
+            let which = rawOptional() ?? ""
+            return .smash(try argument(), top: which != "b",
+                          bottom: which != "t")
+        default:
+            return nil
+        }
+    }
+
+    private func stackCommand(_ s: String) throws -> Node? {
+        switch s {
         case "\\overset":
             let over = try argument()
             return .stack(over: over, base: try argument(), under: nil,
@@ -1395,38 +1492,12 @@ final class Parser {
             let over = try argument()
             return .stack(over: over, base: try argument(), under: nil,
                           atom: .rel)
-        case "\\boxed":
-            return .boxed(try argument())
-        case "\\phantom":
-            return .phantom(try argument(), width: true, height: true)
-        case "\\hphantom":
-            return .phantom(try argument(), width: true, height: false)
-        case "\\vphantom":
-            return .phantom(try argument(), width: false, height: true)
-        case "\\color":
-            let ink = try colorArgument(t)
-            return .colored(ink, try expression(stop: []))
-        case "\\textcolor":
-            let ink = try colorArgument(t)
-            return .colored(ink, try argument())
         case "\\xrightarrow", "\\xleftarrow":
             let under = try optionalArgument()
             return .extensible(s == "\\xrightarrow" ? 0x2192 : 0x2190,
                                over: try argument(), under: under)
-        case "\\middle":
-            return try middleNode(t)
-        case "\\not":
-            return .not(try nucleus())
-        case "\\cancel":
-            return .cancel(try argument())
-        case "\\rule":
-            return try ruleNode(t)
-        case "\\smash":
-            let which = rawOptional() ?? ""
-            return .smash(try argument(), top: which != "b",
-                          bottom: which != "t")
         default:
-            throw MathError.syntax("unknown command '\(s)'", at: t.pos)
+            return nil
         }
     }
 
@@ -1588,14 +1659,14 @@ final class Parser {
         var out = ""
         var failure: MathError? = nil
         if eat("{") {
-            var depth = 0
+            var braces = 0
             // Gaps are derived from the brace position, not the
             // first/last token, so leading and trailing spaces survive.
             var lastEnd = open.map { t in t.pos + t.text.count } ?? -1
-            while let t = peek, !(t.text == "}" && depth == 0) {
+            while let t = peek, !(t.text == "}" && braces == 0) {
                 if lastEnd >= 0 && t.pos > lastEnd { out += " " }
-                if t.text == "{" { depth += 1 }
-                if t.text == "}" { depth -= 1 }
+                if t.text == "{" { braces += 1 }
+                if t.text == "}" { braces -= 1 }
                 if t.isCommand {
                     switch t.text {
                     case "\\ ", "\\,", "\\;", "\\:": out += " "
@@ -2146,6 +2217,22 @@ final class Layouter {
 
     func node(_ n: Node, _ o: Opts) -> (box: Box, atom: Atom) {
         switch n {
+        case .symbol, .space, .kern, .text, .sizedDelim, .bigOp, .namedOp,
+             .middle, .rule:
+            return glyphItem(n, o)
+        case .group, .styled, .styleSwitch, .tag, .colored:
+            return contextItem(n, o)
+        case .accent, .underline, .overline, .brace, .boxed, .phantom,
+             .cancel, .smash:
+            return decorationItem(n, o)
+        case .sqrt, .frac, .leftRight, .array, .supsub, .stack,
+             .extensible, .not:
+            return compositeItem(n, o)
+        }
+    }
+
+    private func glyphItem(_ n: Node, _ o: Opts) -> (box: Box, atom: Atom) {
+        switch n {
         case .symbol(let cp, let atom, let literal):
             let scalar: UInt32
             if literal {
@@ -2156,106 +2243,102 @@ final class Layouter {
                 scalar = cp
             }
             return (glyphBox(scalar, o.size), atom)
-
-        case .group(let body):
-            return (build(body, o), .ord)
-
-        case .styled(let v, let body):
-            return (build(body, o.with(variant: v)), .ord)
-
-        case .styleSwitch(let st, let body):
-            return (build(body, o.with(style: st)), .ord)
-
         case .space(let mu):
             return (Box.kern(mu * o.mu), .ord)
-
         case .kern(let pt):
             return (Box.kern(pt * o.size / 10), .ord)
-
         case .text(let s):
             return (textBox(s, o), .ord)
+        case .sizedDelim(let cp, let size):
+            return (sizedDelimiter(cp, size, o), .ord)
+        case .bigOp(let cp, let limits):
+            _ = limits
+            return (bigOpBox(cp, o), .op)
+        case .namedOp(let name, _):
+            return (textBox(name, o.with(variant: .upright)), .op)
+        case .middle(let cp):
+            return (delimiter(cp, height: o.size / 2, depth: o.size / 2, o),
+                    .inner)
+        case .rule(let w, let h, let raise):
+            let scale = o.size / 10
+            return (Box.rule(width: w * scale, height: h * scale)
+                        .shifted(dy: raise * scale), .ord)
+        default:
+            return (Box.kern(0), .ord)
+        }
+    }
 
+    private func contextItem(_ n: Node, _ o: Opts) -> (box: Box, atom: Atom) {
+        switch n {
+        case .group(let body):
+            return (build(body, o), .ord)
+        case .styled(let v, let body):
+            return (build(body, o.with(variant: v)), .ord)
+        case .styleSwitch(let st, let body):
+            return (build(body, o.with(style: st)), .ord)
         case .tag(let body):
             var d = o
             d.style = .display
             tagBox = build(body, d)
             return (Box.kern(0), .ord)
-
-        case .sizedDelim(let cp, let size):
-            return (sizedDelimiter(cp, size, o), .ord)
-
-        case .bigOp(let cp, let limits):
-            _ = limits
-            return (bigOpBox(cp, o), .op)
-
-        case .namedOp(let name, _):
-            return (textBox(name, o.with(variant: .upright)), .op)
-
-        case .accent(let cp, let body, let stretchy):
-            return (accentBox(cp, body, stretchy: stretchy, o), .ord)
-
-        case .sqrt(let body, let index):
-            return (sqrtBox(body, index, o), .ord)
-
-        case .frac(let num, let den, let rule, let left, let right):
-            return (fracBox(num, den, rule: rule, left: left,
-                            right: right, o), .ord)
-
-        case .leftRight(let l, let r, let body):
-            return (leftRightBox(l, r, body, o), .inner)
-
-        case .array(let rows, let gaps, let style):
-            return (arrayBox(rows, gaps, style, o), .ord)
-
-        case .supsub(let base, let sup, let sub):
-            return supsubBox(base, sup, sub, o)
-
-        case .underline(let body):
-            return (underlineBox(body, o), .ord)
-
-        case .overline(let body):
-            return (overlineBox(body, o), .ord)
-
-        case .brace(let body, let over):
-            return (braceBox(body, over: over, o), .ord)
-
-        case .stack(let over, let base, let under, let atom):
-            return stackBox(over, base, under, atom, o)
-
-        case .boxed(let body):
-            return (boxedBox(body, o), .ord)
-
-        case .phantom(let body, let width, let height):
-            return (phantomBox(body, width: width, height: height, o), .ord)
-
         case .colored(let ink, let body):
             let b = Box.hbox([build(body, o)])
             b.color = ink
             return (b, .ord)
+        default:
+            return (Box.kern(0), .ord)
+        }
+    }
 
-        case .extensible(let cp, let over, let under):
-            return (extensibleBox(cp, over, under, o), .rel)
-
-        case .middle(let cp):
-            return (delimiter(cp, height: o.size / 2, depth: o.size / 2, o),
-                    .inner)
-
-        case .not(let inner):
-            return notBox(inner, o)
-
+    private func decorationItem(_ n: Node,
+                                _ o: Opts) -> (box: Box, atom: Atom) {
+        switch n {
+        case .accent(let cp, let body, let stretchy):
+            return (accentBox(cp, body, stretchy: stretchy, o), .ord)
+        case .underline(let body):
+            return (underlineBox(body, o), .ord)
+        case .overline(let body):
+            return (overlineBox(body, o), .ord)
+        case .brace(let body, let over):
+            return (braceBox(body, over: over, o), .ord)
+        case .boxed(let body):
+            return (boxedBox(body, o), .ord)
+        case .phantom(let body, let width, let height):
+            return (phantomBox(body, width: width, height: height, o), .ord)
         case .cancel(let body):
             return (cancelBox(body, o), .ord)
-
-        case .rule(let w, let h, let raise):
-            let scale = o.size / 10
-            return (Box.rule(width: w * scale, height: h * scale)
-                        .shifted(dy: raise * scale), .ord)
-
         case .smash(let body, let top, let bottom):
             let b = Box.hbox([build(body, o)])
             if top { b.height = 0 }
             if bottom { b.depth = 0 }
             return (b, .ord)
+        default:
+            return (Box.kern(0), .ord)
+        }
+    }
+
+    private func compositeItem(_ n: Node,
+                               _ o: Opts) -> (box: Box, atom: Atom) {
+        switch n {
+        case .sqrt(let body, let index):
+            return (sqrtBox(body, index, o), .ord)
+        case .frac(let num, let den, let rule, let left, let right):
+            return (fracBox(num, den, rule: rule, left: left,
+                            right: right, o), .ord)
+        case .leftRight(let l, let r, let body):
+            return (leftRightBox(l, r, body, o), .inner)
+        case .array(let rows, let gaps, let style):
+            return (arrayBox(rows, gaps, style, o), .ord)
+        case .supsub(let base, let sup, let sub):
+            return supsubBox(base, sup, sub, o)
+        case .stack(let over, let base, let under, let atom):
+            return stackBox(over, base, under, atom, o)
+        case .extensible(let cp, let over, let under):
+            return (extensibleBox(cp, over, under, o), .rel)
+        case .not(let inner):
+            return notBox(inner, o)
+        default:
+            return (Box.kern(0), .ord)
         }
     }
 

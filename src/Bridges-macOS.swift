@@ -149,7 +149,6 @@ extension NativeText: NSViewRepresentable {
         private var lastBounds: NSSize = .zero
         private var contentGeneration = 0
         private var overlayGeneration = -1
-        private var lastSpots: [CopyBlockSpot] = []
         private var findMatches: [NSRange] = []
         private var activeIndex: Int? = nil
         private var findQuery = ""
@@ -482,82 +481,76 @@ extension NativeText: NSViewRepresentable {
             if let lm = layoutManager, let tc = textContainer,
                let ts = textStorage {
                 lm.ensureLayout(for: tc)
-                let origin = textContainerOrigin
-                let full = NSRange(location: 0, length: ts.length)
-                var pos = 0
-                while pos < ts.length {
-                    var run = NSRange(location: 0, length: 0)
-                    let id = ts.attribute(atomicIdKey, at: pos,
-                                          longestEffectiveRange: &run,
-                                          in: full) as? String
-                    let copy = id == nil ? nil
-                        : ts.attribute(atomicCopyKey, at: run.location,
-                                       effectiveRange: nil) as? String
-                    let kind = id == nil ? nil
-                        : ts.attribute(atomicKindKey, at: run.location,
-                                       effectiveRange: nil) as? String
-                    let cell = (ts.attribute(.attachment,
-                                            at: run.location,
-                                            effectiveRange: nil)
-                                as? NSTextAttachment)?.attachmentCell
-                    let label = id == nil ? nil
-                        : ts.attribute(atomicLabelKey, at: run.location,
-                                       effectiveRange: nil) as? String
-                    if let id, let copy {
-                        let gr = lm.glyphRange(forCharacterRange: run,
-                                               actualCharacterRange: nil)
-                        let block = lm.boundingRect(forGlyphRange: gr,
-                                                    in: tc)
-                        let line = lm.lineFragmentUsedRect(
-                            forGlyphAt: gr.location, effectiveRange: nil)
-                        let table = kind == AtomicKind.table.rawValue
-                            ? ((ts.attribute(.paragraphStyle,
-                                             at: run.location,
-                                             effectiveRange: nil)
-                                as? NSParagraphStyle)?.textBlocks.first
-                                as? NSTextTableBlock)?.table
-                            : nil
-                        let style = MarkdownStyle.current
-                        let right: CGFloat
-                        if kind == AtomicKind.math.rawValue {
-                            right = lm.lineFragmentRect(
-                                forGlyphAt: gr.location,
-                                effectiveRange: nil).maxX
-                        } else if let table {
-                            right = lm.boundsRect(for: table,
-                                                  glyphRange: gr).maxX
-                        } else if kind == AtomicKind.code.rawValue {
-                            right = codeBlockRects(
-                                in: ts, layoutManager: lm, container: tc,
-                                within: run, padding: style.codePadding,
-                                trailing: style.blockSpacing)
-                                .first?.maxX ?? block.maxX
-                        } else {
-                            right = block.maxX
-                        }
-                        let x = right + origin.x - copyButtonGutter
-                        let y = line.minY + origin.y +
-                                (line.height - copyButtonSide) / 2
-                        spots.append(CopyBlockSpot(
-                            id: id,
-                            rect: CGRect(x: x, y: y,
-                                         width: copyButtonSide,
-                                         height: copyButtonSide),
-                            copy: copy,
-                            label: label,
-                            illustration:
-                                cell as? PasteboardIllustration))
-                    }
-                    pos = max(NSMaxRange(run), pos + 1)
+                spots = atomicRuns(in: ts).map { run in
+                    copySpot(for: run, in: ts, layoutManager: lm,
+                             container: tc)
                 }
             }
-            if spots != lastSpots {
-                lastSpots = spots
-                let report = spots
-                DispatchQueue.main.async { [weak self] in
-                    self?.onCopySpots?(report)
-                }
+            let report = spots
+            DispatchQueue.main.async { [weak self] in
+                self?.onCopySpots?(report)
             }
+        }
+
+        private func copySpot(for run: AtomicRun, in ts: NSTextStorage,
+                              layoutManager lm: NSLayoutManager,
+                              container tc: NSTextContainer)
+            -> CopyBlockSpot {
+            let origin = textContainerOrigin
+            let gr = lm.glyphRange(forCharacterRange: run.range,
+                                   actualCharacterRange: nil)
+            let line = lm.lineFragmentUsedRect(forGlyphAt: gr.location,
+                                               effectiveRange: nil)
+            let right = copyRight(of: run, glyphs: gr, in: ts,
+                                  layoutManager: lm, container: tc)
+            let x = right + origin.x - copyButtonGutter
+            let y = line.minY + origin.y +
+                    (line.height - copyButtonSide) / 2
+            return CopyBlockSpot(
+                id: run.id,
+                rect: CGRect(x: x, y: y, width: copyButtonSide,
+                             height: copyButtonSide),
+                copy: run.copy,
+                label: run.label,
+                illustration: run.attachment?.attachmentCell
+                    as? PasteboardIllustration)
+        }
+
+        private func copyRight(of run: AtomicRun, glyphs gr: NSRange,
+                               in ts: NSTextStorage,
+                               layoutManager lm: NSLayoutManager,
+                               container tc: NSTextContainer) -> CGFloat {
+            let block = lm.boundingRect(forGlyphRange: gr, in: tc)
+            let style = MarkdownStyle.current
+            let right: CGFloat
+            if run.kind == AtomicKind.math.rawValue {
+                right = lm.lineFragmentRect(forGlyphAt: gr.location,
+                                            effectiveRange: nil).maxX
+            } else if let table = tableOf(run, in: ts) {
+                right = lm.boundsRect(for: table, glyphRange: gr).maxX
+            } else if run.kind == AtomicKind.code.rawValue {
+                right = codeBlockRects(
+                    in: ts, layoutManager: lm, container: tc,
+                    within: run.range, padding: style.codePadding,
+                    trailing: style.blockSpacing)
+                    .first?.maxX ?? block.maxX
+            } else {
+                right = block.maxX
+            }
+            return right
+        }
+
+        private func tableOf(_ run: AtomicRun,
+                             in ts: NSTextStorage) -> NSTextTable? {
+            var result: NSTextTable? = nil
+            if run.kind == AtomicKind.table.rawValue {
+                result = ((ts.attribute(.paragraphStyle,
+                                        at: run.range.location,
+                                        effectiveRange: nil)
+                           as? NSParagraphStyle)?.textBlocks.first
+                          as? NSTextTableBlock)?.table
+            }
+            return result
         }
     }
 
@@ -602,13 +595,13 @@ struct WindowAppearanceApplier: NSViewRepresentable {
                     try? await Task.sleep(for: .milliseconds(50))
                     if let coord, let view = coord.view {
                         view.window?.appearance =
-                            Self.appearanceFor(coord.scheme)
+                            platformAppearance(for: coord.scheme)
                     }
                 }
             }
         }
         DispatchQueue.main.async {
-            v.window?.appearance = Self.appearanceFor(scheme)
+            v.window?.appearance = platformAppearance(for: scheme)
         }
         return v
     }
@@ -616,27 +609,8 @@ struct WindowAppearanceApplier: NSViewRepresentable {
     func updateNSView(_ nsView: NSView, context: Context) {
         context.coordinator.scheme = scheme
         DispatchQueue.main.async {
-            nsView.window?.appearance = Self.appearanceFor(scheme)
+            nsView.window?.appearance = platformAppearance(for: scheme)
         }
-    }
-
-    static func dismantleNSView(_ nsView: NSView,
-                                coordinator: Coordinator) {
-        for o in coordinator.observers {
-            NotificationCenter.default.removeObserver(o)
-        }
-    }
-
-    private static func appearanceFor(_ scheme: ColorScheme?)
-        -> NSAppearance? {
-        var result: NSAppearance? = nil
-        switch scheme {
-            case .none: result = nil
-            case .light: result = NSAppearance(named: .aqua)
-            case .dark: result = NSAppearance(named: .darkAqua)
-            @unknown default: result = nil
-        }
-        return result
     }
 
 }

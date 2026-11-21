@@ -27,11 +27,16 @@ struct CopyDocButton: View {
         }
     }
 
-    private func copy() {
+    static func copyDocument(_ text: String) -> Int {
         let blocks = Markdown.parse(text)
         let plain = PlainExport.render(blocks)
         let html = HtmlExport.render(blocks, title: "Document")
         platformCopyMarkdown(plain: plain, html: html, sourceText: text)
+        return plain.count
+    }
+
+    private func copy() {
+        _ = Self.copyDocument(text)
         withAnimation(.easeInOut(duration: 0.15)) { copied = true }
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
             withAnimation(.easeInOut(duration: 0.15)) { copied = false }
@@ -51,12 +56,9 @@ struct ShareButton: View {
     var body: some View {
         Group {
             if let pdfURL {
-                let label = fileURL?
-                    .deletingPathExtension()
-                    .lastPathComponent ?? "Document"
                 ShareLink(
                       item: pdfURL,
-                   preview: SharePreview( label,
+                   preview: SharePreview( documentTitle(of: fileURL),
                      image: pdfThumb ?? Image(systemName: "doc.richtext"))
                 ) {
                     shareLabel
@@ -71,8 +73,7 @@ struct ShareButton: View {
             }
         }
         .task(id: text) {
-            let title = fileURL?.deletingPathExtension().lastPathComponent ??
-                        "Document"
+            let title = documentTitle(of: fileURL)
             let mine = TempPDFs.nextTag()
             let url = await exportPDF(text: text, title: title, tag: mine)
             let thumb = url.flatMap { u in firstPageThumbnail(of: u) }
@@ -95,14 +96,18 @@ struct ShareButton: View {
         }
     }
 
-    private func firstPageThumbnail(of url: URL) -> Image? {
-        var result: Image? = nil
-        if let doc = PDFDocument(url: url),
-           let page = doc.page(at: 0) {
-            let size = CGSize(width: 512, height: 512)
-            result = platformPDFPageThumbnail(page, size: size)
-        }
-        return result
-    }
+}
 
+func documentTitle(of fileURL: URL?) -> String {
+    fileURL?.deletingPathExtension().lastPathComponent ?? "Document"
+}
+
+func firstPageThumbnail(of url: URL) -> Image? {
+    var result: Image? = nil
+    if let doc = PDFDocument(url: url),
+       let page = doc.page(at: 0) {
+        let size = CGSize(width: 512, height: 512)
+        result = platformPDFPageThumbnail(page, size: size)
+    }
+    return result
 }

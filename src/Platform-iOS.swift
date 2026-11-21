@@ -10,16 +10,6 @@ func monoFont(at size: CGFloat) -> PlatformFont {
     UIFont.monospacedSystemFont(ofSize: size, weight: .regular)
 }
 
-func boldFont(of f: PlatformFont) -> PlatformFont {
-    var traits = f.fontDescriptor.symbolicTraits
-    traits.insert(.traitBold)
-    var result = f
-    if let d = f.fontDescriptor.withSymbolicTraits(traits) {
-        result = UIFont(descriptor: d, size: f.pointSize)
-    }
-    return result
-}
-
 func platformResizedFont(_ f: PlatformFont, to size: CGFloat) -> PlatformFont {
     UIFont(descriptor: f.fontDescriptor, size: size)
 }
@@ -35,6 +25,10 @@ func platformBoldItalicFont(of f: PlatformFont,
         result = UIFont(descriptor: d, size: f.pointSize)
     }
     return result
+}
+
+func boldFont(of f: PlatformFont) -> PlatformFont {
+    platformBoldItalicFont(of: f, bold: true, italic: false)
 }
 
 func platformMergeFontTraits(of source: PlatformFont,
@@ -77,10 +71,6 @@ func platformDocumentImage(_ data: Data) -> PlatformImage? {
 
 func platformDecodeCGImage(_ data: Data) -> CGImage? {
     UIImage(data: data)?.cgImage
-}
-
-func platformSetClipboardString(_ s: String) {
-    platformSetClipboard(string: s, pdf: nil)
 }
 
 // pdf is unused: iOS has no lazy PDF flavour. The parameter keeps one

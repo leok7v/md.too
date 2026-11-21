@@ -10,13 +10,6 @@ func monoFont(at size: CGFloat) -> PlatformFont {
     NSFont.monospacedSystemFont(ofSize: size, weight: .regular)
 }
 
-func boldFont(of f: PlatformFont) -> PlatformFont {
-    var traits = f.fontDescriptor.symbolicTraits
-    traits.insert(.bold)
-    let d = f.fontDescriptor.withSymbolicTraits(traits)
-    return NSFont(descriptor: d, size: f.pointSize) ?? f
-}
-
 func platformResizedFont(_ f: PlatformFont, to size: CGFloat) -> PlatformFont {
     var result = f
     if let r = NSFont(descriptor: f.fontDescriptor, size: size) {
@@ -33,6 +26,10 @@ func platformBoldItalicFont(of f: PlatformFont,
     if italic { traits.insert(.italic) }
     let d = f.fontDescriptor.withSymbolicTraits(traits)
     return NSFont(descriptor: d, size: f.pointSize) ?? f
+}
+
+func boldFont(of f: PlatformFont) -> PlatformFont {
+    platformBoldItalicFont(of: f, bold: true, italic: false)
 }
 
 func platformMergeFontTraits(of source: PlatformFont,
@@ -82,10 +79,6 @@ func platformDecodeCGImage(_ data: Data) -> CGImage? {
         .cgImage(forProposedRect: nil, context: nil, hints: nil)
 }
 
-func platformSetClipboardString(_ s: String) {
-    platformSetClipboard(string: s, pdf: nil)
-}
-
 func platformSetClipboard(string: String, pdf: Data?) {
     let board = NSPasteboard.general
     board.clearContents()
@@ -94,6 +87,17 @@ func platformSetClipboard(string: String, pdf: Data?) {
     board.declareTypes(types, owner: nil)
     if let pdf { board.setData(pdf, forType: .pdf) }
     board.setString(string, forType: .string)
+}
+
+func platformAppearance(for scheme: ColorScheme?) -> NSAppearance? {
+    var result: NSAppearance? = nil
+    switch scheme {
+        case .none: result = nil
+        case .light: result = NSAppearance(named: .aqua)
+        case .dark: result = NSAppearance(named: .darkAqua)
+        @unknown default: result = nil
+    }
+    return result
 }
 
 func platformPerformLightAppearance(_ body: () -> Void) {

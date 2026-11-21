@@ -52,14 +52,8 @@ final class QuickLookViewController: NSViewController, QLPreviewingController {
     private func applyAppearance() {
         let raw = UserDefaults.standard.string(forKey: "themeMode") ??
                   ThemeMode.system.rawValue
-        let mode = ThemeMode(rawValue: raw) ?? .system
-        let appearance: NSAppearance? = {
-            switch mode {
-                case .system: return nil
-                case .light: return NSAppearance(named: .aqua)
-                case .dark: return NSAppearance(named: .darkAqua)
-            }
-        }()
+        let appearance = platformAppearance(
+            for: ThemeMode(raw: raw).colorScheme)
         view.appearance = appearance
         hostingController?.view.appearance = appearance
     }

@@ -197,6 +197,31 @@ final class ExportRoundTripTests: XCTestCase {
         XCTAssertGreaterThan(doc.pageCount, 1)
     }
 
+    func testAnEmojiTooWideForTheColumnIsNeverSplitInsideAPair() throws {
+        let emoji = "\u{1F600}"
+        let count = 7_000
+        let buffer = NSMutableData()
+        var media = CGRect(x: 0, y: 0, width: 108, height: 400)
+        let consumer = try XCTUnwrap(CGDataConsumer(data: buffer))
+        let ctx = try XCTUnwrap(CGContext(consumer: consumer,
+                                          mediaBox: &media, nil))
+        let renderer = PDFRenderer(ctx: ctx, pageSize: media.size,
+                                   title: "t")
+        renderer.startPage()
+        for block in Markdown.parse("a" + String(repeating: emoji,
+                                                 count: count)) {
+            renderer.draw(block)
+        }
+        renderer.endPage()
+        ctx.closePDF()
+        let doc = try XCTUnwrap(PDFDocument(data: buffer as Data))
+        let text = (0..<doc.pageCount).compactMap { index in
+            doc.page(at: index)?.string
+        }.joined()
+        XCTAssertFalse(text.contains("\u{FFFD}"), "a pair was cut in half")
+        XCTAssertEqual(text.components(separatedBy: emoji).count - 1, count)
+    }
+
     func testADisplayTallerThanAPageFitsOnOne() throws {
         let rows = (1...160).map { n in String(n) }
             .joined(separator: " \\\\ ")

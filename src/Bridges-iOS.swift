@@ -136,68 +136,57 @@ extension NativeText: UIViewRepresentable {
         // UIKit can lay this view out before Swift's init runs, and a
         // stored non-optional Array here would read a zeroed buffer.
         private func computeCopySpots() {
-            var spots: [CopyBlockSpot] = []
-            let ts = textStorage
-            let lm = layoutManager
-            let tc = textContainer
-            lm.ensureLayout(for: tc)
-            let inset = textContainerInset
-            let full = NSRange(location: 0, length: ts.length)
-            var pos = 0
-            while pos < ts.length {
-                var run = NSRange(location: 0, length: 0)
-                let id = ts.attribute(atomicIdKey, at: pos,
-                                      longestEffectiveRange: &run,
-                                      in: full) as? String
-                let copy = id == nil ? nil
-                    : ts.attribute(atomicCopyKey, at: run.location,
-                                   effectiveRange: nil) as? String
-                let kind = id == nil ? nil
-                    : ts.attribute(atomicKindKey, at: run.location,
-                                   effectiveRange: nil) as? String
-                let label = id == nil ? nil
-                    : ts.attribute(atomicLabelKey, at: run.location,
-                                   effectiveRange: nil) as? String
-                if let id, let copy {
-                    let gr = lm.glyphRange(forCharacterRange: run,
-                                           actualCharacterRange: nil)
-                    let block = lm.boundingRect(forGlyphRange: gr, in: tc)
-                    let line = lm.lineFragmentUsedRect(
-                        forGlyphAt: gr.location, effectiveRange: nil)
-                    let style = MarkdownStyle.current
-                    let right: CGFloat
-                    if kind == AtomicKind.math.rawValue {
-                        right = lm.lineFragmentRect(
-                            forGlyphAt: gr.location,
-                            effectiveRange: nil).maxX
-                    } else if kind == AtomicKind.code.rawValue {
-                        right = codeBlockRects(
-                            in: ts, layoutManager: lm, container: tc,
-                            within: run, padding: style.codePadding,
-                            trailing: style.blockSpacing)
-                            .first?.maxX ?? block.maxX
-                    } else {
-                        right = block.maxX
-                    }
-                    let beside = kind == AtomicKind.table.rawValue &&
-                        block.maxX + 4 + copyButtonSide <= tc.size.width
-                    let x = beside
-                        ? block.maxX + inset.left + 4
-                        : right + inset.left - copyButtonGutter
-                    let y = line.minY + inset.top +
-                            (line.height - copyButtonSide) / 2
-                    spots.append(CopyBlockSpot(
-                        id: id,
-                        rect: CGRect(x: x, y: y, width: copyButtonSide,
-                                     height: copyButtonSide),
-                        copy: copy, label: label))
-                }
-                pos = max(NSMaxRange(run), pos + 1)
+            layoutManager.ensureLayout(for: textContainer)
+            let report = atomicRuns(in: textStorage).map { run in
+                copySpot(for: run)
             }
-            let report = spots
             DispatchQueue.main.async { [weak self] in
                 self?.onCopySpots?(report)
             }
+        }
+
+        private func copySpot(for run: AtomicRun) -> CopyBlockSpot {
+            let lm = layoutManager
+            let tc = textContainer
+            let inset = textContainerInset
+            let gr = lm.glyphRange(forCharacterRange: run.range,
+                                   actualCharacterRange: nil)
+            let block = lm.boundingRect(forGlyphRange: gr, in: tc)
+            let line = lm.lineFragmentUsedRect(forGlyphAt: gr.location,
+                                               effectiveRange: nil)
+            let right = copyRight(of: run, glyphs: gr, block: block)
+            let beside = run.kind == AtomicKind.table.rawValue &&
+                block.maxX + 4 + copyButtonSide <= tc.size.width
+            let x = beside
+                ? block.maxX + inset.left + 4
+                : right + inset.left - copyButtonGutter
+            let y = line.minY + inset.top +
+                    (line.height - copyButtonSide) / 2
+            return CopyBlockSpot(
+                id: run.id,
+                rect: CGRect(x: x, y: y, width: copyButtonSide,
+                             height: copyButtonSide),
+                copy: run.copy, label: run.label)
+        }
+
+        private func copyRight(of run: AtomicRun, glyphs gr: NSRange,
+                               block: CGRect) -> CGFloat {
+            let style = MarkdownStyle.current
+            let right: CGFloat
+            if run.kind == AtomicKind.math.rawValue {
+                right = layoutManager.lineFragmentRect(
+                    forGlyphAt: gr.location, effectiveRange: nil).maxX
+            } else if run.kind == AtomicKind.code.rawValue {
+                right = codeBlockRects(
+                    in: textStorage, layoutManager: layoutManager,
+                    container: textContainer, within: run.range,
+                    padding: style.codePadding,
+                    trailing: style.blockSpacing)
+                    .first?.maxX ?? block.maxX
+            } else {
+                right = block.maxX
+            }
+            return right
         }
     }
 

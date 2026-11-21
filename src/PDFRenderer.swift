@@ -284,7 +284,7 @@ final class PDFRenderer {
                 visible = CTFrameGetVisibleStringRange(frame)
             }
             if visible.length == 0 {
-                consumed += fresh ? 1 : 0
+                consumed += fresh ? composedLength(attr, at: consumed) : 0
                 newPage()
             } else {
                 let used = lineHeightUsed(frame: frame, in: rect)
@@ -305,6 +305,8 @@ final class PDFRenderer {
         let ns = attr.string as NSString
         var end = min(start + 12_000, attr.length)
         if end < attr.length {
+            let cut = ns.rangeOfComposedCharacterSequence(at: end).location
+            if cut > start { end = cut }
             let space = ns.rangeOfCharacter(
                 from: .whitespacesAndNewlines,
                 range: NSRange(location: end,
@@ -312,6 +314,12 @@ final class PDFRenderer {
             if space.location != NSNotFound { end = space.location + 1 }
         }
         return NSRange(location: start, length: end - start)
+    }
+
+    private func composedLength(_ attr: NSAttributedString,
+                                at index: Int) -> Int {
+        (attr.string as NSString).rangeOfComposedCharacterSequence(at: index)
+            .length
     }
 
     private func firstBaseline(_ frame: CTFrame) -> CGFloat {
@@ -529,16 +537,9 @@ final class PDFRenderer {
         return widest
     }
 
-    private func drawTableImpl(headers: [String], rows: [[String]],
-                               cols: Int, alignments: [Alignment]) {
-        let cellPad = cellPadding()
-        let minWidths = columnFloors(headers: headers, rows: rows,
-                                     cols: cols)
-        var colWidths = TableMetrics.columnLayout(
-            headers: headers, rows: rows,
-            naturals: columnNaturals(headers: headers, rows: rows,
-                                     cols: cols),
-            minimums: minWidths, available: contentWidth)
+    private func widenedForImages(_ widths: [CGFloat], headers: [String],
+                                  rows: [[String]], cols: Int) -> [CGFloat] {
+        var result = widths
         let allRows: [[String]] = headers.isEmpty ? rows : [headers] + rows
         for r in allRows {
             for c in 0..<cols where c < r.count {
@@ -551,10 +552,25 @@ final class PDFRenderer {
                     if let ew = info.1 { w = ew }
                     else if let eh = info.2 { w = eh * aspect }
                     else { w = min(contentWidth / CGFloat(cols), imgW * 0.5) }
-                    if w > colWidths[c] { colWidths[c] = w }
+                    if w > result[c] { result[c] = w }
                 }
             }
         }
+        return result
+    }
+
+    private func drawTableImpl(headers: [String], rows: [[String]],
+                               cols: Int, alignments: [Alignment]) {
+        let cellPad = cellPadding()
+        let minWidths = columnFloors(headers: headers, rows: rows,
+                                     cols: cols)
+        var colWidths = TableMetrics.columnLayout(
+            headers: headers, rows: rows,
+            naturals: columnNaturals(headers: headers, rows: rows,
+                                     cols: cols),
+            minimums: minWidths, available: contentWidth)
+        colWidths = widenedForImages(colWidths, headers: headers, rows: rows,
+                                     cols: cols)
         let total = colWidths.reduce(0, +)
         if total > contentWidth, total > 0 {
             let scale = contentWidth / total

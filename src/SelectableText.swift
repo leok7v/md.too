@@ -100,6 +100,48 @@ func codeBlockRects(in storage: NSAttributedString,
     return rects
 }
 
+struct AtomicRun {
+    let id: String
+    let range: NSRange
+    let copy: String
+    let kind: String?
+    let label: String?
+    let attachment: NSTextAttachment?
+}
+
+private func atomicString(_ key: NSAttributedString.Key,
+                          in storage: NSAttributedString,
+                          at pos: Int) -> String? {
+    storage.attribute(key, at: pos, effectiveRange: nil) as? String
+}
+
+func atomicRuns(in storage: NSAttributedString) -> [AtomicRun] {
+    var runs: [AtomicRun] = []
+    let full = NSRange(location: 0, length: storage.length)
+    var pos = 0
+    while pos < storage.length {
+        var range = NSRange(location: 0, length: 0)
+        let id = storage.attribute(atomicIdKey, at: pos,
+                                   longestEffectiveRange: &range,
+                                   in: full) as? String
+        if let id, let copy = atomicString(atomicCopyKey, in: storage,
+                                           at: range.location) {
+            runs.append(AtomicRun(
+                id: id, range: range, copy: copy,
+                kind: atomicString(atomicKindKey, in: storage,
+                                   at: range.location),
+                label: atomicString(atomicLabelKey, in: storage,
+                                    at: range.location),
+                attachment: storage.attribute(.attachment,
+                                              at: range.location,
+                                              effectiveRange: nil)
+                    as? NSTextAttachment))
+        }
+        pos = max(NSMaxRange(range), pos + 1)
+    }
+    return runs
+}
+
 struct SelectableText: View {
 
     let attributed: AttributedString?
@@ -156,27 +198,28 @@ struct SelectableText: View {
     @ViewBuilder
     private var copyOverlays: some View {
         ForEach(copySpots, id: \.id) { spot in
-            BlockCopyButton(spot: spot)
-                .frame(width: spot.rect.width,
-                       height: spot.rect.height)
+            CopyButton(string: spot.copy, label: spot.label,
+                       illustration: spot.illustration)
+                .frame(width: spot.rect.width, height: spot.rect.height,
+                       alignment: .trailing)
                 .offset(x: spot.rect.minX, y: spot.rect.minY)
         }
     }
 
 }
 
-private struct BlockCopyButton: View {
+struct CopyButton: View {
 
-    let spot: CopyBlockSpot
+    let string: String
+    var label: String? = nil
+    var illustration: PasteboardIllustration? = nil
     @Environment(\.colorScheme) private var scheme
     @State private var copied = false
 
-    // The frame is the 22-point square the bridge reports; the badge
-    // overflows it since SwiftUI draws what extends past a view's frame.
     var body: some View {
         Button(action: doCopy) {
             HStack(spacing: 4) {
-                if let label = spot.label {
+                if let label {
                     Text(label.uppercased())
                         .font(.caption2.weight(.medium))
                         .foregroundStyle(.secondary)
@@ -186,22 +229,19 @@ private struct BlockCopyButton: View {
                     .foregroundStyle(.secondary)
             }
             .padding(.vertical, 4)
-            .padding(.horizontal, spot.label == nil ? 4 : 7)
+            .padding(.horizontal, label == nil ? 4 : 7)
             .background(Capsule().fill(Color.secondary.opacity(0.15)))
             .fixedSize()
         }
         .buttonStyle(.plain)
-        .frame(width: spot.rect.width, height: spot.rect.height,
-               alignment: .trailing)
         .help("Copy")
     }
 
     // TeX serves anything simple to copy as text; the PDF serves
     // whatever a formula draws that no string can spell.
     private func doCopy() {
-        platformSetClipboard(string: spot.copy,
-                             pdf: spot.illustration?
-                                 .pdf(dark: scheme == .dark))
+        platformSetClipboard(string: string,
+                             pdf: illustration?.pdf(dark: scheme == .dark))
         copied = true
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
             copied = false

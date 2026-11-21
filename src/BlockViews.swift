@@ -483,37 +483,3 @@ final class TableMeasure {
     }
 
 }
-
-private struct CopyButton: View {
-
-    let string: String
-    var label: String? = nil
-    @State private var copied = false
-
-    var body: some View {
-        Button(action: copy) {
-            HStack(spacing: 4) {
-                if let label {
-                    Text(label.uppercased())
-                        .font(.caption2.weight(.medium))
-                        .foregroundStyle(.secondary)
-                }
-                Image(systemName: copied ? "checkmark" : "doc.on.doc")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-            .padding(.vertical, 4)
-            .padding(.horizontal, label == nil ? 4 : 7)
-            .background(Capsule().fill(Color.secondary.opacity(0.15)))
-        }
-        .buttonStyle(.plain)
-        .help("Copy")
-    }
-
-    private func copy() {
-        platformSetClipboardString(string)
-        copied = true
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { copied = false }
-    }
-
-}
