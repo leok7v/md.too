@@ -72,9 +72,6 @@ extension DocumentText {
         RuleAttachment(height: height)
     }
 
-    // One stop per column, each at the far edge of the one before, so a
-    // cell truncates rather than wraps: a tab stop has no second line.
-
     static func table(_ cells: TableCells, id: String,
                       style: MarkdownStyle,
                       budget: CGFloat) -> NSAttributedString {
@@ -97,6 +94,7 @@ extension DocumentText {
             }
             if !cells.header.isEmpty {
                 m.append(tableRowTabStops(cells: cells.header, stops: stops,
+                                          widths: widths,
                                           style: style, bold: true,
                                           tint: platformWhite(0.5, alpha: 0.14),
                                           atomicId: atomicId))
@@ -105,6 +103,7 @@ extension DocumentText {
                 let tint: PlatformColor = idx % 2 == 1
                     ? platformWhite(0.5, alpha: 0.07) : platformClearColor
                 m.append(tableRowTabStops(cells: row, stops: stops,
+                                          widths: widths,
                                           style: style, bold: false,
                                           tint: tint,
                                           atomicId: atomicId))
@@ -137,6 +136,7 @@ extension DocumentText {
 
     private static func tableRowTabStops(cells: [TableCell],
                                          stops: [NSTextTab],
+                                         widths: [CGFloat],
                                          style: MarkdownStyle,
                                          bold: Bool,
                                          tint: PlatformColor,
@@ -144,19 +144,27 @@ extension DocumentText {
         -> NSAttributedString {
         let para = NSMutableParagraphStyle()
         para.tabStops = stops
-        para.lineBreakMode = .byTruncatingTail
+        para.lineBreakMode = .byWordWrapping
         let body = style.bodyFont
         let base = bold ? boldFont(of: body) : body
-        let m = NSMutableAttributedString()
-        for (i, cell) in cells.enumerated() {
-            if i > 0 {
-                m.append(NSAttributedString(
-                    string: "\t", attributes: [.font: base]))
-            }
-            m.append(cell.text)
+        let columns = cells.enumerated().map { pair in
+            wrapCell(pair.element.text,
+                     width: pair.offset < widths.count
+                         ? widths[pair.offset] : 1)
         }
-        m.append(NSAttributedString(string: "\n",
-                                    attributes: [.font: base]))
+        let height = max(columns.map { lines in lines.count }.max() ?? 0, 1)
+        let m = NSMutableAttributedString()
+        for line in 0..<height {
+            for (i, lines) in columns.enumerated() {
+                if i > 0 {
+                    m.append(NSAttributedString(
+                        string: "\t", attributes: [.font: base]))
+                }
+                if line < lines.count { m.append(lines[line]) }
+            }
+            m.append(NSAttributedString(string: "\n",
+                                        attributes: [.font: base]))
+        }
         let full = NSRange(location: 0, length: m.length)
         m.addAttribute(.paragraphStyle, value: para, range: full)
         m.addAttribute(.backgroundColor, value: tint, range: full)

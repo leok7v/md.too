@@ -621,6 +621,63 @@ enum DocumentText {
         return width
     }
 
+    static func wrapCell(_ cell: NSAttributedString,
+                         width: CGFloat) -> [NSAttributedString] {
+        var out: [NSAttributedString] = []
+        let setter = CTTypesetterCreateWithAttributedString(cell)
+        var at = 0
+        while at < cell.length {
+            let take = lineLength(cell, setter: setter, from: at,
+                                  width: max(width, 1))
+            let line = NSMutableAttributedString(
+                attributedString: cell.attributedSubstring(
+                    from: NSRange(location: at, length: take)))
+            if line.string.hasSuffix("\u{2028}") {
+                line.deleteCharacters(in: NSRange(location: line.length - 1,
+                                                  length: 1))
+            }
+            out.append(line)
+            at += take
+        }
+        return out
+    }
+
+    private static func lineLength(_ cell: NSAttributedString,
+                                   setter: CTTypesetter, from at: Int,
+                                   width: CGFloat) -> Int {
+        var limit = width
+        var take = suggestedBreak(setter, cell, from: at, width: limit)
+        var excess = inkWidth(cell, from: at, length: take) - width
+        while excess > 0.5, take > 1, limit > 1 {
+            limit = max(limit - excess, 1)
+            let next = suggestedBreak(setter, cell, from: at, width: limit)
+            excess = next < take
+                ? inkWidth(cell, from: at, length: next) - width : 0
+            take = min(next, take)
+        }
+        return take
+    }
+
+    private static func suggestedBreak(_ setter: CTTypesetter,
+                                       _ cell: NSAttributedString,
+                                       from at: Int,
+                                       width: CGFloat) -> Int {
+        let suggested = CTTypesetterSuggestLineBreak(setter, at,
+                                                     Double(width))
+        return min(max(suggested, 1), cell.length - at)
+    }
+
+    private static func inkWidth(_ cell: NSAttributedString, from at: Int,
+                                 length: Int) -> CGFloat {
+        let text = cell.string as NSString
+        var end = at + length
+        while end > at, [0x20, 0x09, 0x2028].contains(text.character(
+                                                          at: end - 1)) {
+            end -= 1
+        }
+        return spanWidth(cell, NSRange(location: at, length: end - at))
+    }
+
     private static func render(_ block: Block, id: String,
                                style: MarkdownStyle,
                                images: [URL: DocumentImage],

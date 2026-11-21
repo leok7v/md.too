@@ -540,6 +540,50 @@ final class SurfaceTests: XCTestCase {
         XCTAssertEqual(TableMeasure.shown("![p](http://e.com/p.png)"), "")
     }
 
+    private func cell(_ text: String) -> NSAttributedString {
+        NSAttributedString(string: text,
+                           attributes: [.font: MarkdownStyle(bodySize: 15)
+                                            .bodyFont])
+    }
+
+    func testACellIsCutIntoLinesAndLosesNothing() {
+        let source = cell("one two three four five six seven")
+        let lines = DocumentText.wrapCell(source, width: 60)
+        XCTAssertGreaterThan(lines.count, 1)
+        XCTAssertEqual(lines.map { line in line.string }.joined(),
+                       source.string)
+        XCTAssertEqual(DocumentText.wrapCell(cell("short"), width: 400).count,
+                       1)
+        XCTAssertTrue(DocumentText.wrapCell(cell(""), width: 100).isEmpty)
+    }
+
+    func testAColumnTooNarrowForAGlyphStillTerminates() {
+        let source = cell("indivisible")
+        let lines = DocumentText.wrapCell(source, width: 1)
+        XCTAssertGreaterThan(lines.count, 1)
+        XCTAssertEqual(lines.map { line in line.string }.joined(),
+                       source.string)
+    }
+
+    func testAHardBreakInACellEndsALineWithoutStaggering() {
+        let lines = DocumentText.wrapCell(cell("abc\u{2028}def"), width: 400)
+        XCTAssertEqual(lines.map { line in line.string }, ["abc", "def"])
+    }
+
+    func testAnAttachmentInACellIsMeasuredAtItsWidth() {
+        let wide = NSTextAttachment()
+        wide.bounds = CGRect(x: 0, y: 0, width: 120, height: 10)
+        let m = NSMutableAttributedString(attributedString: cell("a b "))
+        m.append(NSAttributedString(attachment: wide))
+        m.append(cell(" c"))
+        let lines = DocumentText.wrapCell(m, width: 100)
+        XCTAssertGreaterThan(lines.count, 1,
+                             "the 120-point attachment cannot share a " +
+                             "100-point line with text")
+        XCTAssertEqual(lines.map { line in line.length }.reduce(0, +),
+                       m.length)
+    }
+
     func testEveryExportGetsItsOwnTag() {
         XCTAssertNotEqual(TempPDFs.nextTag(), TempPDFs.nextTag())
     }
