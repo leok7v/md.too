@@ -94,4 +94,45 @@ final class TeXTokenTests: XCTestCase {
         XCTAssertEqual(TeX.replaceTokens("\\newcommand x"),
                        "\\newcommand x")
     }
+
+    private static func mathsIn(_ line: String) -> [String] {
+        TeX.split(line).compactMap { segment in
+            if case .math(let body, let display, _) = segment {
+                (display ? "D:" : "I:") + body
+            } else {
+                nil
+            }
+        }
+    }
+
+    func testBracketDelimitersAreMathsOnlyWhenTheBodyIs() {
+        XCTAssertEqual(Self.mathsIn("where \\( x \\) is the input"),
+                       ["I: x "])
+        XCTAssertEqual(Self.mathsIn("so \\[ E = mc^2 \\] holds"),
+                       ["D: E = mc^2 "])
+        XCTAssertEqual(Self.mathsIn("\\[\\alpha\\] and \\(\\beta_1\\)"),
+                       ["D:\\alpha", "I:\\beta_1"])
+        XCTAssertEqual(Self.mathsIn("a slash \\\\\\(x\\) then maths"),
+                       ["I:x"])
+        XCTAssertEqual(Self.mathsIn("\\[a+b\\]"), ["D:a+b"])
+        for prose in ["he said \\[sic\\] twice", "see \\[1\\] and \\[x\\]",
+                      "\\[citation needed\\]", "\\[TODO\\]",
+                      "see \\[1-3\\] and \\[2, 4-6\\]", "\\[*\\]",
+                      "\\(see above\\)", "an unclosed \\( x",
+                      "an escaped \\\\[ x = 1 \\\\]", "\\[\\]", "\\( \\)"] {
+            XCTAssertEqual(Self.mathsIn(prose), [], prose)
+        }
+    }
+
+    func testABracketDisplayOnItsOwnLinesIsABlock() {
+        let blocks = Markdown.parse(
+            "The formula:\n\\[\nE = mc^2\n\\]\nholds.\n\n\\[sic\\]")
+        XCTAssertEqual(blocks.count, 4)
+        XCTAssertEqual(blocks[1], .math("E = mc^2"))
+        if case .paragraph(let tail) = blocks[3] {
+            XCTAssertEqual(String(tail.characters), "[sic]")
+        } else {
+            XCTFail("\\[sic\\] is a paragraph, not \(blocks[3])")
+        }
+    }
 }

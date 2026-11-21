@@ -160,6 +160,9 @@ enum Markdown {
                 blocks.append(consumeFenced(lines, &i))
             } else if isMathFence(line) {
                 blocks += consumeMath(&lines, &i)
+            } else if let display = bracketDisplay(lines, i) {
+                blocks.append(.math(display.tex))
+                i = display.end + 1
             } else if isHeading(line) {
                 blocks.append(consumeHeading(lines, &i))
             } else if isHR(line) {
@@ -1225,7 +1228,7 @@ enum Markdown {
             let blank = line.trimmedOuter().isEmpty
             let other = leadingSpaces(line) < 4 &&
                         (isHeading(line) || isHR(line) || isFence(line) ||
-                         isMathFence(line) ||
+                         isMathFence(line) || bracketDisplay(lines, i) != nil ||
                          isTableStart(lines, i) || isQuoteStart(line) ||
                          listInterrupts(line) || imageBlock(line) != nil ||
                          centerOpener(line) != nil ||
@@ -1261,41 +1264,35 @@ enum Markdown {
 
     private static func bareMath(_ raw: String) -> Block? {
         var result: Block? = nil
-        if opensWithControlWord(raw), !hasProseWord(raw), TeX.parses(raw) {
+        if opensWithControlWord(raw), !TeX.readsAsProse(raw),
+           TeX.parses(raw) {
             result = .math(raw)
         }
         return result
     }
 
-    // Three or more bare ASCII letters outside braces and outside a
-    // control word is prose wearing a backslash, not adjacent variables.
-
-    private static func hasProseWord(_ raw: String) -> Bool {
-        var depth = 0
-        var run = 0
-        var found = false
-        var inCommand = false
-        for ch in raw {
-            if ch == "\\" {
-                inCommand = true
-                run = 0
-            } else if !inCommand || !ch.isLetter {
-                inCommand = false
-                if ch == "{" {
-                    depth += 1
-                    run = 0
-                } else if ch == "}" {
-                    depth = max(depth - 1, 0)
-                    run = 0
-                } else if ch.isLetter, ch.isASCII, depth == 0 {
-                    run += 1
-                    if run >= 3 { found = true }
-                } else {
-                    run = 0
+    private static func bracketDisplay(_ lines: [String], _ i: Int)
+        -> (end: Int, tex: String)? {
+        var result: (end: Int, tex: String)? = nil
+        if lines[i].trimmedOuter().hasPrefix("\\[") {
+            var j = i
+            var end: Int? = nil
+            var t = lines[i].trimmedOuter()
+            while end == nil, j < lines.count, !t.isEmpty {
+                if t.hasSuffix("\\]") { end = j }
+                j += 1
+                t = j < lines.count ? lines[j].trimmedOuter() : ""
+            }
+            if let end {
+                let joined = lines[i...end].map { l in l.trimmedOuter() }
+                    .joined(separator: "\n")
+                let tex = String(joined.dropFirst(2).dropLast(2))
+                if TeX.bracketsMaths(tex, display: true) {
+                    result = (end, tex.trimmedOuter())
                 }
             }
         }
-        return found
+        return result
     }
 
     private static func opensWithControlWord(_ raw: String) -> Bool {
@@ -1335,13 +1332,15 @@ enum Markdown {
             var spliced = AttributedString()
             var from = out.startIndex
             for (index, piece) in maths.enumerated() {
-                if case .math(let s, let display) = piece,
+                if case .math(let s, let display, let bracketed) = piece,
                    let r = out[from...].range(of: String(sentinel(index))) {
                     let tex = s.replacingOccurrences(of: String(angle),
                                                      with: "<")
                     var rendered = TeX.render(s, display: display)
                     let fence = display ? "$$" : "$"
-                    rendered[InlineMathAttribute.self] = fence + tex + fence
+                    let open = bracketed ? (display ? "\\[" : "\\(") : fence
+                    let close = bracketed ? (display ? "\\]" : "\\)") : fence
+                    rendered[InlineMathAttribute.self] = open + tex + close
                     spliced.append(out[from..<r.lowerBound])
                     spliced.append(rendered)
                     from = r.upperBound

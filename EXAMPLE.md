@@ -155,7 +155,15 @@ Tools that lift equations out of a PDF often forget the delimiters and leave the
 
 \frac { D x N } { \frac { ( \text {Truth} ) } { 1 6 0 0 \, x \, 1 4 } } \\ \frac { 4 2 8 \, x \, 1 0 } { ( 1 ) } \\ \frac { 2 9 \, x \, 9 5 } { ( 2 3 ) }
 
-That is three separate tests, and prose fails all but the first: `\alpha is the first letter` parses perfectly well as alpha times i times s and so on, and is caught by the run of ordinary letters. Rows separated by `\\`, and columns by `&`, work without naming an environment.
+LaTeX's own delimiters work too, the way chat assistants write them: where \( x \) is the input and \( \sigma(x) = \frac{1}{1+e^{-x}} \) squashes it, the loss is
+
+\[
+L = -\sum_{i} y_i \log \hat{y}_i
+\]
+
+An escaped bracket that holds no maths stays a bracket, so an editor's \[sic\], a reference \[1\] and a \[TODO\] read as written.
+
+That is three separate tests for a bare paragraph, and prose fails all but the first: `\alpha is the first letter` parses perfectly well as alpha times i times s and so on, and is caught by the run of ordinary letters. Rows separated by `\\`, and columns by `&`, work without naming an environment.
 
 There are still limits. No `\def` or `\newcommand`, and no line breaking inside a formula. A display the engine will not accept falls back to the inline spelling rather than showing you nothing, and copying any display gives you back the TeX you wrote.
 

@@ -48,7 +48,10 @@ enum TeX {
     }
 
     static func undelimited(_ source: String) -> String {
-        source.trimmingCharacters(in: CharacterSet(charactersIn: "$"))
+        let bracketed = source.hasPrefix("\\(") || source.hasPrefix("\\[")
+        return bracketed
+            ? String(source.dropFirst(2).dropLast(2))
+            : source.trimmingCharacters(in: CharacterSet(charactersIn: "$"))
     }
 
     // 4/3 matches md2png's 20pt-math to 15pt-body ratio.
@@ -60,9 +63,46 @@ enum TeX {
         (try? Parser.parse(tex)) != nil
     }
 
+    static func readsAsProse(_ raw: String) -> Bool {
+        var depth = 0
+        var run = 0
+        var found = false
+        var inCommand = false
+        for ch in raw {
+            if ch == "\\" {
+                inCommand = true
+                run = 0
+            } else if !inCommand || !ch.isLetter {
+                inCommand = false
+                if ch == "{" {
+                    depth += 1
+                    run = 0
+                } else if ch == "}" {
+                    depth = max(depth - 1, 0)
+                    run = 0
+                } else if ch.isLetter, ch.isASCII, depth == 0 {
+                    run += 1
+                    if run >= 3 { found = true }
+                } else {
+                    run = 0
+                }
+            }
+        }
+        return found
+    }
+
+    static func bracketsMaths(_ body: String, display: Bool) -> Bool {
+        let bare = body.contains { ch in "\\^_=<>|".contains(ch) }
+        let algebra = body.contains { ch in "+-*/".contains(ch) } &&
+                      body.contains { ch in ch.isLetter }
+        let signed = !display || bare || algebra
+        return signed && !body.trimmingCharacters(in: .whitespaces).isEmpty &&
+               !readsAsProse(body) && parses(body)
+    }
+
     enum Segment {
         case text(String)
-        case math(String, display: Bool)
+        case math(String, display: Bool, bracketed: Bool = false)
     }
 
     static func split(_ s: String) -> [Segment] {
@@ -80,6 +120,17 @@ enum TeX {
                s[next] == "$" {
                 buf.append("$")
                 i = s.index(after: next)
+                consumed = true
+            } else if c == "\\",
+                      buf.reversed().prefix(while: { ch in ch == "\\" })
+                          .count % 2 == 0,
+                      let end = bracketMath(s, at: i) {
+                if !buf.isEmpty {
+                    out.append(.text(buf))
+                    buf.removeAll()
+                }
+                out.append(end.segment)
+                i = end.after
                 consumed = true
             }
             if !consumed, c == "$" {
@@ -111,6 +162,26 @@ enum TeX {
         }
         if !buf.isEmpty { out.append(.text(buf)) }
         return out
+    }
+
+    private static func bracketMath(_ s: String, at i: String.Index)
+        -> (segment: Segment, after: String.Index)? {
+        var result: (segment: Segment, after: String.Index)? = nil
+        let open = s.index(after: i)
+        let display = open < s.endIndex && s[open] == "["
+        let inline = open < s.endIndex && s[open] == "("
+        if display || inline {
+            let from = s.index(after: open)
+            let closer = display ? "\\]" : "\\)"
+            if let close = s.range(of: closer, range: from..<s.endIndex) {
+                let body = String(s[from..<close.lowerBound])
+                if bracketsMaths(body, display: display) {
+                    result = (.math(body, display: display, bracketed: true),
+                              close.upperBound)
+                }
+            }
+        }
+        return result
     }
 
     private static func inlineClosers(_ s: String) -> [String.Index] {

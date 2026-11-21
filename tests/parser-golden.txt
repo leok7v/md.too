@@ -97,7 +97,10 @@ paragraph: Logic and modular arithmetic read the way they are written: |P ⟺ Q{
 paragraph: Operators and a corner of set theory: |≤ ≥ ≠ ≈ ± × · ÷ → ⇒{math=$\\le \\ge \\neq \\approx \\pm \\times \\cdot \\div \\to \\Rightarrow$}|, |∀ x ∈ ℕ, ∃ y ∈ ℤ{math=$\\forall x \\in \\mathbb\{N\}, \\exists y \\in \\mathbb\{Z\}$}|, |A ∩ B{math=$A \\cap B$}|, |A ∪ B{math=$A \\cup B$}|, |∅{math=$\\varnothing$}|.|
 paragraph: Tools that lift equations out of a PDF often forget the delimiters and leave the bare TeX sitting in a paragraph. A paragraph that opens with a control word and parses cleanly as TeX, with no ordinary words in it, is read as a display anyway:|
 math: \\frac \{ D x N \} \{ \\frac \{ ( \\text \{Truth\} ) \} \{ 1 6 0 0 \\, x \\, 1 4 \} \} \\\\ \\frac \{ 4 2 8 \\, x \\, 1 0 \} \{ ( 1 ) \} \\\\ \\frac \{ 2 9 \\, x \\, 9 5 \} \{ ( 2 3 ) \}
-paragraph: That is three separate tests, and prose fails all but the first: |\\alpha is the first letter{c}| parses perfectly well as alpha times i times s and so on, and is caught by the run of ordinary letters. Rows separated by |\\\\{c}|, and columns by |&{c}|, work without naming an environment.|
+paragraph: LaTeX's own delimiters work too, the way chat assistants write them: where |x{math=\\( x \\)}| is the input and |σ(x) = 1⁄1+e(-x){math=\\( \\sigma(x) = \\frac\{1\}\{1+e^\{-x\}\} \\)}| squashes it, the loss is|
+math: L = -\\sum_\{i\} y_i \\log \\hat\{y\}_i
+paragraph: An escaped bracket that holds no maths stays a bracket, so an editor's [sic], a reference [1] and a [TODO] read as written.|
+paragraph: That is three separate tests for a bare paragraph, and prose fails all but the first: |\\alpha is the first letter{c}| parses perfectly well as alpha times i times s and so on, and is caught by the run of ordinary letters. Rows separated by |\\\\{c}|, and columns by |&{c}|, work without naming an environment.|
 paragraph: There are still limits. No |\\def{c}| or |\\newcommand{c}|, and no line breaking inside a formula. A display the engine will not accept falls back to the inline spelling rather than showing you nothing, and copying any display gives you back the TeX you wrote.|
 === example-6-footprints
 heading 2: Footprints|
