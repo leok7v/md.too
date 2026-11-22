@@ -969,13 +969,14 @@ enum DocumentText {
         // The first line's tailIndent leaves room for the copy badge;
         // the bridge restores the box's full width past that gap.
         let room = codeBadgeRoom(label: word)
+        let hung = style.codePadding + style.codeHang
         var lineStart = 0
         while lineStart < ns.length {
             let line = ns.lineRange(for: NSRange(location: lineStart,
                                                  length: 0))
             let para = NSMutableParagraphStyle()
             para.firstLineHeadIndent = style.codePadding
-            para.headIndent = style.codePadding
+            para.headIndent = hung
             para.tailIndent = -style.codePadding
             if lineStart == 0 {
                 para.paragraphSpacingBefore = style.codePadding / 2

@@ -54,7 +54,8 @@ func codeBlockRects(in storage: NSAttributedString,
                     layoutManager lm: NSLayoutManager,
                     container tc: NSTextContainer,
                     within: NSRange,
-                    padding: CGFloat, trailing: CGFloat) -> [CGRect] {
+                    padding: CGFloat, hang: CGFloat,
+                    trailing: CGFloat) -> [CGRect] {
     var rects: [CGRect] = []
     let full = NSRange(location: 0, length: storage.length)
     let end = min(NSMaxRange(within), storage.length)
@@ -74,7 +75,7 @@ func codeBlockRects(in storage: NSAttributedString,
             let para = storage.attribute(.paragraphStyle, at: run.location,
                                          effectiveRange: nil)
                 as? NSParagraphStyle
-            let head = max((para?.headIndent ?? 0) - padding, 0)
+            let head = max((para?.headIndent ?? 0) - hang - padding, 0)
             let tailIndent = para?.tailIndent ?? 0
             let room = (storage.attribute(codeBadgeRoomKey,
                                           at: run.location,

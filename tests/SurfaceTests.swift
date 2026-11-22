@@ -99,7 +99,10 @@ final class SurfaceTests: XCTestCase {
         }
         XCTAssertEqual(seen["prose"]?.headIndent, 100)
         XCTAssertEqual(seen["prose"]?.tailIndent, 500)
-        XCTAssertEqual(seen["code"]?.headIndent, 100 + style.codePadding)
+        XCTAssertEqual(seen["code"]?.firstLineHeadIndent,
+                       100 + style.codePadding)
+        XCTAssertEqual(seen["code"]?.headIndent,
+                       100 + style.codePadding + style.codeHang)
         XCTAssertEqual(seen["code"]?.tailIndent,
                        500 - style.codePadding -
                            DocumentText.codeBadgeRoom(label: nil),
@@ -425,8 +428,51 @@ final class SurfaceTests: XCTestCase {
             in: laid.storage, layoutManager: laid.manager,
             container: laid.manager.textContainers[0],
             within: NSRange(location: 0, length: text.length),
-            padding: 10, trailing: 8)
+            padding: 10, hang: 0, trailing: 8)
         XCTAssertEqual(boxes.count, 2)
+    }
+
+    func testAWrappedCodeLineHangsUnderItsFirstAndTheBoxStays() {
+        let style = MarkdownStyle(bodySize: 13)
+        let long = String(repeating: "word ", count: 20)
+        let text = DocumentText.attributed(
+            from: Markdown.parse("```\n\(long)\n```"), style: style)
+        let para = paragraphStyle(text, at: 0)
+        XCTAssertGreaterThan(style.codeHang, 0)
+        XCTAssertEqual((para?.headIndent ?? 0) -
+                       (para?.firstLineHeadIndent ?? 0), style.codeHang)
+        let wide = NSAttributedString(string: "00",
+                                      attributes: [.font: style.codeFont])
+        XCTAssertEqual(style.codeHang, wide.size().width)
+        let laid = laidOut(text, width: 200)
+        let manager = laid.manager
+        var starts: [CGFloat] = []
+        manager.enumerateLineFragments(
+            forGlyphRange: NSRange(location: 0,
+                                   length: manager.numberOfGlyphs)) {
+            _, used, _, _, _ in
+            starts.append(used.minX)
+        }
+        XCTAssertGreaterThan(starts.count, 1)
+        XCTAssertEqual(starts[0], style.codePadding)
+        XCTAssertEqual(starts[1], style.codePadding + style.codeHang)
+        let boxes = codeBlockRects(
+            in: laid.storage, layoutManager: manager,
+            container: manager.textContainers[0],
+            within: NSRange(location: 0, length: text.length),
+            padding: style.codePadding, hang: style.codeHang,
+            trailing: style.blockSpacing)
+        XCTAssertEqual(boxes.first?.minX, 0)
+        let quoted = DocumentText.attributed(
+            from: Markdown.parse("> ```\n> \(long)\n> ```"), style: style)
+        let inQuote = laidOut(quoted, width: 200)
+        let quotedBoxes = codeBlockRects(
+            in: inQuote.storage, layoutManager: inQuote.manager,
+            container: inQuote.manager.textContainers[0],
+            within: NSRange(location: 0, length: quoted.length),
+            padding: style.codePadding, hang: style.codeHang,
+            trailing: style.blockSpacing)
+        XCTAssertEqual(quotedBoxes.first?.minX, style.quoteIndent)
     }
 
     func testAnEditReplacesOnlyFromTheEditedBlock() throws {

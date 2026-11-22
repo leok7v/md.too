@@ -18,9 +18,10 @@ extension NativeText: UIViewRepresentable {
         ]
         v.setContentCompressionResistancePriority(.defaultLow,
                                                   for: .horizontal)
-        // The code boxes are drawn by the view itself, so a new frame
-        // must draw again rather than stretch the old bitmap.
-        v.contentMode = .redraw
+        v.registerForTraitChanges([UITraitUserInterfaceStyle.self]) {
+            (view: ResizingUITextView, _: UITraitCollection) in
+            view.refreshCodeLayers()
+        }
         v.nowrap = nowrap
         if nowrap {
             v.textContainer.widthTracksTextView = false
@@ -74,6 +75,7 @@ extension NativeText: UIViewRepresentable {
         private var activeIndex: Int? = nil
         private var findQuery: String? = nil
         private var matchLayers: [CALayer]? = nil
+        private var codeLayers: [CALayer]? = nil
         private static let matchWindow = 500
 
         var liveFindCount: Int { findMatches?.count ?? 0 }
@@ -87,7 +89,6 @@ extension NativeText: UIViewRepresentable {
                     contentGeneration += 1
                     invalidateIntrinsicContentSize()
                     setNeedsLayout()
-                    setNeedsDisplay()
                     reapplyFind()
                 }
             }
@@ -215,28 +216,31 @@ extension NativeText: UIViewRepresentable {
             return result
         }
 
-        // UITextView draws its text in a private subview, so a fill
-        // here in draw(_:) paints underneath it automatically.
-        override func draw(_ rect: CGRect) {
+        func refreshCodeLayers() {
             let style = MarkdownStyle.current
             let inset = textContainerInset
-            let shown = rect.offsetBy(dx: -inset.left, dy: -inset.top)
-            let glyphs = layoutManager.glyphRange(forBoundingRect: shown,
-                                                  in: textContainer)
-            let chars = layoutManager.characterRange(
-                forGlyphRange: glyphs, actualGlyphRange: nil)
-            codeBlockTint.setFill()
-            for box in codeBlockRects(in: textStorage,
-                                      layoutManager: layoutManager,
-                                      container: textContainer,
-                                      within: chars,
-                                      padding: style.codePadding,
-                                      trailing: style.blockSpacing) {
-                UIBezierPath(roundedRect: box.offsetBy(dx: inset.left,
-                                                       dy: inset.top),
-                             cornerRadius: style.cornerRadius).fill()
+            let color = codeBlockTint
+                .resolvedColor(with: traitCollection).cgColor
+            let boxes = codeBlockRects(
+                in: textStorage, layoutManager: layoutManager,
+                container: textContainer,
+                within: NSRange(location: 0, length: textStorage.length),
+                padding: style.codePadding, hang: style.codeHang,
+                trailing: style.blockSpacing)
+            CATransaction.begin()
+            CATransaction.setDisableActions(true)
+            for old in codeLayers ?? [] { old.removeFromSuperlayer() }
+            let fresh = boxes.map { box in
+                let tint = CALayer()
+                tint.backgroundColor = color
+                tint.cornerRadius = style.cornerRadius
+                tint.zPosition = -2
+                tint.frame = box.offsetBy(dx: inset.left, dy: inset.top)
+                return tint
             }
-            super.draw(rect)
+            for tint in fresh { layer.insertSublayer(tint, at: 0) }
+            codeLayers = fresh
+            CATransaction.commit()
         }
 
         private func refreshMatchLayers() {
@@ -273,6 +277,7 @@ extension NativeText: UIViewRepresentable {
                     let tint = CALayer()
                     tint.backgroundColor = color
                     tint.cornerRadius = 2
+                    tint.zPosition = -1
                     tint.frame = box.offsetBy(dx: inset.left, dy: inset.top)
                     result.append(tint)
                 }
@@ -307,6 +312,7 @@ extension NativeText: UIViewRepresentable {
             }
             if resized || overlayGeneration != contentGeneration {
                 overlayGeneration = contentGeneration
+                refreshCodeLayers()
                 computeCopySpots()
             }
         }
@@ -360,7 +366,7 @@ extension NativeText: UIViewRepresentable {
                 right = codeBlockRects(
                     in: textStorage, layoutManager: layoutManager,
                     container: textContainer, within: run.range,
-                    padding: style.codePadding,
+                    padding: style.codePadding, hang: style.codeHang,
                     trailing: style.blockSpacing)
                     .first?.maxX ?? block.maxX
             } else {

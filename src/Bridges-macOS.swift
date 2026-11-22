@@ -294,6 +294,7 @@ extension NativeText: NSViewRepresentable {
                 for box in codeBlockRects(in: ts, layoutManager: lm,
                                           container: tc, within: chars,
                                           padding: style.codePadding,
+                                          hang: style.codeHang,
                                           trailing: style.blockSpacing) {
                     NSBezierPath(roundedRect: box.offsetBy(dx: origin.x,
                                                            dy: origin.y),
@@ -523,7 +524,7 @@ extension NativeText: NSViewRepresentable {
                 right = codeBlockRects(
                     in: ts, layoutManager: lm, container: tc,
                     within: run.range, padding: style.codePadding,
-                    trailing: style.blockSpacing)
+                    hang: style.codeHang, trailing: style.blockSpacing)
                     .first?.maxX ?? block.maxX
             } else {
                 right = block.maxX

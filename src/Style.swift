@@ -61,6 +61,11 @@ struct MarkdownStyle: Equatable {
 
     var codeFont: PlatformFont { monoFont(at: codeSize) }
 
+    var codeHang: CGFloat {
+        NSAttributedString(string: "00",
+                           attributes: [.font: codeFont]).size().width
+    }
+
     // Subtracts blockSpacing: TextKit adds the previous paragraph's
     // spacing to this one's spacing-before, so the raw em would double it.
 
