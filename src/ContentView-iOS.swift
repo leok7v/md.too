@@ -22,7 +22,11 @@ struct ContentView: View {
     @State private var pinchFrom: Int? = nil
     @State private var pinchLabel: String? = nil
     @State private var settled = 0
+    @State private var searching = false
     @StateObject private var find = MarkdownFindController()
+    @State private var findVisible = false
+    @State private var findQuery = ""
+    @FocusState private var findFocused: Bool
     @StateObject private var driver = Driver()
 
     private var theme: ThemeMode { ThemeMode(raw: themeRaw) }
@@ -30,9 +34,12 @@ struct ContentView: View {
 
     var body: some View {
         MarkdownView(displayText: displayText, theme: theme,
-                     showSource: showSource, singleSurface: singleSurface,
+                     showSource: showSource,
+                     singleSurface: singleSurface || searching,
                      readingColumn: readingColumn, find: find, zoom: zoom)
             .safeAreaInset(edge: .top, spacing: 0) { topBar }
+            .safeAreaInset(edge: .bottom, spacing: 0) { findBarIfVisible }
+            .background(findShortcut)
             .simultaneousGesture(pinchZoom)
             .overlay { zoomReadout }
             .task(id: interaction) { await collapseAfterIdle() }
@@ -40,7 +47,7 @@ struct ContentView: View {
             .watchingFile(fileURL, into: $liveText)
             .task {
                 await driver.run(text: displayText, find: find,
-                                 source: $showSource)
+                                 source: $showSource, findBar: showFind)
             }
     }
 
@@ -106,6 +113,10 @@ struct ContentView: View {
                         Image(systemName: "chevron.right.2")
                     }
                     .accessibilityLabel("Hide actions")
+                    Button(action: openFind) {
+                        Image(systemName: "magnifyingglass")
+                    }
+                    .accessibilityLabel("Find")
                     SourceButton(showingSource: showSource) {
                         showSource.toggle()
                     }
@@ -134,6 +145,38 @@ struct ContentView: View {
         .background(.bar)
         .simultaneousGesture(TapGesture().onEnded { interaction += 1 })
         .animation(.easeInOut(duration: 0.2), value: expanded)
+    }
+
+    private var findShortcut: some View {
+        Button(action: openFind) { EmptyView() }
+            .keyboardShortcut("f", modifiers: .command)
+            .hidden()
+    }
+
+    @ViewBuilder
+    private var findBarIfVisible: some View {
+        if findVisible {
+            FindBar(find: find, query: $findQuery, focused: $findFocused,
+                    onClose: closeFind)
+        }
+    }
+
+    private func openFind() {
+        searching = true
+        findVisible = true
+        findFocused = true
+        if !findQuery.isEmpty { find.find(findQuery) }
+    }
+
+    private func showFind(_ q: String) {
+        findQuery = q
+        openFind()
+    }
+
+    private func closeFind() {
+        find.clear()
+        findVisible = false
+        findFocused = false
     }
 
     private func collapseAfterIdle() async {

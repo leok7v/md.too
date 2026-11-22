@@ -54,14 +54,15 @@ final class Driver: ObservableObject {
     }
 
     func run(text: String, find: MarkdownFindController,
-             source: Binding<Bool>) async {
+             source: Binding<Bool>,
+             findBar: (String) -> Void) async {
         if !Driver.script.isEmpty, !Driver.started {
             Driver.started = true
             say("start \(Driver.script.count) steps")
             await pause(Driver.warmup)
             for (i, line) in Driver.script.enumerated() {
                 let r = await execute(line, text: text, find: find,
-                                      source: source)
+                                      source: source, findBar: findBar)
                 say("\(i + 1) \(line) \(r.ok ? "ok" : "fail") \(r.detail)")
                 await pause(Driver.settle)
             }
@@ -91,7 +92,8 @@ final class Driver: ObservableObject {
 
     private func execute(_ line: String, text: String,
                          find: MarkdownFindController,
-                         source: Binding<Bool>) async -> Outcome {
+                         source: Binding<Bool>,
+                         findBar: (String) -> Void) async -> Outcome {
         let words = line.split(separator: " ", maxSplits: 1)
             .map { w in String(w) }
         let arg = words.count > 1 ? words[1] : ""
@@ -107,6 +109,7 @@ final class Driver: ObservableObject {
             case "surface": return flagged(arg, key: "singleSurface")
             case "column": return flagged(arg, key: ReadingColumn.key)
             case "scroll": return scrolled(arg, find)
+            case "findbar": return await barred(arg, find, findBar)
             case "shot": return shot(arg)
             case "copy": return copied(text)
             case "quit": return Outcome(ok: true, detail: "")
@@ -186,6 +189,13 @@ final class Driver: ObservableObject {
         return result
     }
 
+    private func barred(_ query: String, _ find: MarkdownFindController,
+                        _ open: (String) -> Void) async -> Outcome {
+        open(query)
+        await pause(Driver.warmup)
+        return search(query, find)
+    }
+
     private func shot(_ name: String) -> Outcome {
         let file = Driver.folder.appendingPathComponent(
             URL(fileURLWithPath: name).lastPathComponent + ".png")
@@ -214,7 +224,8 @@ final class Driver: ObservableObject {
     nonisolated static let openURL: URL? = nil
 
     func run(text: String, find: MarkdownFindController,
-             source: Binding<Bool>) async {}
+             source: Binding<Bool>,
+             findBar: (String) -> Void) async {}
 
 }
 

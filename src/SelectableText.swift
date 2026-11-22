@@ -47,6 +47,8 @@ let atomicLabelKey = NSAttributedString.Key("AtomicKind.label")
 let codeBadgeRoomKey = NSAttributedString.Key("AtomicKind.badgeRoom")
 
 let codeBlockTint: PlatformColor = platformWhite(0.5, alpha: 0.10)
+let findTint: PlatformColor = platformSRGB(1.0, 0.84, 0.2, alpha: 0.35)
+let activeTint: PlatformColor = platformSRGB(1.0, 0.6, 0.0, alpha: 0.6)
 
 func codeBlockRects(in storage: NSAttributedString,
                     layoutManager lm: NSLayoutManager,

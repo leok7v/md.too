@@ -38,7 +38,7 @@ struct ContentView: View {
             .watchingFile(fileURL, into: $liveText)
             .task {
                 await driver.run(text: displayText, find: find,
-                                 source: $showSource)
+                                 source: $showSource, findBar: showFind)
             }
     }
 
@@ -80,58 +80,22 @@ struct ContentView: View {
 
     @ViewBuilder
     private var findBarIfVisible: some View {
-        if findVisible { findBar }
-    }
-
-    private var findBar: some View {
-        HStack(spacing: 8) {
-            Image(systemName: "magnifyingglass")
-                .foregroundStyle(.secondary)
-            TextField("Find", text: $findQuery)
-                .textFieldStyle(.plain)
-                .focused($findFocused)
-                .frame(maxWidth: 360)
-                .onSubmit { find.findNext() }
+        if findVisible {
+            FindBar(find: find, query: $findQuery, focused: $findFocused,
+                    onClose: closeFind)
                 .onExitCommand { closeFind() }
-            Text(findCountLabel)
-                .foregroundStyle(.secondary)
-                .monospacedDigit()
-            Button(action: { find.findPrevious() }) {
-                Image(systemName: "chevron.up")
-            }
-            .keyboardShortcut("g", modifiers: [.command, .shift])
-            .disabled(find.matchCount == 0)
-            Button(action: { find.findNext() }) {
-                Image(systemName: "chevron.down")
-            }
-            .keyboardShortcut("g", modifiers: .command)
-            .disabled(find.matchCount == 0)
-            Spacer(minLength: 0)
-            Button(action: closeFind) {
-                Image(systemName: "xmark.circle.fill")
-                    .foregroundStyle(.secondary)
-            }
         }
-        .buttonStyle(.plain)
-        .padding(.horizontal, 12)
-        .padding(.vertical, 6)
-        .background(.bar)
-        .task(id: findQuery) { find.find(findQuery) }
-    }
-
-    private var findCountLabel: String {
-        var result = ""
-        if !findQuery.isEmpty {
-            result = find.matchCount == 0 ? "0"
-                : "\(find.currentMatch)/\(find.matchCount)"
-        }
-        return result
     }
 
     private func openFind() {
         findVisible = true
         findFocused = true
         if !findQuery.isEmpty { find.find(findQuery) }
+    }
+
+    private func showFind(_ q: String) {
+        findQuery = q
+        openFind()
     }
 
     private func closeFind() {

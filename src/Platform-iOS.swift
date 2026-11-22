@@ -52,6 +52,11 @@ func platformWhite(_ white: CGFloat, alpha: CGFloat) -> PlatformColor {
     UIColor(white: white, alpha: alpha)
 }
 
+func platformSRGB(_ red: CGFloat, _ green: CGFloat, _ blue: CGFloat,
+                  alpha: CGFloat) -> PlatformColor {
+    UIColor(red: red, green: green, blue: blue, alpha: alpha)
+}
+
 func platformAdaptiveColor(light: PlatformColor,
                             dark: PlatformColor) -> PlatformColor {
     UIColor { traits in

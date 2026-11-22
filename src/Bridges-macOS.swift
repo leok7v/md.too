@@ -172,15 +172,6 @@ extension NativeText: NSViewRepresentable {
             }
         }
 
-        // Concrete sRGB: a dynamic system color resolves to nil off a
-        // trait environment and would abort the attribute set.
-        private var findTint: NSColor {
-            NSColor(srgbRed: 1.0, green: 0.84, blue: 0.2, alpha: 0.35)
-        }
-        private var activeTint: NSColor {
-            NSColor(srgbRed: 1.0, green: 0.6, blue: 0.0, alpha: 0.6)
-        }
-
         func findAll(_ query: String) -> Int {
             findQuery = query
             findMatches = markdownFindRanges(in: string, query: query,

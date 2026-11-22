@@ -21,7 +21,9 @@ final class MarkdownFindController: ObservableObject {
     }
 
     func unregister(_ view: any FindableTextView) {
-        if target === view { target = nil }
+        if target === view {
+            target = nil
+        }
     }
 
     func find(_ q: String) {
